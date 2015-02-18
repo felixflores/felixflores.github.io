@@ -1,0 +1,8 @@
+#sites li {
+  padding-right : 1em;
+}
+
+#repositories span {
+  color: #828282;
+  font-size: 0.8em;
+}
