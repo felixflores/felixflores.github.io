@@ -72,147 +72,23 @@
           ></textarea>
         </div>
 
-        <button
-          type="submit"
+        <a
+          href="#"
           id="donateButton"
-          class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-md text-lg"
+          class="block w-full bg-gray-300 text-gray-600 font-bold py-3 px-4 rounded-md text-lg text-center no-underline transition-colors duration-300 ease-in-out"
         >
           Donate via Venmo
-        </button>
+        </a>
       </form>
     </div>
-    <script>
-      const CollegeFundCalc = {
-        calculateFutureValue: function (
-          principal,
-          years,
-          rate,
-          compoundingFrequency = 12
-        ) {
-          // Convert rate to decimal
-          const r = rate / 100;
-          // A = P(1 + r/n)^(nt)
-          return (
-            principal *
-            Math.pow(1 + r / compoundingFrequency, compoundingFrequency * years)
-          );
-        },
-
-        formatCurrency: function (amount) {
-          return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(amount);
-        },
-      };
-
-      // Make it available globally for the browser
-      window.CollegeFundCalc = CollegeFundCalc;
-
-      const purposes = [
-        "Collegiate cash for success",
-        "Helping you slay the semester, one expense at a time",
-        "Covering your college costs so you can focus on your future",
-        "Lifestyle on fleek, education on deck - you got this!",
-        "Making this college experience a little more enjoyable",
-        "Investing in your future, one bill at a time",
-      ];
-
-      document.addEventListener("DOMContentLoaded", function () {
-        const form = document.getElementById("donationForm");
-        const amountInput = document.getElementById("amountInput");
-        const futureValueDiv = document.getElementById("futureValue");
-        const messageInput = document.getElementById("messageInput");
-        const messageSuggestionsDiv =
-          document.getElementById("messageSuggestions");
-
-        function updateFutureValue() {
-          const amount = parseFloat(amountInput.value);
-          if (!isNaN(amount) && amount > 0) {
-            const futureValue = CollegeFundCalc.calculateFutureValue(
-              amount,
-              18,
-              6.5
-            );
-            futureValueDiv.textContent = `In 18 years this will be ${CollegeFundCalc.formatCurrency(
-              futureValue
-            )}`;
-          } else {
-            futureValueDiv.textContent =
-              "Enter an amount to see its future value";
-          }
-        }
-
-        function displayMessageSuggestions() {
-          purposes.forEach((purpose) => {
-            const button = document.createElement("button");
-            button.textContent = purpose;
-            button.className =
-              "p-2 bg-gray-200 rounded text-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500";
-            button.type = "button"; // Prevent form submission
-            button.onclick = () => selectMessageSuggestion(purpose);
-            messageSuggestionsDiv.appendChild(button);
-          });
-        }
-
-        function selectMessageSuggestion(suggestion) {
-          messageInput.value = suggestion;
-          messageSuggestionsDiv.querySelectorAll("button").forEach((btn) => {
-            btn.classList.remove("bg-blue-500", "text-white");
-            btn.classList.add("bg-gray-200");
-          });
-          event.target.classList.remove("bg-gray-200");
-          event.target.classList.add("bg-blue-500", "text-white");
-          messageInput.focus();
-        }
-
-        function minimalUrlEncode(str) {
-          return str.replace(
-            /[^\w.,;-]/g,
-            (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
-          );
-        }
-
-        function handleSubmit(event) {
-          event.preventDefault();
-
-          if (form.checkValidity()) {
-            const amount = amountInput.value;
-            const message = `🍼%3A%20${minimalUrlEncode(messageInput.value)}`;
-
-            const venmoUsername = "felixflores86";
-            const venmoLink = `https://venmo.com/?txn=pay&audience=friends&recipients=${venmoUsername}&amount=${amount}&note=${message}`;
-
-            // Create a temporary anchor element
-            const tempLink = document.createElement("a");
-            tempLink.href = venmoLink;
-            tempLink.target = "_blank";
-            tempLink.rel = "noopener noreferrer";
-
-            // Append the link to the body, click it, and remove it
-            document.body.appendChild(tempLink);
-            tempLink.click();
-            document.body.removeChild(tempLink);
-          } else {
-            form.reportValidity();
-          }
-        }
-
-        function showError(message) {
-          const errorDiv = document.createElement("div");
-          errorDiv.textContent = message;
-          errorDiv.className =
-            "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4";
-          form.appendChild(errorDiv);
-          setTimeout(() => errorDiv.remove(), 5000);
-        }
-
-        amountInput.addEventListener("input", updateFutureValue);
-        form.addEventListener("submit", handleSubmit);
-
-        updateFutureValue();
-        displayMessageSuggestions();
-      });
+    <script defer>
+      var form = document.getElementById("donationForm");
+      var messageInput = document.getElementById("messageInput");
+      var futureValueDiv = document.getElementById("futureValue");
+      var amountInput = document.getElementById("amountInput");
     </script>
+    <script src="display-purpose.js" defer></script>
+    <script src="donation-submit.js" defer></script>
+    <script src="calculate-future-value.js" defer></script>
   </body>
 </html>
