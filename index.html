@@ -109,8 +109,6 @@
       // Make it available globally for the browser
       window.CollegeFundCalc = CollegeFundCalc;
 
-      const VENMO_USERNAME = "felixflores86";
-
       const purposes = [
         "Collegiate cash for success",
         "Helping you slay the semester, one expense at a time",
@@ -182,10 +180,19 @@
             const amount = amountInput.value;
             const message = `🍼%3A%20${minimalUrlEncode(messageInput.value)}`;
 
-            const venmoUsername = VENMO_USERNAME;
+            const venmoUsername = "felixflores86";
             const venmoLink = `https://venmo.com/?txn=pay&audience=friends&recipients=${venmoUsername}&amount=${amount}&note=${message}`;
 
-            window.location.href = venmoLink;
+            // Create a temporary anchor element
+            const tempLink = document.createElement("a");
+            tempLink.href = venmoLink;
+            tempLink.target = "_blank";
+            tempLink.rel = "noopener noreferrer";
+
+            // Append the link to the body, click it, and remove it
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            document.body.removeChild(tempLink);
           } else {
             form.reportValidity();
           }
