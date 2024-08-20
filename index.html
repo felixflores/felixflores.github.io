@@ -184,18 +184,8 @@
 
             const venmoUsername = VENMO_USERNAME;
             const venmoLink = `https://venmo.com/?txn=pay&audience=friends&recipients=${venmoUsername}&amount=${amount}&note=${message}`;
-            debugger;
 
-            // Create a temporary anchor element
-            const tempLink = document.createElement("a");
-            tempLink.href = venmoLink;
-            tempLink.target = "_blank";
-            tempLink.rel = "noopener noreferrer";
-
-            // Append the link to the body, click it, and remove it
-            document.body.appendChild(tempLink);
-            tempLink.click();
-            document.body.removeChild(tempLink);
+            window.location.href = venmoLink;
           } else {
             form.reportValidity();
           }
