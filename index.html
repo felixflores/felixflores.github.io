@@ -170,7 +170,7 @@
 
       function updateVenmoLink() {
         const amount = amountInput.value;
-        const message = `🍼%3A%20${minimalUrlEncode(messageInput.value)}`;
+        const message = `${minimalUrlEncode(messageInput.value)}%20%23babyFund`;
         const venmoUsername = "felixflores86";
         const venmoLink = `https://venmo.com/?txn=pay&audience=friends&recipients=${venmoUsername}&amount=${amount}&note=${message}`;
         donateButton.href = venmoLink;
