@@ -22,12 +22,79 @@
   <body class="bg-gray-100">
     <div class="max-w-6xl mx-auto p-4">
       <div class="flex flex-wrap justify-between items-start gap-0">
+        <div
+          class="w-full lg:w-[48%] bg-white p-6 rounded-lg shadow-md mb-8 lg:mb-0"
+        >
+          <form id="donationForm">
+            <h1 class="text-4xl font-bold mb-6">
+              Donate to Our Baby's College Fund
+            </h1>
+            <div class="mb-4">
+              <label
+                for="amountInput"
+                class="block text-lg font-medium text-gray-700 mb-2"
+                >Donation Amount</label
+              >
+              <div
+                class="flex items-center bg-gray-100 rounded-md overflow-hidden"
+              >
+                <span class="text-2xl font-bold px-3 py-2">$</span>
+                <input
+                  type="number"
+                  name="amount"
+                  id="amountInput"
+                  class="w-full bg-gray-100 text-2xl font-bold px-2 py-2 focus:outline-none"
+                  placeholder="0"
+                  step="0.01"
+                  min="0.01"
+                  required
+                />
+              </div>
+            </div>
+
+            <div
+              id="futureValue"
+              class="p-3 bg-blue-100 rounded text-blue-800 font-semibold text-center mb-4"
+            ></div>
+
+            <div class="mb-4">
+              <label
+                for="messageInput"
+                class="block text-lg font-medium text-gray-700 mb-2"
+                >Message for the Future</label
+              >
+              <div
+                id="messageSuggestions"
+                class="grid grid-cols-3 gap-2 mb-2"
+              ></div>
+              <textarea
+                id="messageInput"
+                name="message"
+                rows="2"
+                class="w-full border handwriting-font border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Your message here..."
+                required
+              ></textarea>
+            </div>
+
+            <a
+              href="#"
+              id="donateButton"
+              class="block w-full bg-gray-300 text-gray-600 font-bold py-3 px-4 rounded-md text-lg text-center no-underline transition-colors duration-300 ease-in-out"
+            >
+              Donate via Venmo
+            </a>
+          </form>
+        </div>
         <!-- Removed gap -->
         <!-- Left side: Inspirational content -->
         <div
           class="w-full lg:w-[48%] bg-white p-6 rounded-lg shadow-md mb-8 lg:mb-0"
         >
           <div class="flex flex-col gap-6">
+            <h1 class="text-4xl font-bold mb-6">
+              The best gift is the gift of education.
+            </h1>
             <div class="flex gap-4 items-start">
               <img
                 src="felix-graduation.jpg"
@@ -37,9 +104,13 @@
               <div>
                 <h2 class="text-xl font-bold mb-2">A Legacy of Learning</h2>
                 <p>
-                  From early school days to lifelong learning, education shapes
-                  our paths. We invite you to contribute to our baby's
-                  educational fund, fostering a bright mind from the start.
+                  From the early days of school to a lifetime of curiosity and
+                  growth, education shapes who we become. By contributing to our
+                  baby’s educational fund, you’re not just giving a gift—you’re
+                  investing in a bright future, helping to build a foundation
+                  that will support our little one throughout life’s journey.
+                  Your generosity will be a part of every lesson learned and
+                  every dream pursued.
                 </p>
               </div>
             </div>
@@ -52,80 +123,200 @@
               <div>
                 <h2 class="text-xl font-bold mb-2">Inspired to Educate</h2>
                 <p>
-                  Help us pass on the gift of knowledge to our little one by
-                  contributing to their education fund. Your support is an
-                  investment in a world of potential.
+                  We believe in the power of knowledge to open doors and create
+                  opportunities. With your help, we can give our child the tools
+                  they need to explore the world and make a difference. Your
+                  contribution to their education fund is more than just a
+                  donation—it’s a legacy of love and wisdom that will carry on
+                  for generations.
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-4 items-start">
+              <img
+                src="future.webp"
+                alt="Future version of our child"
+                class="w-1/3 h-auto rounded-lg"
+              />
+              <div>
+                <h2 class="text-xl font-bold mb-2">A Gift to Be Remembered</h2>
+                <p>
+                  We know that every gift comes from the heart, and we want to
+                  make sure your kindness is recognized. When you contribute to
+                  our baby's education fund, we'll include your name and message
+                  in a special keepsake that will grow alongside our child, a
+                  reminder of the community that helped to shape their future.
                 </p>
               </div>
             </div>
           </div>
         </div>
-
-        <form
-          id="donationForm"
-          class="w-full lg:w-[48%] bg-white p-8 rounded-lg shadow-md"
-        >
-          <h1 class="text-4xl font-bold mb-6">
-            Donate to Our Baby's College Fund
-          </h1>
-          <div class="mb-4">
-            <label
-              for="amountInput"
-              class="block text-lg font-medium text-gray-700 mb-2"
-              >Donation Amount</label
-            >
-            <div
-              class="flex items-center bg-gray-100 rounded-md overflow-hidden"
-            >
-              <span class="text-2xl font-bold px-3 py-2">$</span>
-              <input
-                type="number"
-                name="amount"
-                id="amountInput"
-                class="w-full bg-gray-100 text-2xl font-bold px-2 py-2 focus:outline-none"
-                placeholder="0"
-                step="0.01"
-                min="0.01"
-                required
-              />
-            </div>
-          </div>
-
-          <div
-            id="futureValue"
-            class="p-3 bg-blue-100 rounded text-blue-800 font-semibold text-center mb-4"
-          ></div>
-
-          <div class="mb-4">
-            <label
-              for="messageInput"
-              class="block text-lg font-medium text-gray-700 mb-2"
-              >Message for the Future</label
-            >
-            <div
-              id="messageSuggestions"
-              class="grid grid-cols-3 gap-2 mb-2"
-            ></div>
-            <textarea
-              id="messageInput"
-              name="message"
-              rows="2"
-              class="w-full border handwriting-font border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Your message here..."
-              required
-            ></textarea>
-          </div>
-
-          <a
-            href="#"
-            id="donateButton"
-            class="block w-full bg-gray-300 text-gray-600 font-bold py-3 px-4 rounded-md text-lg text-center no-underline transition-colors duration-300 ease-in-out"
-          >
-            Donate via Venmo
-          </a>
-        </form>
       </div>
     </div>
-    <script src="app.js"></script>
+
+    <script defer>
+      const form = document.getElementById("donationForm");
+      const messageInput = document.getElementById("messageInput");
+      const futureValueDiv = document.getElementById("futureValue");
+      const amountInput = document.getElementById("amountInput");
+      const donateButton = document.getElementById("donateButton");
+      const purposeSuggestions =
+        document.getElementsByClassName("purpose-suggestion");
+    </script>
+
+    <script defer>
+      const purposes = [
+        "Collegiate cash for success",
+        "Helping you slay the semester, one expense at a time",
+        "Covering your college costs so you can focus on your future",
+        "Lifestyle on fleek, education on deck - you got this!",
+        "Making this college experience a little more enjoyable",
+        "Investing in your future, one bill at a time",
+      ];
+
+      const messageSuggestionsDiv =
+        document.getElementById("messageSuggestions");
+
+      function displayMessageSuggestions() {
+        purposes.forEach((purpose) => {
+          const button = document.createElement("button");
+          button.textContent = purpose;
+          button.className =
+            "purpose-suggestion p-2 bg-gray-200 rounded text-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500";
+          button.type = "button"; // Prevent form submission
+          button.onclick = () => selectMessageSuggestion(purpose);
+          messageSuggestionsDiv.appendChild(button);
+        });
+      }
+
+      function selectMessageSuggestion(suggestion) {
+        messageInput.value = suggestion;
+        messageSuggestionsDiv.querySelectorAll("button").forEach((btn) => {
+          btn.classList.remove("bg-blue-500", "text-white");
+          btn.classList.add("bg-gray-200");
+        });
+        event.target.classList.remove("bg-gray-200");
+        event.target.classList.add("bg-blue-500", "text-white");
+        messageInput.focus();
+      }
+
+      displayMessageSuggestions();
+    </script>
+
+    <script defer>
+      function minimalUrlEncode(str) {
+        return str.replace(
+          /[^\w.,;-]/g,
+          (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+        );
+      }
+
+      function validateForm() {
+        if (form.checkValidity()) {
+          donateButton.classList.remove(
+            "bg-gray-300",
+            "text-gray-600",
+            "cursor-not-allowed"
+          );
+          donateButton.classList.add(
+            "bg-green-500",
+            "text-white",
+            "hover:bg-green-600",
+            "cursor-pointer"
+          );
+          updateVenmoLink();
+        } else {
+          donateButton.classList.add(
+            "bg-gray-300",
+            "text-gray-600",
+            "cursor-not-allowed"
+          );
+          donateButton.classList.remove(
+            "bg-green-500",
+            "text-white",
+            "hover:bg-green-600",
+            "cursor-pointer"
+          );
+          donateButton.href = "#";
+        }
+      }
+
+      function updateVenmoLink() {
+        const amount = amountInput.value;
+        const message = `${minimalUrlEncode(messageInput.value)}%20%23babyFund`;
+        const venmoUsername = "felixflores86";
+        const venmoLink = `https://venmo.com/?txn=pay&audience=friends&recipients=${venmoUsername}&amount=${amount}&note=${message}`;
+        donateButton.href = venmoLink;
+      }
+
+      function showError(message) {
+        const errorDiv = document.createElement("div");
+        errorDiv.textContent = message;
+        errorDiv.className =
+          "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4";
+        form.appendChild(errorDiv);
+        setTimeout(() => errorDiv.remove(), 5000);
+      }
+
+      // Add event listeners
+      amountInput.addEventListener("input", validateForm);
+      messageInput.addEventListener("input", validateForm);
+
+      const suggestions = Array.from(purposeSuggestions);
+
+      // Iterate over each element and add the event listener
+      suggestions.forEach((element) => {
+        element.addEventListener("click", validateForm);
+      });
+
+      // Initial validation
+      validateForm();
+    </script>
+
+    <script defer>
+      const CollegeFundCalc = {
+        calculateFutureValue: function (
+          principal,
+          years,
+          rate,
+          compoundingFrequency = 12
+        ) {
+          // Convert rate to decimal
+          const r = rate / 100;
+          // A = P(1 + r/n)^(nt)
+          return (
+            principal *
+            Math.pow(1 + r / compoundingFrequency, compoundingFrequency * years)
+          );
+        },
+
+        formatCurrency: function (amount) {
+          return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+          }).format(amount);
+        },
+      };
+
+      function updateFutureValue() {
+        const amount = parseFloat(amountInput.value);
+        if (!isNaN(amount) && amount > 0) {
+          const futureValue = CollegeFundCalc.calculateFutureValue(
+            amount,
+            18,
+            6.5
+          );
+          futureValueDiv.textContent = `In 18 years this will be ${CollegeFundCalc.formatCurrency(
+            futureValue
+          )}`;
+        } else {
+          futureValueDiv.textContent =
+            "Enter an amount to see its future value";
+        }
+      }
+
+      amountInput.addEventListener("input", updateFutureValue);
+      updateFutureValue();
+    </script>
   </body>
 </html>
