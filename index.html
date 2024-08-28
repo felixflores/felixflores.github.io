@@ -13,7 +13,7 @@
     />
     <style>
       .handwriting-font {
-        font-family: "Caveat", cursive;
+        font-family: 'Caveat', cursive;
         font-size: 1.7rem;
         font-style: normal;
       }
@@ -47,6 +47,7 @@
                   placeholder="0"
                   step="0.01"
                   min="0.01"
+                  value="5"
                   required
                 />
               </div>
@@ -166,38 +167,38 @@
     </div>
 
     <script defer>
-      const form = document.getElementById("donationForm");
-      const messageInput = document.getElementById("messageInput");
-      const futureValueDiv = document.getElementById("futureValue");
-      const amountInput = document.getElementById("amountInput");
-      const donateButton = document.getElementById("donateButton");
+      const form = document.getElementById('donationForm');
+      const messageInput = document.getElementById('messageInput');
+      const futureValueDiv = document.getElementById('futureValue');
+      const amountInput = document.getElementById('amountInput');
+      const donateButton = document.getElementById('donateButton');
       const purposeSuggestions =
-        document.getElementsByClassName("purpose-suggestion");
+        document.getElementsByClassName('purpose-suggestion');
     </script>
 
     <script defer>
       const purposes = [
-        "Keep dreaming big - your potential is limitless!",
-        "Every step forward is a step towards your passion.",
-        "Believe in yourself - great things are on the horizon.",
-        "Follow your heart, and the future will follow you.",
-        "Your journey is just beginning - keep going!",
-        "Passion fuels success - never stop chasing yours.",
-        "The world needs your brilliance - shine on!",
-        "Stay curious, stay driven—your path is yours to create.",
+        'Keep dreaming big - your potential is limitless!',
+        'Every step forward is a step towards your passion.',
+        'Believe in yourself - great things are on the horizon.',
+        'Follow your heart, and the future will follow you.',
+        'Your journey is just beginning - keep going!',
+        'Passion fuels success - never stop chasing yours.',
+        'The world needs your brilliance - shine on!',
+        'Stay curious, stay driven—your path is yours to create.',
         "With every challenge, you're one step closer to your dreams.",
       ];
 
       const messageSuggestionsDiv =
-        document.getElementById("messageSuggestions");
+        document.getElementById('messageSuggestions');
 
       function displayMessageSuggestions() {
         purposes.forEach((purpose) => {
-          const button = document.createElement("button");
+          const button = document.createElement('button');
           button.textContent = purpose;
           button.className =
-            "purpose-suggestion p-2 bg-gray-200 rounded text-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500";
-          button.type = "button"; // Prevent form submission
+            'purpose-suggestion p-2 bg-gray-200 rounded text-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500';
+          button.type = 'button'; // Prevent form submission
           button.onclick = () => selectMessageSuggestion(purpose);
           messageSuggestionsDiv.appendChild(button);
         });
@@ -205,12 +206,12 @@
 
       function selectMessageSuggestion(suggestion) {
         messageInput.value = suggestion;
-        messageSuggestionsDiv.querySelectorAll("button").forEach((btn) => {
-          btn.classList.remove("bg-blue-500", "text-white");
-          btn.classList.add("bg-gray-200");
+        messageSuggestionsDiv.querySelectorAll('button').forEach((btn) => {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-200');
         });
-        event.target.classList.remove("bg-gray-200");
-        event.target.classList.add("bg-blue-500", "text-white");
+        event.target.classList.remove('bg-gray-200');
+        event.target.classList.add('bg-blue-500', 'text-white');
         messageInput.focus();
       }
 
@@ -228,59 +229,59 @@
       function validateForm() {
         if (form.checkValidity()) {
           donateButton.classList.remove(
-            "bg-gray-300",
-            "text-gray-600",
-            "cursor-not-allowed"
+            'bg-gray-300',
+            'text-gray-600',
+            'cursor-not-allowed'
           );
           donateButton.classList.add(
-            "bg-green-500",
-            "text-white",
-            "hover:bg-green-600",
-            "cursor-pointer"
+            'bg-green-500',
+            'text-white',
+            'hover:bg-green-600',
+            'cursor-pointer'
           );
           updateVenmoLink();
         } else {
           donateButton.classList.add(
-            "bg-gray-300",
-            "text-gray-600",
-            "cursor-not-allowed"
+            'bg-gray-300',
+            'text-gray-600',
+            'cursor-not-allowed'
           );
           donateButton.classList.remove(
-            "bg-green-500",
-            "text-white",
-            "hover:bg-green-600",
-            "cursor-pointer"
+            'bg-green-500',
+            'text-white',
+            'hover:bg-green-600',
+            'cursor-pointer'
           );
-          donateButton.href = "#";
+          donateButton.href = '#';
         }
       }
 
       function updateVenmoLink() {
         const amount = amountInput.value;
         const message = `${minimalUrlEncode(messageInput.value)}%20%23babyFund`;
-        const venmoUsername = "felixflores86";
+        const venmoUsername = 'felixflores86';
         const venmoLink = `https://venmo.com/?txn=pay&audience=friends&recipients=${venmoUsername}&amount=${amount}&note=${message}`;
         donateButton.href = venmoLink;
       }
 
       function showError(message) {
-        const errorDiv = document.createElement("div");
+        const errorDiv = document.createElement('div');
         errorDiv.textContent = message;
         errorDiv.className =
-          "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4";
+          'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4';
         form.appendChild(errorDiv);
         setTimeout(() => errorDiv.remove(), 5000);
       }
 
       // Add event listeners
-      amountInput.addEventListener("input", validateForm);
-      messageInput.addEventListener("input", validateForm);
+      amountInput.addEventListener('input', validateForm);
+      messageInput.addEventListener('input', validateForm);
 
       const suggestions = Array.from(purposeSuggestions);
 
       // Iterate over each element and add the event listener
       suggestions.forEach((element) => {
-        element.addEventListener("click", validateForm);
+        element.addEventListener('click', validateForm);
       });
 
       // Initial validation
@@ -305,9 +306,9 @@
         },
 
         formatCurrency: function (amount) {
-          return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
           }).format(amount);
         },
       };
@@ -325,11 +326,11 @@
           )}`;
         } else {
           futureValueDiv.textContent =
-            "Enter an amount to see its future value";
+            'Enter an amount to see its future value';
         }
       }
 
-      amountInput.addEventListener("input", updateFutureValue);
+      amountInput.addEventListener('input', updateFutureValue);
       updateFutureValue();
     </script>
   </body>
