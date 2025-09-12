@@ -3,333 +3,88 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Donate to Baby's College Fund</title>
+    <title>Felix Flores</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Paytone+One&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <style>
-      .handwriting-font {
-        font-family: 'Caveat', cursive;
-        font-size: 1.7rem;
-        font-style: normal;
+      body {
+        font-family: 'Inter', sans-serif;
       }
     </style>
   </head>
-  <body class="bg-gray-100">
-    <div class="max-w-6xl mx-auto p-4">
-      <div class="flex flex-wrap justify-between items-start gap-0">
-        <div
-          class="w-full lg:w-[48%] bg-white p-6 rounded-lg shadow-md mb-8 lg:mb-0"
-        >
-          <form id="donationForm">
-            <h1 class="text-4xl font-bold mb-6">A Gift of Education</h1>
-            <div class="mb-4">
-              <label
-                for="amountInput"
-                class="block text-lg font-medium text-gray-700 mb-2"
-                >Education fund donation</label
+  <body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full mx-4">
+      <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 h-32"></div>
+        <div class="relative px-8 pb-8">
+          <div class="absolute -top-16 left-8">
+            <img 
+              src="image.png" 
+              alt="Felix Flores" 
+              class="w-24 h-24 rounded-full shadow-lg border-4 border-white object-cover"
+            />
+          </div>
+          <div class="pt-12">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Felix Flores</h1>
+            <p class="text-gray-600 mb-6">Technologist</p>
+            
+            <div class="space-y-3">
+              <a
+                href="https://github.com/felixflores"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center w-full p-4 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
               >
-              <div
-                class="flex items-center bg-gray-100 rounded-md overflow-hidden"
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+              </a>
+              
+              <a
+                href="https://x.com/felixflores"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center w-full p-4 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
               >
-                <span class="text-2xl font-bold px-3 py-2">$</span>
-                <input
-                  type="number"
-                  name="amount"
-                  id="amountInput"
-                  class="w-full bg-gray-100 text-2xl font-bold px-2 py-2 focus:outline-none"
-                  placeholder="0"
-                  step="0.01"
-                  min="0.01"
-                  value="5"
-                  required
-                />
-              </div>
-            </div>
-
-            <div
-              id="futureValue"
-              class="p-3 bg-blue-100 rounded text-blue-800 font-semibold text-center mb-4"
-            ></div>
-
-            <div class="mb-4">
-              <label
-                for="messageInput"
-                class="block text-lg font-medium text-gray-700 mb-2"
-                >Write her a future message</label
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                X (Twitter)
+              </a>
+              
+              <a
+                href="https://www.instagram.com/felixflores"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center w-full p-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all duration-200"
               >
-              <div
-                id="messageSuggestions"
-                class="grid grid-cols-3 gap-2 mb-2"
-              ></div>
-              <textarea
-                id="messageInput"
-                name="message"
-                rows="2"
-                class="w-full border handwriting-font border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Select or customize your message..."
-                required
-              ></textarea>
-            </div>
-
-            <a
-              href="#"
-              id="donateButton"
-              class="block w-full bg-gray-300 text-gray-600 font-bold py-3 px-4 rounded-md text-lg text-center no-underline transition-colors duration-300 ease-in-out"
-            >
-              Donate via Venmo
-            </a>
-          </form>
-        </div>
-        <!-- Removed gap -->
-        <!-- Left side: Inspirational content -->
-        <div
-          class="w-full lg:w-[48%] bg-white p-6 rounded-lg shadow-md mb-8 lg:mb-0"
-        >
-          <div class="flex flex-col gap-6">
-            <h1 class="text-4xl font-bold mb-6">A gift she'll remember...</h1>
-            <div class="flex gap-4 items-start">
-              <img
-                src="felix-graduation.jpg"
-                alt="Felix in graduation attire"
-                class="w-1/3 h-auto rounded-lg"
-              />
-              <div>
-                <h2 class="text-xl font-bold mb-2">A Legacy of Learning</h2>
-                <p>
-                  From the early days of school to a lifetime of curiosity and
-                  growth, education shapes who we become. By contributing to our
-                  baby’s educational fund, you’re not just giving a gift—you’re
-                  investing in a bright future, helping to build a foundation
-                  that will support our little one throughout life’s journey.
-                  Your generosity will be a part of every lesson learned and
-                  every dream pursued.
-                </p>
-              </div>
-            </div>
-            <div class="flex gap-4 items-start">
-              <img
-                src="sara-graduation.jpg"
-                alt="Sara with pets in graduation attire"
-                class="w-1/3 h-auto rounded-lg"
-              />
-              <div>
-                <h2 class="text-xl font-bold mb-2">Inspired to Educate</h2>
-                <p>
-                  We believe in the power of knowledge to open doors and create
-                  opportunities. With your help, we can give our child the tools
-                  they need to explore the world and make a difference. Your
-                  contribution to their education fund is more than just a
-                  donation—it’s a legacy of love and wisdom that will carry on
-                  for generations.
-                </p>
-              </div>
-            </div>
-            <div class="flex gap-4 items-start">
-              <img
-                src="future.webp"
-                alt="Future version of our child"
-                class="w-1/3 h-auto rounded-lg"
-              />
-              <div>
-                <h2 class="text-xl font-bold mb-4">A Gift to Be Remembered</h2>
-                <!-- Increased bottom margin -->
-                <p class="mb-4">
-                  <!-- Added margin bottom for spacing -->
-                  We know that every gift comes from the heart, and we want to
-                  make sure your kindness is recognized. When you contribute to
-                  our baby's education fund, we'll include your name and message
-                  in a special keepsake that will grow alongside our child, a
-                  reminder of the community that helped to shape their future.
-                </p>
-                <p>
-                  Your donation will be invested in a
-                  <a
-                    href="https://www.fidelity.com/529-plans/what-is-a-529-plan"
-                    target="529-explanation"
-                    class="text-blue-500 underline hover:text-blue-700"
-                  >
-                    529 plan</a
-                  >, where it will grow over time and be dedicated to supporting
-                  her educational journey.
-                </p>
-              </div>
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+                Instagram
+              </a>
+              
+              <a
+                href="https://www.linkedin.com/in/felixflores/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center w-full p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+              >
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                </svg>
+                LinkedIn
+              </a>
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <script defer>
-      const form = document.getElementById('donationForm');
-      const messageInput = document.getElementById('messageInput');
-      const futureValueDiv = document.getElementById('futureValue');
-      const amountInput = document.getElementById('amountInput');
-      const donateButton = document.getElementById('donateButton');
-      const purposeSuggestions =
-        document.getElementsByClassName('purpose-suggestion');
-    </script>
-
-    <script defer>
-      const purposes = [
-        'Keep dreaming big - your potential is limitless!',
-        'Every step forward is a step towards your passion.',
-        'Believe in yourself - great things are on the horizon.',
-        'Follow your heart, and the future will follow you.',
-        'Your journey is just beginning - keep going!',
-        'Passion fuels success - never stop chasing yours.',
-        'The world needs your brilliance - shine on!',
-        'Stay curious, stay driven—your path is yours to create.',
-        "With every challenge, you're one step closer to your dreams.",
-      ];
-
-      const messageSuggestionsDiv =
-        document.getElementById('messageSuggestions');
-
-      function displayMessageSuggestions() {
-        purposes.forEach((purpose) => {
-          const button = document.createElement('button');
-          button.textContent = purpose;
-          button.className =
-            'purpose-suggestion p-2 bg-gray-200 rounded text-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500';
-          button.type = 'button'; // Prevent form submission
-          button.onclick = () => selectMessageSuggestion(purpose);
-          messageSuggestionsDiv.appendChild(button);
-        });
-      }
-
-      function selectMessageSuggestion(suggestion) {
-        messageInput.value = suggestion;
-        messageSuggestionsDiv.querySelectorAll('button').forEach((btn) => {
-          btn.classList.remove('bg-blue-500', 'text-white');
-          btn.classList.add('bg-gray-200');
-        });
-        event.target.classList.remove('bg-gray-200');
-        event.target.classList.add('bg-blue-500', 'text-white');
-        messageInput.focus();
-      }
-
-      displayMessageSuggestions();
-    </script>
-
-    <script defer>
-      function minimalUrlEncode(str) {
-        return str.replace(
-          /[^\w.,;-]/g,
-          (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
-        );
-      }
-
-      function validateForm() {
-        if (form.checkValidity()) {
-          donateButton.classList.remove(
-            'bg-gray-300',
-            'text-gray-600',
-            'cursor-not-allowed'
-          );
-          donateButton.classList.add(
-            'bg-green-500',
-            'text-white',
-            'hover:bg-green-600',
-            'cursor-pointer'
-          );
-          updateVenmoLink();
-        } else {
-          donateButton.classList.add(
-            'bg-gray-300',
-            'text-gray-600',
-            'cursor-not-allowed'
-          );
-          donateButton.classList.remove(
-            'bg-green-500',
-            'text-white',
-            'hover:bg-green-600',
-            'cursor-pointer'
-          );
-          donateButton.href = '#';
-        }
-      }
-
-      function updateVenmoLink() {
-        const amount = amountInput.value;
-        const message = `${minimalUrlEncode(messageInput.value)}%20%23babyFund`;
-        const venmoUsername = 'felixflores86';
-        const venmoLink = `https://venmo.com/?txn=pay&audience=friends&recipients=${venmoUsername}&amount=${amount}&note=${message}`;
-        donateButton.href = venmoLink;
-      }
-
-      function showError(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.textContent = message;
-        errorDiv.className =
-          'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4';
-        form.appendChild(errorDiv);
-        setTimeout(() => errorDiv.remove(), 5000);
-      }
-
-      // Add event listeners
-      amountInput.addEventListener('input', validateForm);
-      messageInput.addEventListener('input', validateForm);
-
-      const suggestions = Array.from(purposeSuggestions);
-
-      // Iterate over each element and add the event listener
-      suggestions.forEach((element) => {
-        element.addEventListener('click', validateForm);
-      });
-
-      // Initial validation
-      validateForm();
-    </script>
-
-    <script defer>
-      const CollegeFundCalc = {
-        calculateFutureValue: function (
-          principal,
-          years,
-          rate,
-          compoundingFrequency = 12
-        ) {
-          // Convert rate to decimal
-          const r = rate / 100;
-          // A = P(1 + r/n)^(nt)
-          return (
-            principal *
-            Math.pow(1 + r / compoundingFrequency, compoundingFrequency * years)
-          );
-        },
-
-        formatCurrency: function (amount) {
-          return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-          }).format(amount);
-        },
-      };
-
-      function updateFutureValue() {
-        const amount = parseFloat(amountInput.value);
-        if (!isNaN(amount) && amount > 0) {
-          const futureValue = CollegeFundCalc.calculateFutureValue(
-            amount,
-            18,
-            6.5
-          );
-          futureValueDiv.textContent = `In 18 years this will be ${CollegeFundCalc.formatCurrency(
-            futureValue
-          )}`;
-        } else {
-          futureValueDiv.textContent =
-            'Enter an amount to see its future value';
-        }
-      }
-
-      amountInput.addEventListener('input', updateFutureValue);
-      updateFutureValue();
-    </script>
   </body>
 </html>
