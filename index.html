@@ -109,6 +109,72 @@
         border-radius: 8px;
         text-align: center;
         pointer-events: none;
+        z-index: 10;
+      }
+
+      .face-guide {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100px;
+        height: 120px;
+        border: 3px solid rgba(0, 255, 0, 0.5);
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+        pointer-events: none;
+        display: none;
+        z-index: 5;
+      }
+
+      .face-guide::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        border: 1px solid rgba(0, 255, 0, 0.2);
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.1);
+          opacity: 0.5;
+        }
+      }
+
+      .face-guide.visible {
+        display: block;
+      }
+
+      .initial-figure {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 6px;
+        line-height: 6px;
+        color: rgba(0, 255, 0, 0.6);
+        font-family: 'Courier New', monospace;
+        white-space: pre;
+        animation: subtleMove 4s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      @keyframes subtleMove {
+        0%, 100% {
+          transform: translate(-50%, -50%) translateY(0);
+        }
+        50% {
+          transform: translate(-50%, -50%) translateY(-3px);
+        }
       }
 
       .recalibrate-button {
@@ -282,6 +348,8 @@
         <canvas id="videoCanvas"></canvas>
         <div class="ascii-controls">[ WEBCAM ]</div>
         <button class="recalibrate-button" id="recalibrateButton">RECALIBRATE</button>
+        <div class="initial-figure" id="initialFigure"></div>
+        <div class="face-guide" id="faceGuide"></div>
         <div class="calibration-notice" id="calibrationNotice" style="display: none;">
           CALIBRATING...<br>
           Look straight at camera
@@ -330,6 +398,8 @@
       const container = document.querySelector('.container');
       const calibrationNotice = document.getElementById('calibrationNotice');
       const recalibrateButton = document.getElementById('recalibrateButton');
+      const initialFigure = document.getElementById('initialFigure');
+      const faceGuide = document.getElementById('faceGuide');
       const profileImage = document.querySelector('.profile-image');
       const nameElement = document.querySelector('.name');
       const titleElement = document.querySelector('.title');
@@ -355,9 +425,26 @@
       let calibrationFrames = 0;
       let calibrationSumX = 0;
       let calibrationSumY = 0;
+      let calibrationActive = false;
 
       let matrixColumns = [];
       let matrixActive = false;
+
+      initialFigure.textContent = `
+       ▄▄▄▄▄▄▄▄▄▄▄▄▄
+     ▄▀░░░░░░░░░░░░░▀▄
+    █░░░░░░░░░░░░░░░░█
+   █░░█░░░░░░░░░█░░░░█
+  █░░░█░░░░░░░░░█░░░░░█
+  █░░░░░░░░░░░░░░░░░░░█
+  █░░░░░░░░░░░░░░░░░░░█
+   █░░░░▄▄▄▄▄▄▄░░░░░░█
+    █░░░░░░░░░░░░░░░█
+     ▀▄░░░░░░░░░░░▄▀
+       ▀▀▀▀▀▀▀▀▀▀▀
+
+     CLICK TO ENABLE
+       WEBCAM 3D`;
 
       function initMatrix() {
         matrixCanvas.width = window.innerWidth;
@@ -412,8 +499,13 @@
 
           video.onloadedmetadata = () => {
             isWebcamActive = true;
-            calibrationNotice.style.display = 'block';
-            recalibrateButton.classList.remove('visible');
+            initialFigure.style.display = 'none';
+            faceGuide.classList.add('visible');
+            setTimeout(() => {
+              faceGuide.classList.remove('visible');
+              calibrationNotice.style.display = 'block';
+              calibrationActive = true;
+            }, 2500);
             initMatrix();
             renderAscii();
           };
@@ -468,7 +560,7 @@
         headX = brightestX / width;
         headY = brightestY / height;
 
-        if (calibrationFrames < 30) {
+        if (calibrationActive && calibrationFrames < 30) {
           calibrationSumX += headX;
           calibrationSumY += headY;
           calibrationFrames++;
@@ -476,6 +568,7 @@
             calibratedCenterX = calibrationSumX / 30;
             calibratedCenterY = calibrationSumY / 30;
             calibrationNotice.style.display = 'none';
+            calibrationActive = false;
             recalibrateButton.classList.add('visible');
           }
         }
@@ -568,21 +661,6 @@
         }
       }
 
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      if (!isMobile) {
-        initWebcam();
-      } else {
-        asciiArt.textContent = `
-╔══════════════════════════╗
-║                          ║
-║    TAP TO START          ║
-║    WEBCAM ASCII          ║
-║    WITH 3D TRACKING      ║
-║                          ║
-╚══════════════════════════╝`;
-      }
-
       document.querySelector('.ascii-container').addEventListener('click', (e) => {
         if (!isWebcamActive && e.target !== recalibrateButton) {
           initWebcam();
@@ -593,8 +671,14 @@
         calibrationFrames = 0;
         calibrationSumX = 0;
         calibrationSumY = 0;
+        calibrationActive = false;
         recalibrateButton.classList.remove('visible');
-        calibrationNotice.style.display = 'block';
+        faceGuide.classList.add('visible');
+        setTimeout(() => {
+          faceGuide.classList.remove('visible');
+          calibrationNotice.style.display = 'block';
+          calibrationActive = true;
+        }, 2500);
       });
     </script>
   </body>
