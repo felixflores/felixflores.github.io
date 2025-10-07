@@ -10,6 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
@@ -61,9 +62,75 @@
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
         border: 1px solid rgba(0, 0, 0, 0.04);
         text-align: center;
-        overflow: hidden;
+        overflow: visible;
         transition: transform 0.1s ease-out;
         transform-style: preserve-3d;
+        position: relative;
+      }
+
+      .hidden-layer {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 100%;
+        transform: translate(-50%, -50%) translateZ(-100px);
+        display: flex;
+        justify-content: space-between;
+        padding: 0 40px;
+        pointer-events: none;
+        transform-style: preserve-3d;
+      }
+
+      .hidden-link {
+        display: flex;
+        align-items: center;
+        padding: 16px 20px;
+        text-decoration: none;
+        color: #1d1d1f;
+        background: #f5f5f7;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 400;
+        transition: all 0.15s ease;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        pointer-events: auto;
+        white-space: nowrap;
+      }
+
+      .hidden-link:hover {
+        background: #e8e8ed;
+      }
+
+      .hidden-link.left:hover {
+        transform: translateY(-50%) rotate(-90deg) scale(1.02);
+      }
+
+      .hidden-link.right:hover {
+        transform: translateY(-50%) rotate(90deg) scale(1.02);
+      }
+
+      .hidden-link.left:active {
+        background: #d1d1d6;
+        transform: translateY(-50%) rotate(-90deg) scale(0.98);
+      }
+
+      .hidden-link.right:active {
+        background: #d1d1d6;
+        transform: translateY(-50%) rotate(90deg) scale(0.98);
+      }
+
+      .hidden-link.left {
+        position: absolute;
+        left: -80px;
+        top: 50%;
+        transform: translateY(-50%) rotate(-90deg);
+      }
+
+      .hidden-link.right {
+        position: absolute;
+        right: -80px;
+        top: 50%;
+        transform: translateY(-50%) rotate(90deg);
       }
 
       @media (max-width: 768px) {
@@ -417,12 +484,36 @@
         .link:active {
           background: #48484a;
         }
+
+        .hidden-link {
+          color: #f5f5f7;
+          background: #2c2c2e;
+          border-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .hidden-link:hover {
+          background: #3a3a3c;
+        }
+
+        .hidden-link:active {
+          background: #48484a;
+        }
       }
     </style>
   </head>
   <body>
     <canvas id="matrixCanvas"></canvas>
     <div class="container">
+      <div class="hidden-layer">
+        <a href="blog.html" class="hidden-link left">
+          <i class="fa-solid fa-blog" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
+          BLOG
+        </a>
+        <a href="photos.html" class="hidden-link right">
+          <i class="fa-solid fa-images" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
+          PHOTOS
+        </a>
+      </div>
       <div class="ascii-container">
         <div class="ascii-art" id="asciiArt"></div>
         <canvas id="videoCanvas"></canvas>
@@ -504,7 +595,7 @@
         height: 40,
         fps: isSafari ? 20 : 30,
         smoothing: isMobile ? 0.3 : (isSafari ? 0.25 : 0.15),
-        rotationMultipliers: { horizontal: 40, verticalUp: 60, verticalDown: 80 },
+        rotationMultipliers: { horizontal: 70, verticalUp: 60, verticalDown: 80 },
         shadowMultipliers: { x: 50, y: 60 }
       };
 
