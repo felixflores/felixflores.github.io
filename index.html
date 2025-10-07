@@ -73,12 +73,17 @@
         user-select: none;
         overflow: hidden;
         position: relative;
-        min-height: 280px;
+        min-height: 180px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 16px 16px 0 0;
         transform: translateZ(0px);
+        transition: min-height 0.4s ease;
+      }
+
+      .ascii-container.active {
+        min-height: 280px;
       }
 
       .ascii-art {
@@ -499,6 +504,7 @@
 
           video.onloadedmetadata = () => {
             isWebcamActive = true;
+            document.querySelector('.ascii-container').classList.add('active');
             initialFigure.style.display = 'none';
             faceGuide.classList.add('visible');
             setTimeout(() => {
