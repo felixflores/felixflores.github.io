@@ -63,6 +63,12 @@
         transform-style: preserve-3d;
       }
 
+      @media (max-width: 768px) {
+        .container {
+          max-width: 260px;
+        }
+      }
+
       .ascii-container {
         background: #000;
         padding: 0;
@@ -106,15 +112,18 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 14px;
+        font-size: 16px;
         color: #00ff00;
         font-family: 'Courier New', monospace;
-        background: rgba(0, 0, 0, 0.8);
-        padding: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        padding: 24px 32px;
         border-radius: 8px;
         text-align: center;
         pointer-events: none;
         z-index: 10;
+        white-space: normal;
+        line-height: 1.6;
+        font-weight: bold;
       }
 
       .face-guide {
@@ -356,8 +365,7 @@
         <div class="initial-figure" id="initialFigure"></div>
         <div class="face-guide" id="faceGuide"></div>
         <div class="calibration-notice" id="calibrationNotice" style="display: none;">
-          CALIBRATING...<br>
-          Look straight at camera
+          <span id="calibrationText"></span>
         </div>
       </div>
       <div class="content-wrapper">
@@ -397,45 +405,257 @@
       </div>
     </div>
     <script>
-      const asciiArt = document.getElementById('asciiArt');
-      const canvas = document.getElementById('videoCanvas');
-      const ctx = canvas.getContext('2d');
-      const container = document.querySelector('.container');
-      const calibrationNotice = document.getElementById('calibrationNotice');
-      const recalibrateButton = document.getElementById('recalibrateButton');
-      const initialFigure = document.getElementById('initialFigure');
-      const faceGuide = document.getElementById('faceGuide');
-      const profileImage = document.querySelector('.profile-image');
-      const nameElement = document.querySelector('.name');
-      const titleElement = document.querySelector('.title');
-      const linkElements = document.querySelectorAll('.link');
+      // DOM Elements
+      const elements = {
+        asciiArt: document.getElementById('asciiArt'),
+        canvas: document.getElementById('videoCanvas'),
+        container: document.querySelector('.container'),
+        calibrationNotice: document.getElementById('calibrationNotice'),
+        recalibrateButton: document.getElementById('recalibrateButton'),
+        initialFigure: document.getElementById('initialFigure'),
+        faceGuide: document.getElementById('faceGuide'),
+        profileImage: document.querySelector('.profile-image'),
+        nameElement: document.querySelector('.name'),
+        titleElement: document.querySelector('.title'),
+        linkElements: document.querySelectorAll('.link'),
+        matrixCanvas: document.getElementById('matrixCanvas'),
+        asciiContainer: document.querySelector('.ascii-container')
+      };
 
-      const matrixCanvas = document.getElementById('matrixCanvas');
-      const matrixCtx = matrixCanvas.getContext('2d');
+      // Constants
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const CONFIG = {
+        asciiChars: ['@', '#', 'S', '%', '?', '*', '+', ';', ':', ',', '.', ' '],
+        width: 80,
+        height: 40,
+        fps: isSafari ? 20 : 30,
+        smoothing: isSafari ? 0.35 : 0.22,
+        calibrationFrames: 30,
+        rotationMultipliers: { horizontal: 40, vertical: 28 },
+        shadowMultipliers: { x: -50, y: -45 },
+        gridSize: 5
+      };
 
-      const asciiChars = ['@', '#', 'S', '%', '?', '*', '+', ';', ':', ',', '.', ' '];
-      const width = 80;
-      const height = 40;
-      canvas.width = width;
-      canvas.height = height;
+      elements.canvas.width = CONFIG.width;
+      elements.canvas.height = CONFIG.height;
 
-      let video = null;
-      let isWebcamActive = false;
-      let headX = 0.5;
-      let headY = 0.5;
-      let smoothHeadX = 0.5;
-      let smoothHeadY = 0.5;
-      let calibratedCenterX = 0.5;
-      let calibratedCenterY = 0.5;
-      let calibrationFrames = 0;
-      let calibrationSumX = 0;
-      let calibrationSumY = 0;
-      let calibrationActive = false;
+      // Pure Functions
+      const pipe = (...fns) => x => fns.reduce((v, f) => f(v), x);
+      const curry = fn => (...args) => args.length >= fn.length ? fn(...args) : curry(fn.bind(null, ...args));
 
-      let matrixColumns = [];
-      let matrixActive = false;
+      const calculateBrightness = (r, g, b) => (r + g + b) / 3;
 
-      initialFigure.textContent = `
+      const getPixelBrightness = (pixels, x, y, width) => {
+        const offset = (y * width + x) * 4;
+        return calculateBrightness(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+      };
+
+      const mapRange = (value, inMin, inMax, outMin, outMax) =>
+        ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+
+      const smoothValue = curry((smoothing, current, target) =>
+        current + (target - current) * smoothing);
+
+      const findBrightestRegion = (pixels, width, height, gridSize) => {
+        const regions = Array.from({ length: gridSize }, (_, gy) =>
+          Array.from({ length: gridSize }, (_, gx) => {
+            const startX = Math.floor((gx / gridSize) * width);
+            const startY = Math.floor((gy / gridSize) * height);
+            const endX = Math.floor(((gx + 1) / gridSize) * width);
+            const endY = Math.floor(((gy + 1) / gridSize) * height);
+
+            const brightness = Array.from({ length: endY - startY }, (_, dy) =>
+              Array.from({ length: endX - startX }, (_, dx) =>
+                getPixelBrightness(pixels, startX + dx, startY + dy, width)
+              ).reduce((sum, val) => sum + val, 0)
+            ).reduce((sum, val) => sum + val, 0);
+
+            return { brightness, x: (startX + endX) / 2, y: (startY + endY) / 2 };
+          })
+        ).flat();
+
+        return regions.reduce((max, region) =>
+          region.brightness > max.brightness ? region : max
+        );
+      };
+
+      const pixelToAscii = curry((chars, brightness) => {
+        const charIndex = Math.floor((brightness / 255) * (chars.length - 1));
+        return chars[chars.length - 1 - charIndex];
+      });
+
+      const imageDataToAscii = (imageData, config) => {
+        const { width, height, asciiChars } = config;
+        const toChar = pixelToAscii(asciiChars);
+
+        return Array.from({ length: height }, (_, y) =>
+          Array.from({ length: width }, (_, x) => {
+            const brightness = getPixelBrightness(imageData.data, x, y, width);
+            return toChar(brightness);
+          }).reverse().join('')
+        ).join('\n');
+      };
+
+      const calculateRotation = (smoothHead, calibratedCenter, multiplier) =>
+        (smoothHead - calibratedCenter) * multiplier;
+
+      const calculateShadow = (smoothHead, calibratedCenter, multiplier) =>
+        (smoothHead - calibratedCenter) * multiplier;
+
+      const create3DTransformData = (state, config) => {
+        const { smoothHeadX, smoothHeadY, calibratedCenterX, calibratedCenterY } = state;
+        const rotateY = calculateRotation(smoothHeadX, calibratedCenterX, config.rotationMultipliers.horizontal);
+        const rotateX = calculateRotation(smoothHeadY, calibratedCenterY, config.rotationMultipliers.vertical);
+        const shadowX = calculateShadow(smoothHeadX, calibratedCenterX, config.shadowMultipliers.x);
+        const shadowY = calculateShadow(smoothHeadY, calibratedCenterY, config.shadowMultipliers.y);
+
+        return { rotateX, rotateY, shadowX, shadowY };
+      };
+
+      // State Management
+      const createState = () => ({
+        video: null,
+        isWebcamActive: false,
+        isGyroActive: false,
+        headX: 0.5,
+        headY: 0.5,
+        smoothHeadX: 0.5,
+        smoothHeadY: 0.5,
+        calibratedCenterX: 0.5,
+        calibratedCenterY: 0.5,
+        calibrationFrames: 0,
+        calibrationSumX: 0,
+        calibrationSumY: 0,
+        calibrationActive: false,
+        matrixColumns: [],
+        matrixActive: false,
+        lastRenderTime: 0,
+        gyroAlpha: 0,
+        gyroBeta: 0,
+        gyroGamma: 0
+      });
+
+      let state = createState();
+
+      // Gyroscope Support
+      const mapGyroToPosition = (beta, gamma) => {
+        // beta: front-to-back tilt (-180 to 180), 0 is flat
+        // gamma: left-to-right tilt (-90 to 90), 0 is flat
+        const clampedBeta = Math.max(-45, Math.min(45, beta));
+        const clampedGamma = Math.max(-45, Math.min(45, gamma));
+
+        const x = mapRange(clampedGamma, -45, 45, 0, 1);
+        const y = mapRange(clampedBeta, -45, 45, 0, 1);
+
+        return { x, y };
+      };
+
+      const handleDeviceOrientation = (event) => {
+        if (!state.isGyroActive) return;
+
+        const beta = event.beta || 0;   // front-to-back (-180 to 180)
+        const gamma = event.gamma || 0; // left-to-right (-90 to 90)
+
+        const position = mapGyroToPosition(beta, gamma);
+        state.headX = position.x;
+        state.headY = position.y;
+
+        // Update calibration
+        if (state.calibrationActive && state.calibrationFrames < CONFIG.calibrationFrames) {
+          state.calibrationSumX += state.headX;
+          state.calibrationSumY += state.headY;
+          state.calibrationFrames++;
+
+          if (state.calibrationFrames === CONFIG.calibrationFrames) {
+            state.calibratedCenterX = state.calibrationSumX / CONFIG.calibrationFrames;
+            state.calibratedCenterY = state.calibrationSumY / CONFIG.calibrationFrames;
+            state.calibrationActive = false;
+            handleCalibrationComplete();
+          }
+        }
+
+        // Update smoothed position
+        const smooth = smoothValue(CONFIG.smoothing);
+        state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
+        state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
+
+        const transformData = create3DTransformData(state, CONFIG);
+        apply3DTransformToDOM(transformData, elements);
+      };
+
+      const initGyroscope = async () => {
+        // Better mobile detection: check for touch AND small screen
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isSmallScreen = window.innerWidth <= 768;
+        const isActualMobile = isMobile && isTouchDevice && isSmallScreen;
+
+        if (!isActualMobile) {
+          // Desktop (including Safari desktop) - use webcam with face tracking
+          initWebcam();
+          return;
+        }
+
+        // Mobile - use webcam for ASCII but gyro for tracking
+        // Request gyroscope permission for iOS 13+
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          try {
+            const permission = await DeviceOrientationEvent.requestPermission();
+            if (permission !== 'granted') {
+              // Fallback to webcam with face tracking
+              initWebcam();
+              return;
+            }
+          } catch (error) {
+            initWebcam();
+            return;
+          }
+        }
+
+        // Initialize webcam for ASCII art
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false
+          });
+
+          const video = createVideoElement(stream);
+          video.onloadedmetadata = () => {
+            state.video = video;
+            state.isWebcamActive = true;
+            state.isGyroActive = true;
+
+            toggleClass(elements.asciiContainer, 'active', true);
+            setDisplay(elements.initialFigure, 'none');
+
+            setTimeout(() => {
+              document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Hold device steady';
+              setDisplay(elements.calibrationNotice, 'block');
+              state.calibrationActive = true;
+            }, 2500);
+
+            initMatrix();
+            startRenderLoop();
+            window.addEventListener('deviceorientation', handleDeviceOrientation);
+          };
+        } catch (err) {
+          elements.asciiArt.textContent = `
+╔══════════════════════════╗
+║                          ║
+║    WEBCAM ACCESS         ║
+║    DENIED OR             ║
+║    UNAVAILABLE           ║
+║                          ║
+║  Tap to enable           ║
+║                          ║
+╚══════════════════════════╝`;
+        }
+      };
+
+      const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      elements.initialFigure.textContent = `
        ▄▄▄▄▄▄▄▄▄▄▄▄▄
      ▄▀░░░░░░░░░░░░░▀▄
     █░░░░░░░░░░░░░░░░█
@@ -449,74 +669,155 @@
        ▀▀▀▀▀▀▀▀▀▀▀
 
      CLICK TO ENABLE
-       WEBCAM 3D`;
+       ${isMobileDevice ? 'MOTION 3D' : 'WEBCAM 3D'}`;
 
-      function initMatrix() {
-        matrixCanvas.width = window.innerWidth;
-        matrixCanvas.height = window.innerHeight;
-        const columnCount = Math.floor(matrixCanvas.width / 20);
-        matrixColumns = Array(columnCount).fill(0);
-        matrixActive = true;
-        matrixCanvas.classList.add('active');
-        drawMatrix();
-      }
+      // Side Effects - DOM Manipulation
+      const applyStyles = (element, styles) =>
+        Object.entries(styles).forEach(([key, value]) => element.style[key] = value);
 
-      function drawMatrix() {
-        if (!matrixActive) return;
+      const toggleClass = (element, className, add) =>
+        add ? element.classList.add(className) : element.classList.remove(className);
 
-        matrixCtx.fillStyle = 'rgba(250, 250, 250, 0.05)';
-        matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+      const setDisplay = (element, value) => element.style.display = value;
 
-        matrixCtx.fillStyle = 'rgba(0, 80, 0, 0.3)';
-        matrixCtx.font = '13px monospace';
+      const apply3DTransformToDOM = (transformData, elements) => {
+        const { rotateX, rotateY, shadowX, shadowY } = transformData;
 
-        for (let i = 0; i < matrixColumns.length; i++) {
-          const text = String.fromCharCode(0x30A0 + Math.random() * 96);
-          const x = i * 20;
-          const y = matrixColumns[i] * 20;
+        applyStyles(elements.container, {
+          transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`
+        });
 
-          matrixCtx.fillText(text, x, y);
+        applyStyles(elements.profileImage, {
+          transform: `translateZ(200px) rotateY(${-rotateY}deg) rotateX(${-rotateX}deg)`,
+          boxShadow: `
+            ${shadowX}px ${shadowY + 30}px 80px rgba(0, 0, 0, 0.4),
+            0 0 0 4px rgba(255, 255, 255, 0.1),
+            inset ${-shadowX * 0.1}px ${-shadowY * 0.1}px 8px rgba(0, 0, 0, 0.3)
+          `
+        });
 
-          if (y > matrixCanvas.height && Math.random() > 0.975) {
-            matrixColumns[i] = 0;
+        const textShadow = `
+          ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.1),
+          ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.08),
+          ${shadowX * 0.3}px ${shadowY * 0.3 + 8}px 24px rgba(0, 0, 0, 0.06)
+        `;
+
+        applyStyles(elements.nameElement, {
+          transform: `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`,
+          textShadow
+        });
+
+        applyStyles(elements.titleElement, {
+          transform: `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`,
+          textShadow: `
+            ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.08),
+            ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.06)
+          `
+        });
+
+        elements.linkElements.forEach(link => {
+          applyStyles(link, {
+            transform: `rotateY(${-rotateY * 0.3}deg) rotateX(${-rotateX * 0.3}deg)`
+          });
+
+          if (!link.matches(':hover') && !link.matches(':active')) {
+            applyStyles(link, {
+              boxShadow: `
+                ${shadowX * 0.05}px ${shadowY * 0.05 + 2}px 8px rgba(0, 0, 0, 0.08),
+                ${shadowX * 0.1}px ${shadowY * 0.1 + 8}px 20px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5)
+              `
+            });
           }
-          matrixColumns[i]++;
-        }
+        });
+      };
 
-        setTimeout(() => requestAnimationFrame(drawMatrix), 50);
-      }
+      // Matrix Effect
+      const createMatrixState = (width, height) => ({
+        columns: Array(Math.floor(width / 20)).fill(0),
+        width,
+        height,
+        active: true
+      });
 
-      async function initWebcam() {
+      const updateMatrixColumn = (column, height) =>
+        column * 20 > height && Math.random() > 0.975 ? 0 : column + 1;
+
+      const drawMatrixFrame = (ctx, matrixState) => {
+        if (!matrixState.active) return matrixState;
+
+        ctx.fillStyle = 'rgba(250, 250, 250, 0.05)';
+        ctx.fillRect(0, 0, matrixState.width, matrixState.height);
+        ctx.fillStyle = 'rgba(0, 80, 0, 0.3)';
+        ctx.font = '13px monospace';
+
+        const updatedColumns = matrixState.columns.map((column, i) => {
+          const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+          ctx.fillText(text, i * 20, column * 20);
+          return updateMatrixColumn(column, matrixState.height);
+        });
+
+        return { ...matrixState, columns: updatedColumns };
+      };
+
+      let matrixState = null;
+
+      const initMatrix = () => {
+        elements.matrixCanvas.width = window.innerWidth;
+        elements.matrixCanvas.height = window.innerHeight;
+        matrixState = createMatrixState(elements.matrixCanvas.width, elements.matrixCanvas.height);
+        toggleClass(elements.matrixCanvas, 'active', true);
+
+        const ctx = elements.matrixCanvas.getContext('2d');
+        const animate = () => {
+          if (matrixState?.active) {
+            matrixState = drawMatrixFrame(ctx, matrixState);
+            setTimeout(() => requestAnimationFrame(animate), 50);
+          }
+        };
+        animate();
+      };
+
+      // Webcam and Video Processing
+      const createVideoElement = (stream) => {
+        const video = document.createElement('video');
+        video.setAttribute('playsinline', '');
+        video.srcObject = stream;
+        video.play();
+        return video;
+      };
+
+      const handleWebcamActivation = () => {
+        toggleClass(elements.asciiContainer, 'active', true);
+        setDisplay(elements.initialFigure, 'none');
+        toggleClass(elements.faceGuide, 'visible', true);
+
+        setTimeout(() => {
+          toggleClass(elements.faceGuide, 'visible', false);
+          document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Look straight at camera';
+          setDisplay(elements.calibrationNotice, 'block');
+          state.calibrationActive = true;
+        }, 2500);
+
+        initMatrix();
+        startRenderLoop();
+      };
+
+      const initWebcam = async () => {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: 'user',
-              width: { ideal: 640 },
-              height: { ideal: 480 }
-            },
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
             audio: false
           });
 
-          video = document.createElement('video');
-          video.setAttribute('playsinline', '');
-          video.srcObject = stream;
-          video.play();
-
+          const video = createVideoElement(stream);
           video.onloadedmetadata = () => {
-            isWebcamActive = true;
-            document.querySelector('.ascii-container').classList.add('active');
-            initialFigure.style.display = 'none';
-            faceGuide.classList.add('visible');
-            setTimeout(() => {
-              faceGuide.classList.remove('visible');
-              calibrationNotice.style.display = 'block';
-              calibrationActive = true;
-            }, 2500);
-            initMatrix();
-            renderAscii();
+            state.video = video;
+            state.isWebcamActive = true;
+            handleWebcamActivation();
           };
         } catch (err) {
-          asciiArt.textContent = `
+          elements.asciiArt.textContent = `
 ╔══════════════════════════╗
 ║                          ║
 ║    WEBCAM ACCESS         ║
@@ -527,165 +828,111 @@
 ║                          ║
 ╚══════════════════════════╝`;
         }
-      }
+      };
 
-      function trackHead(imageData) {
+      const processVideoFrame = (video, ctx, config) => {
+        if (!video) return null;
+
+        ctx.drawImage(video, 0, 0, config.width, config.height);
+        return ctx.getImageData(0, 0, config.width, config.height);
+      };
+
+      const handleCalibrationComplete = () => {
+        setDisplay(elements.calibrationNotice, 'none');
+        toggleClass(elements.recalibrateButton, 'visible', true);
+      };
+
+      const processFrame = (timestamp) => {
+        const frameDelay = 1000 / CONFIG.fps;
+        if (timestamp - state.lastRenderTime < frameDelay) {
+          return;
+        }
+
+        const ctx = elements.canvas.getContext('2d');
+        const imageData = processVideoFrame(state.video, ctx, CONFIG);
+
         if (!imageData) return;
 
-        const pixels = imageData.data;
-        let maxBrightness = 0;
-        let brightestX = width / 2;
-        let brightestY = height / 2;
-        const gridSize = 5;
-        for (let gy = 0; gy < gridSize; gy++) {
-          for (let gx = 0; gx < gridSize; gx++) {
-            let regionBrightness = 0;
-            const startX = Math.floor((gx / gridSize) * width);
-            const startY = Math.floor((gy / gridSize) * height);
-            const endX = Math.floor(((gx + 1) / gridSize) * width);
-            const endY = Math.floor(((gy + 1) / gridSize) * height);
+        const ascii = imageDataToAscii(imageData, CONFIG);
+        elements.asciiArt.textContent = ascii;
 
-            for (let y = startY; y < endY; y++) {
-              for (let x = startX; x < endX; x++) {
-                const offset = (y * width + x) * 4;
-                const r = pixels[offset];
-                const g = pixels[offset + 1];
-                const b = pixels[offset + 2];
-                regionBrightness += (r + g + b) / 3;
-              }
-            }
+        // Only do face tracking if gyroscope is NOT active (desktop mode)
+        if (!state.isGyroActive) {
+          // Update head position
+          const region = findBrightestRegion(imageData.data, CONFIG.width, CONFIG.height, CONFIG.gridSize);
+          state.headX = region.x / CONFIG.width;
+          state.headY = region.y / CONFIG.height;
 
-            if (regionBrightness > maxBrightness) {
-              maxBrightness = regionBrightness;
-              brightestX = (startX + endX) / 2;
-              brightestY = (startY + endY) / 2;
+          // Update calibration
+          if (state.calibrationActive && state.calibrationFrames < CONFIG.calibrationFrames) {
+            state.calibrationSumX += state.headX;
+            state.calibrationSumY += state.headY;
+            state.calibrationFrames++;
+
+            if (state.calibrationFrames === CONFIG.calibrationFrames) {
+              state.calibratedCenterX = state.calibrationSumX / CONFIG.calibrationFrames;
+              state.calibratedCenterY = state.calibrationSumY / CONFIG.calibrationFrames;
+              state.calibrationActive = false;
+              handleCalibrationComplete();
             }
           }
+
+          // Update smoothed position (direct mutation for performance)
+          const smooth = smoothValue(CONFIG.smoothing);
+          state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
+          state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
+
+          const transformData = create3DTransformData(state, CONFIG);
+          apply3DTransformToDOM(transformData, elements);
         }
 
-        headX = brightestX / width;
-        headY = brightestY / height;
+        state.lastRenderTime = timestamp;
+      };
 
-        if (calibrationActive && calibrationFrames < 30) {
-          calibrationSumX += headX;
-          calibrationSumY += headY;
-          calibrationFrames++;
-          if (calibrationFrames === 30) {
-            calibratedCenterX = calibrationSumX / 30;
-            calibratedCenterY = calibrationSumY / 30;
-            calibrationNotice.style.display = 'none';
-            calibrationActive = false;
-            recalibrateButton.classList.add('visible');
+      const startRenderLoop = () => {
+        const render = (timestamp) => {
+          if (state.isWebcamActive) {
+            processFrame(timestamp);
+            requestAnimationFrame(render);
           }
+        };
+        requestAnimationFrame(render);
+      };
+
+      // Event Handlers
+      const handleAsciiContainerClick = (e) => {
+        if (!state.isWebcamActive && !state.isGyroActive && e.target !== elements.recalibrateButton) {
+          initGyroscope();
         }
+      };
 
-        const smoothing = 0.22;
-        smoothHeadX += (headX - smoothHeadX) * smoothing;
-        smoothHeadY += (headY - smoothHeadY) * smoothing;
-      }
+      const handleRecalibrate = () => {
+        state.calibrationFrames = 0;
+        state.calibrationSumX = 0;
+        state.calibrationSumY = 0;
+        state.calibrationActive = false;
+        toggleClass(elements.recalibrateButton, 'visible', false);
 
-      function videoToAscii() {
-        if (!video || !isWebcamActive) return { ascii: '', imageData: null };
-
-        ctx.drawImage(video, 0, 0, width, height);
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const pixels = imageData.data;
-
-        let ascii = '';
-        for (let y = 0; y < height; y++) {
-          let line = '';
-          for (let x = 0; x < width; x++) {
-            const offset = (y * width + x) * 4;
-            const r = pixels[offset];
-            const g = pixels[offset + 1];
-            const b = pixels[offset + 2];
-
-            const brightness = (r + g + b) / 3;
-            const charIndex = Math.floor((brightness / 255) * (asciiChars.length - 1));
-            line += asciiChars[asciiChars.length - 1 - charIndex];
-          }
-          ascii += line.split('').reverse().join('') + '\n';
+        if (state.isGyroActive) {
+          // For gyroscope mode, no face guide
+          document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Hold device steady';
+          setDisplay(elements.calibrationNotice, 'block');
+          state.calibrationActive = true;
+        } else {
+          // For face tracking mode, show face guide
+          toggleClass(elements.faceGuide, 'visible', true);
+          setTimeout(() => {
+            toggleClass(elements.faceGuide, 'visible', false);
+            document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Look straight at camera';
+            setDisplay(elements.calibrationNotice, 'block');
+            state.calibrationActive = true;
+          }, 2500);
         }
+      };
 
-        return { ascii, imageData };
-      }
-
-      function apply3DTransform() {
-        const rotateY = (smoothHeadX - calibratedCenterX) * 40;
-        const rotateX = (smoothHeadY - calibratedCenterY) * 28;
-        container.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-
-        const shadowX = (smoothHeadX - calibratedCenterX) * -50;
-        const shadowY = (smoothHeadY - calibratedCenterY) * -45;
-
-        profileImage.style.transform = `translateZ(200px) rotateY(${-rotateY}deg) rotateX(${-rotateX}deg)`;
-        profileImage.style.boxShadow = `
-          ${shadowX}px ${shadowY + 30}px 80px rgba(0, 0, 0, 0.4),
-          0 0 0 4px rgba(255, 255, 255, 0.1),
-          inset ${-shadowX * 0.1}px ${-shadowY * 0.1}px 8px rgba(0, 0, 0, 0.3)
-        `;
-
-        nameElement.style.transform = `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`;
-        nameElement.style.textShadow = `
-          ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.1),
-          ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.08),
-          ${shadowX * 0.3}px ${shadowY * 0.3 + 8}px 24px rgba(0, 0, 0, 0.06)
-        `;
-
-        titleElement.style.transform = `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`;
-        titleElement.style.textShadow = `
-          ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.08),
-          ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.06)
-        `;
-
-        linkElements.forEach(link => {
-          link.style.transform = `rotateY(${-rotateY * 0.3}deg) rotateX(${-rotateX * 0.3}deg)`;
-          if (!link.matches(':hover') && !link.matches(':active')) {
-            link.style.boxShadow = `
-              ${shadowX * 0.05}px ${shadowY * 0.05 + 2}px 8px rgba(0, 0, 0, 0.08),
-              ${shadowX * 0.1}px ${shadowY * 0.1 + 8}px 20px rgba(0, 0, 0, 0.06),
-              inset 0 1px 0 rgba(255, 255, 255, 0.5)
-            `;
-          }
-        });
-      }
-
-      let lastRenderTime = 0;
-      const fps = 30;
-      const frameDelay = 1000 / fps;
-
-      function renderAscii(timestamp) {
-        if (isWebcamActive) {
-          if (timestamp - lastRenderTime >= frameDelay) {
-            const result = videoToAscii();
-            asciiArt.textContent = result.ascii;
-            trackHead(result.imageData);
-            apply3DTransform();
-            lastRenderTime = timestamp;
-          }
-          requestAnimationFrame(renderAscii);
-        }
-      }
-
-      document.querySelector('.ascii-container').addEventListener('click', (e) => {
-        if (!isWebcamActive && e.target !== recalibrateButton) {
-          initWebcam();
-        }
-      });
-
-      recalibrateButton.addEventListener('click', () => {
-        calibrationFrames = 0;
-        calibrationSumX = 0;
-        calibrationSumY = 0;
-        calibrationActive = false;
-        recalibrateButton.classList.remove('visible');
-        faceGuide.classList.add('visible');
-        setTimeout(() => {
-          faceGuide.classList.remove('visible');
-          calibrationNotice.style.display = 'block';
-          calibrationActive = true;
-        }, 2500);
-      });
+      // Initialize
+      elements.asciiContainer.addEventListener('click', handleAsciiContainerClick);
+      elements.recalibrateButton.addEventListener('click', handleRecalibrate);
     </script>
   </body>
 </html>
