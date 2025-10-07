@@ -766,48 +766,59 @@
       const apply3DTransformToDOM = (transformData, elements) => {
         const { rotateX, rotateY, shadowX, shadowY } = transformData;
 
+        // Card is furthest away (base layer)
         applyStyles(elements.container, {
           transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`
         });
 
+        // Avatar is closest - least rotation, most translateZ
+        // Shadow projects away from viewer (light source from nose)
+        const avatarShadowX = -rotateY * 2; // negative rotateY = right tilt, shadow goes right
+        const avatarShadowY = rotateX * 2; // positive rotateX = down tilt, shadow goes down
         applyStyles(elements.profileImage, {
-          transform: `translateZ(200px) rotateY(${-rotateY}deg) rotateX(${-rotateX}deg)`,
+          transform: `translateZ(200px) rotateY(${-rotateY * 0.2}deg) rotateX(${-rotateX * 0.2}deg)`,
           boxShadow: `
-            ${shadowX}px ${shadowY + 30}px 80px rgba(0, 0, 0, 0.4),
+            ${avatarShadowX}px ${avatarShadowY + 30}px 80px rgba(0, 0, 0, 0.4),
             0 0 0 4px rgba(255, 255, 255, 0.1),
-            inset ${-shadowX * 0.1}px ${-shadowY * 0.1}px 8px rgba(0, 0, 0, 0.3)
+            inset ${-avatarShadowX * 0.1}px ${-avatarShadowY * 0.1}px 8px rgba(0, 0, 0, 0.3)
           `
         });
 
+        // Text is closest - least rotation, most translateZ
+        const textShadowX = -rotateY * 0.3;
+        const textShadowY = rotateX * 0.3;
         const textShadow = `
-          ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.1),
-          ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.08),
-          ${shadowX * 0.3}px ${shadowY * 0.3 + 8}px 24px rgba(0, 0, 0, 0.06)
+          ${textShadowX}px ${textShadowY + 2}px 4px rgba(0, 0, 0, 0.1),
+          ${textShadowX * 2}px ${textShadowY * 2 + 4}px 12px rgba(0, 0, 0, 0.08),
+          ${textShadowX * 3}px ${textShadowY * 3 + 8}px 24px rgba(0, 0, 0, 0.06)
         `;
 
         applyStyles(elements.nameElement, {
-          transform: `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`,
+          transform: `translateZ(180px) rotateY(${-rotateY * 0.2}deg) rotateX(${-rotateX * 0.2}deg)`,
           textShadow
         });
 
         applyStyles(elements.titleElement, {
-          transform: `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`,
+          transform: `translateZ(180px) rotateY(${-rotateY * 0.2}deg) rotateX(${-rotateX * 0.2}deg)`,
           textShadow: `
-            ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.08),
-            ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.06)
+            ${textShadowX}px ${textShadowY + 2}px 4px rgba(0, 0, 0, 0.08),
+            ${textShadowX * 2}px ${textShadowY * 2 + 4}px 12px rgba(0, 0, 0, 0.06)
           `
         });
 
+        // Buttons are middle layer - moderate rotation and translateZ
+        const linkShadowX = -rotateY * 0.8;
+        const linkShadowY = rotateX * 0.8;
         elements.linkElements.forEach(link => {
           applyStyles(link, {
-            transform: `rotateY(${-rotateY * 0.3}deg) rotateX(${-rotateX * 0.3}deg)`
+            transform: `translateZ(100px) rotateY(${-rotateY * 0.5}deg) rotateX(${-rotateX * 0.5}deg)`
           });
 
           if (!link.matches(':hover') && !link.matches(':active')) {
             applyStyles(link, {
               boxShadow: `
-                ${shadowX * 0.05}px ${shadowY * 0.05 + 2}px 8px rgba(0, 0, 0, 0.08),
-                ${shadowX * 0.1}px ${shadowY * 0.1 + 8}px 20px rgba(0, 0, 0, 0.06),
+                ${linkShadowX}px ${linkShadowY + 2}px 8px rgba(0, 0, 0, 0.08),
+                ${linkShadowX * 2}px ${linkShadowY * 2 + 8}px 20px rgba(0, 0, 0, 0.06),
                 inset 0 1px 0 rgba(255, 255, 255, 0.5)
               `
             });
