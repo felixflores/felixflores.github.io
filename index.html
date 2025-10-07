@@ -624,11 +624,12 @@
         // beta: front-to-back tilt (-180 to 180), 0 is flat
         // gamma: left-to-right tilt (-90 to 90), 0 is flat
         // Tilt left = positive gamma, Tilt right = negative gamma
-        const clampedBeta = Math.max(0, Math.min(60, beta));
+        // Adjusted range so comfortable viewing angle (~45°) is origin
+        const clampedBeta = Math.max(15, Math.min(75, beta));
         const clampedGamma = Math.max(-45, Math.min(45, gamma));
 
         const x = mapRange(clampedGamma, -45, 45, 1, 0); // Flipped
-        const y = mapRange(clampedBeta, 0, 60, 1, 0);
+        const y = mapRange(clampedBeta, 15, 75, 1, 0);
 
         return { x, y };
       };
