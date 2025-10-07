@@ -10,6 +10,10 @@
       href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
       * {
         margin: 0;
@@ -95,6 +99,67 @@
 
       .ascii-container.active {
         min-height: 280px;
+      }
+
+      .debug-overlay {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 100px;
+        height: 100px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid #00ff00;
+        z-index: 1000;
+        display: none;
+      }
+
+      .debug-overlay.visible {
+        display: block;
+      }
+
+      .debug-grid {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+
+      .debug-grid-line-h,
+      .debug-grid-line-v {
+        position: absolute;
+        background: #00ff00;
+        opacity: 0.3;
+      }
+
+      .debug-grid-line-h {
+        width: 100%;
+        height: 1px;
+        top: 50%;
+      }
+
+      .debug-grid-line-v {
+        width: 1px;
+        height: 100%;
+        left: 50%;
+      }
+
+      .debug-dot {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #00ff00;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 0.1s ease-out;
+      }
+
+      .debug-info {
+        position: absolute;
+        bottom: 2px;
+        left: 2px;
+        font-size: 8px;
+        color: #00ff00;
+        font-family: monospace;
+        line-height: 1.2;
       }
 
       @media (max-width: 768px) {
@@ -432,6 +497,14 @@
         <div class="calibration-notice" id="calibrationNotice" style="display: none;">
           <span id="calibrationText"></span>
         </div>
+        <div class="debug-overlay visible" id="debugOverlay">
+          <div class="debug-grid">
+            <div class="debug-grid-line-h"></div>
+            <div class="debug-grid-line-v"></div>
+          </div>
+          <div class="debug-dot" id="debugDot"></div>
+          <div class="debug-info" id="debugInfo">x: 0.5<br>y: 0.5</div>
+        </div>
       </div>
       <div class="content-wrapper">
         <img src="image.png" alt="Felix Flores" class="profile-image" />
@@ -484,7 +557,10 @@
         titleElement: document.querySelector('.title'),
         linkElements: document.querySelectorAll('.link'),
         matrixCanvas: document.getElementById('matrixCanvas'),
-        asciiContainer: document.querySelector('.ascii-container')
+        asciiContainer: document.querySelector('.ascii-container'),
+        debugOverlay: document.getElementById('debugOverlay'),
+        debugDot: document.getElementById('debugDot'),
+        debugInfo: document.getElementById('debugInfo')
       };
 
       // Constants
@@ -495,10 +571,10 @@
         width: 80,
         height: 40,
         fps: isSafari ? 20 : 30,
-        smoothing: isMobile ? 0.4 : (isSafari ? 0.35 : 0.22),
+        smoothing: isMobile ? 0.3 : (isSafari ? 0.25 : 0.15),
         calibrationFrames: 30,
-        rotationMultipliers: { horizontal: 30, vertical: 45 },
-        shadowMultipliers: { x: -50, y: -60 },
+        rotationMultipliers: { horizontal: 30, vertical: 60 },
+        shadowMultipliers: { x: 50, y: 60 },
         gridSize: 5
       };
 
@@ -522,7 +598,7 @@
       const smoothValue = curry((smoothing, current, target) =>
         current + (target - current) * smoothing);
 
-      const findBrightestRegion = (pixels, width, height, gridSize) => {
+      const findDarkestRegion = (pixels, width, height, gridSize) => {
         const regions = Array.from({ length: gridSize }, (_, gy) =>
           Array.from({ length: gridSize }, (_, gx) => {
             const startX = Math.floor((gx / gridSize) * width);
@@ -540,8 +616,9 @@
           })
         ).flat();
 
-        return regions.reduce((max, region) =>
-          region.brightness > max.brightness ? region : max
+        // Find DARKEST region (lowest brightness = where head/face is)
+        return regions.reduce((min, region) =>
+          region.brightness < min.brightness ? region : min
         );
       };
 
@@ -562,18 +639,25 @@
         ).join('\n');
       };
 
-      const calculateRotation = (smoothHead, calibratedCenter, multiplier) =>
-        (smoothHead - calibratedCenter) * multiplier;
-
-      const calculateShadow = (smoothHead, calibratedCenter, multiplier) =>
-        (smoothHead - calibratedCenter) * multiplier;
-
+      // Clean 3D transform calculation
+      // User left → left side forward (positive rotateY)
+      // User right → right side forward (negative rotateY)
+      // User top → top forward (negative rotateX)
+      // User bottom → bottom forward (positive rotateX)
       const create3DTransformData = (state, config) => {
         const { smoothHeadX, smoothHeadY, calibratedCenterX, calibratedCenterY } = state;
-        const rotateY = calculateRotation(smoothHeadX, calibratedCenterX, config.rotationMultipliers.horizontal);
-        const rotateX = calculateRotation(smoothHeadY, calibratedCenterY, config.rotationMultipliers.vertical);
-        const shadowX = calculateShadow(smoothHeadX, calibratedCenterX, config.shadowMultipliers.x);
-        const shadowY = calculateShadow(smoothHeadY, calibratedCenterY, config.shadowMultipliers.y);
+
+        // Calculate offset from center (-0.5 to +0.5 range)
+        const offsetX = smoothHeadX - calibratedCenterX;
+        const offsetY = smoothHeadY - calibratedCenterY;
+
+        // Apply rotation
+        const rotateY = -offsetX * config.rotationMultipliers.horizontal;
+        const rotateX = offsetY * config.rotationMultipliers.vertical;
+
+        // Shadows follow rotation
+        const shadowX = offsetX * config.shadowMultipliers.x;
+        const shadowY = offsetY * config.shadowMultipliers.y;
 
         return { rotateX, rotateY, shadowX, shadowY };
       };
@@ -593,24 +677,30 @@
         calibrationSumX: 0,
         calibrationSumY: 0,
         calibrationActive: false,
-        matrixColumns: [],
-        matrixActive: false,
         lastRenderTime: 0,
-        gyroAlpha: 0,
-        gyroBeta: 0,
-        gyroGamma: 0
+        faceDetector: null
       });
 
       let state = createState();
+
+      // Initialize BlazeFace
+      const initFaceDetector = async () => {
+        try {
+          state.faceDetector = await blazeface.load();
+        } catch (err) {
+          console.error('Failed to load BlazeFace:', err);
+        }
+      };
 
       // Gyroscope Support
       const mapGyroToPosition = (beta, gamma) => {
         // beta: front-to-back tilt (-180 to 180), 0 is flat
         // gamma: left-to-right tilt (-90 to 90), 0 is flat
+        // Tilt left = positive gamma, Tilt right = negative gamma
         const clampedBeta = Math.max(-60, Math.min(60, beta));
         const clampedGamma = Math.max(-45, Math.min(45, gamma));
 
-        const x = mapRange(clampedGamma, -45, 45, 0, 1);
+        const x = mapRange(clampedGamma, -45, 45, 1, 0); // Flipped
         const y = mapRange(clampedBeta, -60, 60, 1, 0);
 
         return { x, y };
@@ -645,6 +735,7 @@
         state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
         state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
 
+        updateDebugOverlay(state, elements);
         const transformData = create3DTransformData(state, CONFIG);
         apply3DTransformToDOM(transformData, elements);
       };
@@ -745,6 +836,23 @@
         add ? element.classList.add(className) : element.classList.remove(className);
 
       const setDisplay = (element, value) => element.style.display = value;
+
+      const updateDebugOverlay = (state, elements) => {
+        const { smoothHeadX, smoothHeadY, calibratedCenterX, calibratedCenterY } = state;
+
+        // Update dot position (0-1 range maps to 0-100%)
+        const dotX = smoothHeadX * 100;
+        const dotY = smoothHeadY * 100;
+        applyStyles(elements.debugDot, {
+          left: `${dotX}%`,
+          top: `${dotY}%`
+        });
+
+        // Update info text
+        const offsetX = (smoothHeadX - calibratedCenterX).toFixed(2);
+        const offsetY = (smoothHeadY - calibratedCenterY).toFixed(2);
+        elements.debugInfo.innerHTML = `x:${smoothHeadX.toFixed(2)}<br>y:${smoothHeadY.toFixed(2)}<br>Δx:${offsetX}<br>Δy:${offsetY}`;
+      };
 
       const apply3DTransformToDOM = (transformData, elements) => {
         const { rotateX, rotateY, shadowX, shadowY } = transformData;
@@ -877,9 +985,13 @@
           });
 
           const video = createVideoElement(stream);
-          video.onloadedmetadata = () => {
+          video.onloadedmetadata = async () => {
             state.video = video;
             state.isWebcamActive = true;
+
+            // Initialize BlazeFace for face tracking
+            await initFaceDetector();
+
             handleWebcamActivation();
           };
         } catch (err) {
@@ -908,7 +1020,7 @@
         toggleClass(elements.recalibrateButton, 'visible', true);
       };
 
-      const processFrame = (timestamp) => {
+      const processFrame = async (timestamp) => {
         const frameDelay = 1000 / CONFIG.fps;
         if (timestamp - state.lastRenderTime < frameDelay) {
           return;
@@ -923,33 +1035,45 @@
         elements.asciiArt.textContent = ascii;
 
         // Only do face tracking if gyroscope is NOT active (desktop mode)
-        if (!state.isGyroActive) {
-          // Update head position
-          const region = findBrightestRegion(imageData.data, CONFIG.width, CONFIG.height, CONFIG.gridSize);
-          state.headX = region.x / CONFIG.width;
-          state.headY = region.y / CONFIG.height;
+        if (!state.isGyroActive && state.faceDetector) {
+          // Use BlazeFace to detect face
+          const predictions = await state.faceDetector.estimateFaces(state.video, false);
 
-          // Update calibration
-          if (state.calibrationActive && state.calibrationFrames < CONFIG.calibrationFrames) {
-            state.calibrationSumX += state.headX;
-            state.calibrationSumY += state.headY;
-            state.calibrationFrames++;
+          if (predictions.length > 0) {
+            const face = predictions[0];
+            // Get face center from bounding box
+            const [x1, y1] = face.topLeft;
+            const [x2, y2] = face.bottomRight;
+            const centerX = (x1 + x2) / 2;
+            const centerY = (y1 + y2) / 2;
 
-            if (state.calibrationFrames === CONFIG.calibrationFrames) {
-              state.calibratedCenterX = state.calibrationSumX / CONFIG.calibrationFrames;
-              state.calibratedCenterY = state.calibrationSumY / CONFIG.calibrationFrames;
-              state.calibrationActive = false;
-              handleCalibrationComplete();
+            // Normalize to 0-1 range, mirror X for selfie view
+            state.headX = 1 - (centerX / state.video.videoWidth);
+            state.headY = centerY / state.video.videoHeight;
+
+            // Update calibration
+            if (state.calibrationActive && state.calibrationFrames < CONFIG.calibrationFrames) {
+              state.calibrationSumX += state.headX;
+              state.calibrationSumY += state.headY;
+              state.calibrationFrames++;
+
+              if (state.calibrationFrames === CONFIG.calibrationFrames) {
+                state.calibratedCenterX = state.calibrationSumX / CONFIG.calibrationFrames;
+                state.calibratedCenterY = state.calibrationSumY / CONFIG.calibrationFrames;
+                state.calibrationActive = false;
+                handleCalibrationComplete();
+              }
             }
+
+            // Update smoothed position (direct mutation for performance)
+            const smooth = smoothValue(CONFIG.smoothing);
+            state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
+            state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
+
+            updateDebugOverlay(state, elements);
+            const transformData = create3DTransformData(state, CONFIG);
+            apply3DTransformToDOM(transformData, elements);
           }
-
-          // Update smoothed position (direct mutation for performance)
-          const smooth = smoothValue(CONFIG.smoothing);
-          state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
-          state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
-
-          const transformData = create3DTransformData(state, CONFIG);
-          apply3DTransformToDOM(transformData, elements);
         }
 
         state.lastRenderTime = timestamp;
