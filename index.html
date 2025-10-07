@@ -187,67 +187,6 @@
         display: none;
       }
 
-      .calibration-notice {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 16px;
-        color: #00ff00;
-        font-family: 'Courier New', monospace;
-        background: rgba(0, 0, 0, 0.95);
-        padding: 24px 32px;
-        border-radius: 8px;
-        text-align: center;
-        pointer-events: none;
-        z-index: 10;
-        white-space: normal;
-        line-height: 1.6;
-        font-weight: bold;
-      }
-
-      .face-guide {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 100px;
-        height: 120px;
-        border: 3px solid rgba(0, 255, 0, 0.5);
-        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-        pointer-events: none;
-        display: none;
-        z-index: 5;
-      }
-
-      .face-guide::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 100%;
-        height: 100%;
-        border: 1px solid rgba(0, 255, 0, 0.2);
-        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-        animation: pulse 2s infinite;
-      }
-
-      @keyframes pulse {
-        0%, 100% {
-          transform: translate(-50%, -50%) scale(1);
-          opacity: 1;
-        }
-        50% {
-          transform: translate(-50%, -50%) scale(1.1);
-          opacity: 0.5;
-        }
-      }
-
-      .face-guide.visible {
-        display: block;
-      }
-
       .initial-figure {
         position: absolute;
         top: 50%;
@@ -271,34 +210,40 @@
         }
       }
 
-      .recalibrate-button {
+      .loading-notice {
         position: absolute;
-        bottom: 8px;
-        right: 8px;
-        background: rgba(0, 255, 0, 0.1);
-        border: 1px solid #00ff00;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 14px;
         color: #00ff00;
         font-family: 'Courier New', monospace;
-        font-size: 9px;
-        padding: 4px 8px;
-        border-radius: 3px;
-        cursor: pointer;
-        transition: all 0.2s ease;
+        background: rgba(0, 0, 0, 0.95);
+        padding: 20px 28px;
+        border-radius: 8px;
+        text-align: center;
+        pointer-events: none;
+        z-index: 10;
         display: none;
-        opacity: 0.7;
       }
 
-      .recalibrate-button:hover {
-        background: rgba(0, 255, 0, 0.2);
-        opacity: 1;
-      }
-
-      .recalibrate-button:active {
-        transform: scale(0.95);
-      }
-
-      .recalibrate-button.visible {
+      .loading-notice.visible {
         display: block;
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(0, 255, 0, 0.3);
+        border-radius: 50%;
+        border-top-color: #00ff00;
+        animation: spin 0.8s linear infinite;
+        margin-left: 8px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
 
       .content-wrapper {
@@ -452,14 +397,6 @@
           color: #00ff00;
         }
 
-        .recalibrate-button {
-          background: rgba(0, 255, 0, 0.15);
-        }
-
-        .recalibrate-button:hover {
-          background: rgba(0, 255, 0, 0.25);
-        }
-
         .name {
           color: #f5f5f7;
         }
@@ -491,11 +428,9 @@
         <div class="ascii-art" id="asciiArt"></div>
         <canvas id="videoCanvas"></canvas>
         <div class="ascii-controls">[ WEBCAM ]</div>
-        <button class="recalibrate-button" id="recalibrateButton">RECALIBRATE</button>
         <div class="initial-figure" id="initialFigure"></div>
-        <div class="face-guide" id="faceGuide"></div>
-        <div class="calibration-notice" id="calibrationNotice" style="display: none;">
-          <span id="calibrationText"></span>
+        <div class="loading-notice" id="loadingNotice">
+          LOADING<span class="loading-spinner"></span>
         </div>
         <div class="debug-overlay visible" id="debugOverlay">
           <div class="debug-grid">
@@ -548,10 +483,8 @@
         asciiArt: document.getElementById('asciiArt'),
         canvas: document.getElementById('videoCanvas'),
         container: document.querySelector('.container'),
-        calibrationNotice: document.getElementById('calibrationNotice'),
-        recalibrateButton: document.getElementById('recalibrateButton'),
         initialFigure: document.getElementById('initialFigure'),
-        faceGuide: document.getElementById('faceGuide'),
+        loadingNotice: document.getElementById('loadingNotice'),
         profileImage: document.querySelector('.profile-image'),
         nameElement: document.querySelector('.name'),
         titleElement: document.querySelector('.title'),
@@ -572,10 +505,8 @@
         height: 40,
         fps: isSafari ? 20 : 30,
         smoothing: isMobile ? 0.3 : (isSafari ? 0.25 : 0.15),
-        calibrationFrames: 30,
         rotationMultipliers: { horizontal: 30, vertical: 60 },
-        shadowMultipliers: { x: 50, y: 60 },
-        gridSize: 5
+        shadowMultipliers: { x: 50, y: 60 }
       };
 
       elements.canvas.width = CONFIG.width;
@@ -645,11 +576,11 @@
       // User top → top forward (negative rotateX)
       // User bottom → bottom forward (positive rotateX)
       const create3DTransformData = (state, config) => {
-        const { smoothHeadX, smoothHeadY, calibratedCenterX, calibratedCenterY } = state;
+        const { smoothHeadX, smoothHeadY } = state;
 
         // Calculate offset from center (-0.5 to +0.5 range)
-        const offsetX = smoothHeadX - calibratedCenterX;
-        const offsetY = smoothHeadY - calibratedCenterY;
+        const offsetX = smoothHeadX - CALIBRATED_CENTER.x;
+        const offsetY = smoothHeadY - CALIBRATED_CENTER.y;
 
         // Apply rotation
         const rotateY = -offsetX * config.rotationMultipliers.horizontal;
@@ -671,17 +602,14 @@
         headY: 0.5,
         smoothHeadX: 0.5,
         smoothHeadY: 0.5,
-        calibratedCenterX: 0.5,
-        calibratedCenterY: 0.5,
-        calibrationFrames: 0,
-        calibrationSumX: 0,
-        calibrationSumY: 0,
-        calibrationActive: false,
         lastRenderTime: 0,
         faceDetector: null
       });
 
       let state = createState();
+
+      // Use center of frame as neutral position
+      const CALIBRATED_CENTER = { x: 0.5, y: 0.5 };
 
       // Initialize BlazeFace
       const initFaceDetector = async () => {
@@ -715,20 +643,6 @@
         const position = mapGyroToPosition(beta, gamma);
         state.headX = position.x;
         state.headY = position.y;
-
-        // Update calibration
-        if (state.calibrationActive && state.calibrationFrames < CONFIG.calibrationFrames) {
-          state.calibrationSumX += state.headX;
-          state.calibrationSumY += state.headY;
-          state.calibrationFrames++;
-
-          if (state.calibrationFrames === CONFIG.calibrationFrames) {
-            state.calibratedCenterX = state.calibrationSumX / CONFIG.calibrationFrames;
-            state.calibratedCenterY = state.calibrationSumY / CONFIG.calibrationFrames;
-            state.calibrationActive = false;
-            handleCalibrationComplete();
-          }
-        }
 
         // Update smoothed position
         const smooth = smoothValue(CONFIG.smoothing);
@@ -786,12 +700,6 @@
             toggleClass(elements.asciiContainer, 'active', true);
             setDisplay(elements.initialFigure, 'none');
 
-            setTimeout(() => {
-              document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Hold device steady';
-              setDisplay(elements.calibrationNotice, 'block');
-              state.calibrationActive = true;
-            }, 2500);
-
             initMatrix();
             startRenderLoop();
             window.addEventListener('deviceorientation', handleDeviceOrientation);
@@ -838,7 +746,7 @@
       const setDisplay = (element, value) => element.style.display = value;
 
       const updateDebugOverlay = (state, elements) => {
-        const { smoothHeadX, smoothHeadY, calibratedCenterX, calibratedCenterY } = state;
+        const { smoothHeadX, smoothHeadY } = state;
 
         // Update dot position (0-1 range maps to 0-100%)
         const dotX = smoothHeadX * 100;
@@ -849,8 +757,8 @@
         });
 
         // Update info text
-        const offsetX = (smoothHeadX - calibratedCenterX).toFixed(2);
-        const offsetY = (smoothHeadY - calibratedCenterY).toFixed(2);
+        const offsetX = (smoothHeadX - CALIBRATED_CENTER.x).toFixed(2);
+        const offsetY = (smoothHeadY - CALIBRATED_CENTER.y).toFixed(2);
         elements.debugInfo.innerHTML = `x:${smoothHeadX.toFixed(2)}<br>y:${smoothHeadY.toFixed(2)}<br>Δx:${offsetX}<br>Δy:${offsetY}`;
       };
 
@@ -964,20 +872,16 @@
       const handleWebcamActivation = () => {
         toggleClass(elements.asciiContainer, 'active', true);
         setDisplay(elements.initialFigure, 'none');
-        toggleClass(elements.faceGuide, 'visible', true);
-
-        setTimeout(() => {
-          toggleClass(elements.faceGuide, 'visible', false);
-          document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Look straight at camera';
-          setDisplay(elements.calibrationNotice, 'block');
-          state.calibrationActive = true;
-        }, 2500);
+        toggleClass(elements.loadingNotice, 'visible', false);
 
         initMatrix();
         startRenderLoop();
       };
 
       const initWebcam = async () => {
+        // Show loading indicator
+        toggleClass(elements.loadingNotice, 'visible', true);
+
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
@@ -995,6 +899,7 @@
             handleWebcamActivation();
           };
         } catch (err) {
+          toggleClass(elements.loadingNotice, 'visible', false);
           elements.asciiArt.textContent = `
 ╔══════════════════════════╗
 ║                          ║
@@ -1013,11 +918,6 @@
 
         ctx.drawImage(video, 0, 0, config.width, config.height);
         return ctx.getImageData(0, 0, config.width, config.height);
-      };
-
-      const handleCalibrationComplete = () => {
-        setDisplay(elements.calibrationNotice, 'none');
-        toggleClass(elements.recalibrateButton, 'visible', true);
       };
 
       const processFrame = async (timestamp) => {
@@ -1051,20 +951,6 @@
             state.headX = 1 - (centerX / state.video.videoWidth);
             state.headY = centerY / state.video.videoHeight;
 
-            // Update calibration
-            if (state.calibrationActive && state.calibrationFrames < CONFIG.calibrationFrames) {
-              state.calibrationSumX += state.headX;
-              state.calibrationSumY += state.headY;
-              state.calibrationFrames++;
-
-              if (state.calibrationFrames === CONFIG.calibrationFrames) {
-                state.calibratedCenterX = state.calibrationSumX / CONFIG.calibrationFrames;
-                state.calibratedCenterY = state.calibrationSumY / CONFIG.calibrationFrames;
-                state.calibrationActive = false;
-                handleCalibrationComplete();
-              }
-            }
-
             // Update smoothed position (direct mutation for performance)
             const smooth = smoothValue(CONFIG.smoothing);
             state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
@@ -1090,39 +976,14 @@
       };
 
       // Event Handlers
-      const handleAsciiContainerClick = (e) => {
-        if (!state.isWebcamActive && !state.isGyroActive && e.target !== elements.recalibrateButton) {
+      const handleAsciiContainerClick = () => {
+        if (!state.isWebcamActive && !state.isGyroActive) {
           initGyroscope();
-        }
-      };
-
-      const handleRecalibrate = () => {
-        state.calibrationFrames = 0;
-        state.calibrationSumX = 0;
-        state.calibrationSumY = 0;
-        state.calibrationActive = false;
-        toggleClass(elements.recalibrateButton, 'visible', false);
-
-        if (state.isGyroActive) {
-          // For gyroscope mode, no face guide
-          document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Hold device steady';
-          setDisplay(elements.calibrationNotice, 'block');
-          state.calibrationActive = true;
-        } else {
-          // For face tracking mode, show face guide
-          toggleClass(elements.faceGuide, 'visible', true);
-          setTimeout(() => {
-            toggleClass(elements.faceGuide, 'visible', false);
-            document.getElementById('calibrationText').innerHTML = 'CALIBRATING...<br>Look straight at camera';
-            setDisplay(elements.calibrationNotice, 'block');
-            state.calibrationActive = true;
-          }, 2500);
         }
       };
 
       // Initialize
       elements.asciiContainer.addEventListener('click', handleAsciiContainerClick);
-      elements.recalibrateButton.addEventListener('click', handleRecalibrate);
     </script>
   </body>
 </html>
