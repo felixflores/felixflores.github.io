@@ -606,11 +606,12 @@
       const mapGyroToPosition = (beta, gamma) => {
         // beta: front-to-back tilt (-180 to 180), 0 is flat
         // gamma: left-to-right tilt (-90 to 90), 0 is flat
-        const clampedBeta = Math.max(-45, Math.min(45, beta));
+        const clampedBeta = Math.max(-60, Math.min(60, beta));
         const clampedGamma = Math.max(-45, Math.min(45, gamma));
 
         const x = mapRange(clampedGamma, -45, 45, 0, 1);
-        const y = mapRange(clampedBeta, -45, 45, 0, 1);
+        // Invert beta mapping for intuitive tilt direction
+        const y = mapRange(clampedBeta, -60, 60, 1, 0);
 
         return { x, y };
       };
