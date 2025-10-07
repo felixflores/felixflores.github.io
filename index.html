@@ -64,8 +64,13 @@
       }
 
       @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+
         .container {
           max-width: 260px;
+          font-size: 14px;
         }
       }
 
@@ -238,6 +243,12 @@
         border-radius: 0 0 16px 16px;
       }
 
+      @media (max-width: 768px) {
+        .content-wrapper {
+          padding: 24px 20px 20px;
+        }
+      }
+
       .profile-image {
         width: 96px;
         height: 96px;
@@ -250,6 +261,14 @@
         transition: box-shadow 0.1s ease-out;
       }
 
+      @media (max-width: 768px) {
+        .profile-image {
+          width: 72px;
+          height: 72px;
+          margin: 0 auto 16px;
+        }
+      }
+
       .name {
         font-size: 28px;
         font-weight: 600;
@@ -258,6 +277,13 @@
         letter-spacing: -0.4px;
         transform: translateZ(120px);
         transition: text-shadow 0.1s ease-out;
+      }
+
+      @media (max-width: 768px) {
+        .name {
+          font-size: 22px;
+          margin-bottom: 2px;
+        }
       }
 
       .title {
@@ -269,11 +295,24 @@
         transition: text-shadow 0.1s ease-out;
       }
 
+      @media (max-width: 768px) {
+        .title {
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+      }
+
       .links {
         display: flex;
         flex-direction: column;
         gap: 12px;
         transform: translateZ(60px);
+      }
+
+      @media (max-width: 768px) {
+        .links {
+          gap: 8px;
+        }
       }
       
       .link {
@@ -288,6 +327,14 @@
         font-weight: 400;
         transition: all 0.15s ease, box-shadow 0.1s ease-out;
         border: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      @media (max-width: 768px) {
+        .link {
+          padding: 12px 16px;
+          font-size: 14px;
+          border-radius: 10px;
+        }
       }
 
       .link:hover {
@@ -305,6 +352,14 @@
         height: 20px;
         margin-right: 12px;
         opacity: 0.8;
+      }
+
+      @media (max-width: 768px) {
+        .link-icon {
+          width: 18px;
+          height: 18px;
+          margin-right: 10px;
+        }
       }
       
       @media (prefers-color-scheme: dark) {
