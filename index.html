@@ -792,6 +792,9 @@
             toggleClass(elements.asciiContainer, 'active', true);
             setDisplay(elements.initialFigure, 'none');
 
+            // Remember that user enabled camera/gyro
+            localStorage.setItem('cameraEnabled', 'true');
+
             initMatrix();
             startRenderLoop();
             window.addEventListener('deviceorientation', handleDeviceOrientation);
@@ -977,6 +980,9 @@
         setDisplay(elements.initialFigure, 'none');
         toggleClass(elements.loadingNotice, 'visible', false);
 
+        // Remember that user enabled camera/gyro
+        localStorage.setItem('cameraEnabled', 'true');
+
         initMatrix();
         startRenderLoop();
       };
@@ -1087,6 +1093,11 @@
 
       // Initialize
       elements.asciiContainer.addEventListener('click', handleAsciiContainerClick);
+
+      // Auto-start if camera was previously enabled
+      if (localStorage.getItem('cameraEnabled') === 'true') {
+        initGyroscope();
+      }
     </script>
   </body>
 </html>
