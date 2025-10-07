@@ -29,6 +29,24 @@
         align-items: center;
         justify-content: center;
         padding: 20px;
+        perspective: 800px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      #matrixCanvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 1s ease-in;
+      }
+
+      #matrixCanvas.active {
+        opacity: 1;
       }
       
       .container {
@@ -36,12 +54,100 @@
         width: 100%;
         background: white;
         border-radius: 16px;
-        padding: 48px 32px 32px;
+        padding: 0;
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
         border: 1px solid rgba(0, 0, 0, 0.04);
         text-align: center;
+        overflow: hidden;
+        transition: transform 0.1s ease-out;
+        transform-style: preserve-3d;
       }
-      
+
+      .ascii-container {
+        background: #000;
+        padding: 0;
+        font-family: 'Courier New', monospace;
+        font-size: 6px;
+        line-height: 6px;
+        color: #00ff00;
+        user-select: none;
+        overflow: hidden;
+        position: relative;
+        min-height: 280px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px 16px 0 0;
+        transform: translateZ(0px);
+      }
+
+      .ascii-art {
+        white-space: pre;
+        letter-spacing: 0;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      #videoCanvas {
+        display: none;
+      }
+
+      .ascii-controls {
+        display: none;
+      }
+
+      .calibration-notice {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 14px;
+        color: #00ff00;
+        font-family: 'Courier New', monospace;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        pointer-events: none;
+      }
+
+      .recalibrate-button {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0, 255, 0, 0.1);
+        border: 1px solid #00ff00;
+        color: #00ff00;
+        font-family: 'Courier New', monospace;
+        font-size: 9px;
+        padding: 4px 8px;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: none;
+        opacity: 0.7;
+      }
+
+      .recalibrate-button:hover {
+        background: rgba(0, 255, 0, 0.2);
+        opacity: 1;
+      }
+
+      .recalibrate-button:active {
+        transform: scale(0.95);
+      }
+
+      .recalibrate-button.visible {
+        display: block;
+      }
+
+      .content-wrapper {
+        padding: 48px 32px 32px;
+        transform-style: preserve-3d;
+        background: white;
+        border-radius: 0 0 16px 16px;
+      }
+
       .profile-image {
         width: 96px;
         height: 96px;
@@ -49,27 +155,35 @@
         object-fit: cover;
         margin: 0 auto 24px;
         display: block;
+        transform: translateZ(200px);
+        filter: brightness(1.05);
+        transition: box-shadow 0.1s ease-out;
       }
-      
+
       .name {
         font-size: 28px;
         font-weight: 600;
         color: #1d1d1f;
         margin-bottom: 4px;
         letter-spacing: -0.4px;
+        transform: translateZ(120px);
+        transition: text-shadow 0.1s ease-out;
       }
-      
+
       .title {
         font-size: 17px;
         color: #86868b;
         font-weight: 400;
         margin-bottom: 32px;
+        transform: translateZ(120px);
+        transition: text-shadow 0.1s ease-out;
       }
-      
+
       .links {
         display: flex;
         flex-direction: column;
         gap: 12px;
+        transform: translateZ(60px);
       }
       
       .link {
@@ -82,17 +196,17 @@
         border-radius: 12px;
         font-size: 16px;
         font-weight: 400;
-        transition: all 0.15s ease;
-        border: 1px solid transparent;
+        transition: all 0.15s ease, box-shadow 0.1s ease-out;
+        border: 1px solid rgba(0, 0, 0, 0.06);
       }
-      
+
       .link:hover {
         background: #e8e8ed;
-        transform: translateY(-1px);
+        transform: translateY(-2px) translateZ(10px);
       }
-      
+
       .link:active {
-        transform: translateY(0);
+        transform: translateY(0) translateZ(5px);
         background: #d1d1d6;
       }
       
@@ -108,31 +222,52 @@
           background: #000;
           color: #f5f5f7;
         }
-        
+
+        #matrixCanvas {
+          background: #000;
+        }
+
         .container {
           background: #1d1d1f;
           border-color: rgba(255, 255, 255, 0.1);
           box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
         }
-        
+
+        .content-wrapper {
+          background: #1d1d1f;
+        }
+
+        .ascii-container {
+          background: #000;
+          color: #00ff00;
+        }
+
+        .recalibrate-button {
+          background: rgba(0, 255, 0, 0.15);
+        }
+
+        .recalibrate-button:hover {
+          background: rgba(0, 255, 0, 0.25);
+        }
+
         .name {
           color: #f5f5f7;
         }
-        
+
         .title {
           color: #86868b;
         }
-        
+
         .link {
           color: #f5f5f7;
           background: #2c2c2e;
           border-color: rgba(255, 255, 255, 0.06);
         }
-        
+
         .link:hover {
           background: #3a3a3c;
         }
-        
+
         .link:active {
           background: #48484a;
         }
@@ -140,12 +275,24 @@
     </style>
   </head>
   <body>
+    <canvas id="matrixCanvas"></canvas>
     <div class="container">
-      <img src="image.png" alt="Felix Flores" class="profile-image" />
-      <h1 class="name">Felix Flores</h1>
-      <p class="title">Technologist</p>
-      
-      <div class="links">
+      <div class="ascii-container">
+        <div class="ascii-art" id="asciiArt"></div>
+        <canvas id="videoCanvas"></canvas>
+        <div class="ascii-controls">[ WEBCAM ]</div>
+        <button class="recalibrate-button" id="recalibrateButton">RECALIBRATE</button>
+        <div class="calibration-notice" id="calibrationNotice" style="display: none;">
+          CALIBRATING...<br>
+          Look straight at camera
+        </div>
+      </div>
+      <div class="content-wrapper">
+        <img src="image.png" alt="Felix Flores" class="profile-image" />
+        <h1 class="name">Felix Flores</h1>
+        <p class="title">Technologist</p>
+
+        <div class="links">
         <a href="https://github.com/felixflores" target="_blank" rel="noopener noreferrer" class="link">
           <svg class="link-icon" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
@@ -174,6 +321,281 @@
           /in/felixflores
         </a>
       </div>
+      </div>
     </div>
+    <script>
+      const asciiArt = document.getElementById('asciiArt');
+      const canvas = document.getElementById('videoCanvas');
+      const ctx = canvas.getContext('2d');
+      const container = document.querySelector('.container');
+      const calibrationNotice = document.getElementById('calibrationNotice');
+      const recalibrateButton = document.getElementById('recalibrateButton');
+      const profileImage = document.querySelector('.profile-image');
+      const nameElement = document.querySelector('.name');
+      const titleElement = document.querySelector('.title');
+      const linkElements = document.querySelectorAll('.link');
+
+      const matrixCanvas = document.getElementById('matrixCanvas');
+      const matrixCtx = matrixCanvas.getContext('2d');
+
+      const asciiChars = ['@', '#', 'S', '%', '?', '*', '+', ';', ':', ',', '.', ' '];
+      const width = 80;
+      const height = 40;
+      canvas.width = width;
+      canvas.height = height;
+
+      let video = null;
+      let isWebcamActive = false;
+      let headX = 0.5;
+      let headY = 0.5;
+      let smoothHeadX = 0.5;
+      let smoothHeadY = 0.5;
+      let calibratedCenterX = 0.5;
+      let calibratedCenterY = 0.5;
+      let calibrationFrames = 0;
+      let calibrationSumX = 0;
+      let calibrationSumY = 0;
+
+      let matrixColumns = [];
+      let matrixActive = false;
+
+      function initMatrix() {
+        matrixCanvas.width = window.innerWidth;
+        matrixCanvas.height = window.innerHeight;
+        const columnCount = Math.floor(matrixCanvas.width / 20);
+        matrixColumns = Array(columnCount).fill(0);
+        matrixActive = true;
+        matrixCanvas.classList.add('active');
+        drawMatrix();
+      }
+
+      function drawMatrix() {
+        if (!matrixActive) return;
+
+        matrixCtx.fillStyle = 'rgba(250, 250, 250, 0.05)';
+        matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+        matrixCtx.fillStyle = 'rgba(0, 80, 0, 0.3)';
+        matrixCtx.font = '13px monospace';
+
+        for (let i = 0; i < matrixColumns.length; i++) {
+          const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+          const x = i * 20;
+          const y = matrixColumns[i] * 20;
+
+          matrixCtx.fillText(text, x, y);
+
+          if (y > matrixCanvas.height && Math.random() > 0.975) {
+            matrixColumns[i] = 0;
+          }
+          matrixColumns[i]++;
+        }
+
+        setTimeout(() => requestAnimationFrame(drawMatrix), 50);
+      }
+
+      async function initWebcam() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'user',
+              width: { ideal: 640 },
+              height: { ideal: 480 }
+            },
+            audio: false
+          });
+
+          video = document.createElement('video');
+          video.setAttribute('playsinline', '');
+          video.srcObject = stream;
+          video.play();
+
+          video.onloadedmetadata = () => {
+            isWebcamActive = true;
+            calibrationNotice.style.display = 'block';
+            recalibrateButton.classList.remove('visible');
+            initMatrix();
+            renderAscii();
+          };
+        } catch (err) {
+          asciiArt.textContent = `
+╔══════════════════════════╗
+║                          ║
+║    WEBCAM ACCESS         ║
+║    DENIED OR             ║
+║    UNAVAILABLE           ║
+║                          ║
+║  Tap to enable           ║
+║                          ║
+╚══════════════════════════╝`;
+        }
+      }
+
+      function trackHead(imageData) {
+        if (!imageData) return;
+
+        const pixels = imageData.data;
+        let maxBrightness = 0;
+        let brightestX = width / 2;
+        let brightestY = height / 2;
+        const gridSize = 5;
+        for (let gy = 0; gy < gridSize; gy++) {
+          for (let gx = 0; gx < gridSize; gx++) {
+            let regionBrightness = 0;
+            const startX = Math.floor((gx / gridSize) * width);
+            const startY = Math.floor((gy / gridSize) * height);
+            const endX = Math.floor(((gx + 1) / gridSize) * width);
+            const endY = Math.floor(((gy + 1) / gridSize) * height);
+
+            for (let y = startY; y < endY; y++) {
+              for (let x = startX; x < endX; x++) {
+                const offset = (y * width + x) * 4;
+                const r = pixels[offset];
+                const g = pixels[offset + 1];
+                const b = pixels[offset + 2];
+                regionBrightness += (r + g + b) / 3;
+              }
+            }
+
+            if (regionBrightness > maxBrightness) {
+              maxBrightness = regionBrightness;
+              brightestX = (startX + endX) / 2;
+              brightestY = (startY + endY) / 2;
+            }
+          }
+        }
+
+        headX = brightestX / width;
+        headY = brightestY / height;
+
+        if (calibrationFrames < 30) {
+          calibrationSumX += headX;
+          calibrationSumY += headY;
+          calibrationFrames++;
+          if (calibrationFrames === 30) {
+            calibratedCenterX = calibrationSumX / 30;
+            calibratedCenterY = calibrationSumY / 30;
+            calibrationNotice.style.display = 'none';
+            recalibrateButton.classList.add('visible');
+          }
+        }
+
+        const smoothing = 0.22;
+        smoothHeadX += (headX - smoothHeadX) * smoothing;
+        smoothHeadY += (headY - smoothHeadY) * smoothing;
+      }
+
+      function videoToAscii() {
+        if (!video || !isWebcamActive) return { ascii: '', imageData: null };
+
+        ctx.drawImage(video, 0, 0, width, height);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const pixels = imageData.data;
+
+        let ascii = '';
+        for (let y = 0; y < height; y++) {
+          let line = '';
+          for (let x = 0; x < width; x++) {
+            const offset = (y * width + x) * 4;
+            const r = pixels[offset];
+            const g = pixels[offset + 1];
+            const b = pixels[offset + 2];
+
+            const brightness = (r + g + b) / 3;
+            const charIndex = Math.floor((brightness / 255) * (asciiChars.length - 1));
+            line += asciiChars[asciiChars.length - 1 - charIndex];
+          }
+          ascii += line.split('').reverse().join('') + '\n';
+        }
+
+        return { ascii, imageData };
+      }
+
+      function apply3DTransform() {
+        const rotateY = (smoothHeadX - calibratedCenterX) * 40;
+        const rotateX = (smoothHeadY - calibratedCenterY) * 28;
+        container.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+
+        const shadowX = (smoothHeadX - calibratedCenterX) * -50;
+        const shadowY = (smoothHeadY - calibratedCenterY) * -45;
+
+        profileImage.style.transform = `translateZ(200px) rotateY(${-rotateY}deg) rotateX(${-rotateX}deg)`;
+        profileImage.style.boxShadow = `
+          ${shadowX}px ${shadowY + 30}px 80px rgba(0, 0, 0, 0.4),
+          0 0 0 4px rgba(255, 255, 255, 0.1),
+          inset ${-shadowX * 0.1}px ${-shadowY * 0.1}px 8px rgba(0, 0, 0, 0.3)
+        `;
+
+        nameElement.style.transform = `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`;
+        nameElement.style.textShadow = `
+          ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.1),
+          ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.08),
+          ${shadowX * 0.3}px ${shadowY * 0.3 + 8}px 24px rgba(0, 0, 0, 0.06)
+        `;
+
+        titleElement.style.transform = `translateZ(120px) rotateY(${-rotateY * 0.6}deg) rotateX(${-rotateX * 0.6}deg)`;
+        titleElement.style.textShadow = `
+          ${shadowX * 0.1}px ${shadowY * 0.1 + 2}px 4px rgba(0, 0, 0, 0.08),
+          ${shadowX * 0.2}px ${shadowY * 0.2 + 4}px 12px rgba(0, 0, 0, 0.06)
+        `;
+
+        linkElements.forEach(link => {
+          link.style.transform = `rotateY(${-rotateY * 0.3}deg) rotateX(${-rotateX * 0.3}deg)`;
+          if (!link.matches(':hover') && !link.matches(':active')) {
+            link.style.boxShadow = `
+              ${shadowX * 0.05}px ${shadowY * 0.05 + 2}px 8px rgba(0, 0, 0, 0.08),
+              ${shadowX * 0.1}px ${shadowY * 0.1 + 8}px 20px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.5)
+            `;
+          }
+        });
+      }
+
+      let lastRenderTime = 0;
+      const fps = 30;
+      const frameDelay = 1000 / fps;
+
+      function renderAscii(timestamp) {
+        if (isWebcamActive) {
+          if (timestamp - lastRenderTime >= frameDelay) {
+            const result = videoToAscii();
+            asciiArt.textContent = result.ascii;
+            trackHead(result.imageData);
+            apply3DTransform();
+            lastRenderTime = timestamp;
+          }
+          requestAnimationFrame(renderAscii);
+        }
+      }
+
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      if (!isMobile) {
+        initWebcam();
+      } else {
+        asciiArt.textContent = `
+╔══════════════════════════╗
+║                          ║
+║    TAP TO START          ║
+║    WEBCAM ASCII          ║
+║    WITH 3D TRACKING      ║
+║                          ║
+╚══════════════════════════╝`;
+      }
+
+      document.querySelector('.ascii-container').addEventListener('click', (e) => {
+        if (!isWebcamActive && e.target !== recalibrateButton) {
+          initWebcam();
+        }
+      });
+
+      recalibrateButton.addEventListener('click', () => {
+        calibrationFrames = 0;
+        calibrationSumX = 0;
+        calibrationSumY = 0;
+        recalibrateButton.classList.remove('visible');
+        calibrationNotice.style.display = 'block';
+      });
+    </script>
   </body>
 </html>
