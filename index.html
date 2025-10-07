@@ -504,7 +504,7 @@
         height: 40,
         fps: isSafari ? 20 : 30,
         smoothing: isMobile ? 0.3 : (isSafari ? 0.25 : 0.15),
-        rotationMultipliers: { horizontal: 30, vertical: 60 },
+        rotationMultipliers: { horizontal: 40, verticalUp: 60, verticalDown: 80 },
         shadowMultipliers: { x: 50, y: 60 }
       };
 
@@ -581,9 +581,10 @@
         const offsetX = smoothHeadX - CALIBRATED_CENTER.x;
         const offsetY = smoothHeadY - CALIBRATED_CENTER.y;
 
-        // Apply rotation
+        // Apply rotation with different multipliers for up/down
         const rotateY = -offsetX * config.rotationMultipliers.horizontal;
-        const rotateX = offsetY * config.rotationMultipliers.vertical;
+        const verticalMultiplier = offsetY < 0 ? config.rotationMultipliers.verticalUp : config.rotationMultipliers.verticalDown;
+        const rotateX = offsetY * verticalMultiplier;
 
         // Shadows follow rotation
         const shadowX = offsetX * config.shadowMultipliers.x;
@@ -626,9 +627,9 @@
         // Tilt left = positive gamma, Tilt right = negative gamma
         // Adjusted range so comfortable viewing angle (~45°) is origin
         const clampedBeta = Math.max(15, Math.min(75, beta));
-        const clampedGamma = Math.max(-45, Math.min(45, gamma));
+        const clampedGamma = Math.max(-30, Math.min(30, gamma));
 
-        const x = mapRange(clampedGamma, -45, 45, 1, 0); // Flipped
+        const x = mapRange(clampedGamma, -30, 30, 1, 0); // Flipped
         const y = mapRange(clampedBeta, 15, 75, 1, 0);
 
         return { x, y };
