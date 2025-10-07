@@ -610,7 +610,7 @@
         const clampedGamma = Math.max(-45, Math.min(45, gamma));
 
         const x = mapRange(clampedGamma, -45, 45, 0, 1);
-        const y = mapRange(clampedBeta, -60, 60, 0, 1);
+        const y = mapRange(clampedBeta, -60, 60, 1, 0);
 
         return { x, y };
       };
