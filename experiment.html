@@ -209,6 +209,22 @@
       letter-spacing: 0.5px;
     }
 
+    .char-fade {
+      animation: charFadeIn 0.2s ease-in forwards;
+      opacity: 0;
+    }
+
+    @keyframes charFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(2px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     .thinking-header {
       display: flex;
       align-items: center;
@@ -493,6 +509,12 @@
     }
 
     function addThinkingItem(text) {
+      // Skip if it's just "ANSWER" or empty
+      if (!text || text.match(/^ANSWER:?\s*$/i)) {
+        console.log('Skipping thought:', text);
+        return;
+      }
+
       console.log('Adding thought:', text);
       const item = document.createElement('div');
       item.className = 'thinking-item';
@@ -547,7 +569,9 @@
         });
 
         let currentThought = '';
+        let answerText = '';
         let inThinking = false;
+        let inAnswer = false;
 
         for await (const chunk of completion) {
           const content = chunk.choices[0]?.delta?.content || '';
@@ -558,6 +582,14 @@
           }
 
           if (fullResponse.includes('ANSWER:')) {
+            if (!inAnswer) {
+              // First time entering ANSWER section - show the response container
+              elements.response.style.display = 'block';
+              elements.responseText.innerHTML = ''; // Clear any previous content
+              // Update header to show we're done thinking
+              elements.thinkingHeader.querySelector('span').textContent = 'Thought Process';
+              inAnswer = true;
+            }
             inThinking = false;
           }
 
@@ -569,36 +601,49 @@
               const thoughts = currentThought.split('\n').filter(t => t.trim());
               thoughts.forEach(t => {
                 const cleaned = t.trim().replace(/^[-•*]\s*/, '').replace(/^THINKING:\s*/i, '');
-                if (cleaned) addThinkingItem(cleaned);
+                addThinkingItem(cleaned);
               });
               currentThought = '';
+            }
+          } else if (inAnswer && content) {
+            // Stream the answer in real-time, character by character
+            console.log('Answer content chunk:', content);
+
+            // Build up the answer text with all content after "ANSWER:"
+            const rawAnswer = (answerText + content).replace(/^ANSWER:\s*/i, '');
+            const prevLength = answerText.replace(/^ANSWER:\s*/i, '').length;
+            answerText += content;
+
+            // Get only the new characters to add
+            const newChars = rawAnswer.slice(prevLength);
+
+            if (newChars) {
+              console.log('Adding new chars:', newChars);
+              // Add new characters with fade animation
+              for (const char of newChars) {
+                const span = document.createElement('span');
+                span.className = 'char-fade';
+                span.textContent = char;
+                elements.responseText.appendChild(span);
+              }
             }
           }
         }
 
         // Add any remaining thought
         if (currentThought.trim()) {
-          const cleaned = currentThought.trim().replace(/^[-•*]\s*/, '');
-          if (cleaned) addThinkingItem(cleaned);
+          const cleaned = currentThought.trim().replace(/^[-•*]\s*/, '').replace(/^THINKING:\s*/i, '');
+          addThinkingItem(cleaned);
         }
 
-        // Show answer
-        console.log('Full response:', fullResponse);
-        const answerMatch = fullResponse.match(/ANSWER:(.*?)$/s);
-        if (answerMatch) {
-          elements.response.style.display = 'block';
-          const answerText = answerMatch[1].trim();
-          if (typeof marked !== 'undefined') {
-            elements.responseText.innerHTML = marked.parse(answerText);
-          } else {
-            elements.responseText.textContent = answerText;
-          }
-        } else {
-          // If no ANSWER section found, show the whole response
+        // Final check if we didn't get an answer
+        if (!inAnswer) {
           console.warn('No ANSWER section found in response');
           elements.response.style.display = 'block';
           elements.responseText.textContent = fullResponse;
         }
+
+        console.log('Full response:', fullResponse);
       } catch (error) {
         elements.thinkingSection.style.display = 'none';
         elements.response.style.display = 'block';
