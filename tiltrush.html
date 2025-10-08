@@ -640,8 +640,8 @@
     const mapGyroToPosition = (beta, gamma) => {
       const clampedBeta = Math.max(15, Math.min(75, beta));
       const clampedGamma = Math.max(-30, Math.min(30, gamma));
-      const x = mapRange(clampedGamma, -30, 30, 1, 0);
-      const y = mapRange(clampedBeta, 15, 75, 1, 0);
+      const x = mapRange(clampedGamma, -30, 30, 0, 1);
+      const y = mapRange(clampedBeta, 15, 75, 0, 1);
       return { x, y };
     };
 
