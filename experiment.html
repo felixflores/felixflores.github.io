@@ -139,16 +139,6 @@
       pointer-events: none;
     }
 
-    .loader {
-      width: 60px;
-      height: 60px;
-      border: 3px solid #1a1a1a;
-      border-top: 3px solid #667eea;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-
     .loading-text {
       color: #667eea;
       font-size: 14px;
@@ -178,7 +168,6 @@
     .char-reveal {
       display: inline;
       animation: charReveal 0.6s ease-out forwards;
-      opacity: 0;
     }
 
     @keyframes charReveal {
@@ -310,8 +299,28 @@
     .thinking-scroll {
       padding: 16px;
       padding-bottom: 20px;
-      line-height: 1.8;
+      line-height: 1.6;
       color: #b0b0b0;
+      font-size: 13px;
+    }
+
+    .thinking-scroll strong {
+      color: #e0e0e0;
+      font-weight: 600;
+    }
+
+    .thinking-scroll em {
+      color: #a0a0a0;
+      font-style: italic;
+    }
+
+    .thinking-scroll code {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 0.9em;
     }
 
     .thinking-content::-webkit-scrollbar {
@@ -339,55 +348,9 @@
       z-index: 1;
     }
 
-    .thinking-item {
-      margin-bottom: 12px;
-      opacity: 0;
-      animation: fadeInUp 0.5s ease-out forwards;
-      padding-left: 20px;
-      position: relative;
-    }
-
-    .thinking-item::before {
-      content: '•';
-      position: absolute;
-      left: 0;
-      color: #667eea;
-    }
-
-    .thinking-item strong {
-      color: #e0e0e0;
-      font-weight: 600;
-    }
-
-    .thinking-item em {
-      color: #a0a0a0;
-      font-style: italic;
-    }
-
-    .thinking-item code {
-      background: rgba(102, 126, 234, 0.1);
-      color: #667eea;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-family: monospace;
-      font-size: 0.9em;
-    }
-
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
     #thinkingSection {
       margin-bottom: 20px;
     }
-
 
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -402,8 +365,18 @@
 <body>
   <!-- Loading Screen -->
   <div class="loading-container" id="loadingContainer">
-    <div class="loader"></div>
-    <div class="loading-text" id="loadingText">Initializing model...</div>
+    <div style="text-align: center; margin-bottom: 20px;">
+      <h2 style="color: #667eea; margin-bottom: 10px;">Loading AI Model...</h2>
+      <div class="loading-text" id="loadingText">Initializing model...</div>
+      <div style="margin-top: 10px; color: #888; font-size: 12px;">Play while you wait ⬇️</div>
+    </div>
+    <asteroids-game id="loadingGame"></asteroids-game>
+    <div style="margin-top: 15px; color: #888; font-size: 13px; text-align: center;">
+      Arrow keys to rotate/thrust • Space to shoot
+    </div>
+    <button id="continueBtn" style="display: none; margin-top: 20px; padding: 15px 40px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+      Continue to TLog
+    </button>
   </div>
 
   <!-- Main Content -->
@@ -415,304 +388,731 @@
       <p class="subtitle">Ask anything. Watch the model think.</p>
     </header>
 
-    <div class="question-container">
-      <textarea
-        id="questionInput"
-        class="question-input"
-        placeholder="What's on your mind?"
-        rows="3"
-      ></textarea>
-      <div class="hint-text">Press Enter to explore</div>
-    </div>
-
-    <div class="results-container">
-      <div id="thinkingSection" style="display: none;">
-        <div class="thinking-header" id="thinkingHeader">
-          <div class="thinking-header-left">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display: inline-block; margin-right: 8px;">
-              <path d="M8 2a6 6 0 100 12A6 6 0 008 2zm0 11a5 5 0 110-10 5 5 0 010 10z" fill="#667eea"/>
-              <path d="M8 4.5v4l2.5 1.5" stroke="#667eea" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-            <span style="color: #667eea; font-size: 14px; font-weight: 500;">Thinking...</span>
-          </div>
-          <svg class="chevron" id="chevron" viewBox="0 0 16 16">
-            <path d="M4 6l4 4 4-4" stroke="#667eea" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <div class="thinking-content" id="thinkingContent">
-          <div id="thinkingText" class="thinking-scroll"></div>
-        </div>
-      </div>
-
-      <div id="response" style="display: none;">
-        <div class="response-label">Answer</div>
-        <div id="responseText" class="response"></div>
-      </div>
-    </div>
+    <tlog-interface></tlog-interface>
   </div>
 
+  <!-- Asteroids Game Component -->
+  <script>
+    class AsteroidsGame extends HTMLElement {
+      constructor() {
+        super();
+        this.canvas = null;
+        this.ctx = null;
+        this.gameState = null;
+        this.keyHandlers = null;
+        this.animationId = null;
+      }
+
+      connectedCallback() {
+        this.innerHTML = `
+          <canvas width="640" height="480" style="border: 2px solid #667eea; background: #000;"></canvas>
+        `;
+        this.canvas = this.querySelector('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.initGame();
+        this.startGameLoop();
+      }
+
+      disconnectedCallback() {
+        this.cleanup();
+      }
+
+      cleanup() {
+        if (this.keyHandlers) {
+          window.removeEventListener('keydown', this.keyHandlers.down);
+          window.removeEventListener('keyup', this.keyHandlers.up);
+        }
+        if (this.animationId) {
+          cancelAnimationFrame(this.animationId);
+        }
+      }
+
+      initGame() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        this.gameState = {
+          w, h,
+          ship: { x: w/2, y: h/2, vx: 0, vy: 0, angle: -Math.PI/2, thrustPower: 0 },
+          keys: {},
+          bullets: [],
+          asteroids: [],
+          score: 0,
+          gameOver: false,
+          collected: {},
+          emojiTypes: ['🗿', '💩', '🌮', '🍕', '🧀', '🥑', '🍆', '🌶️', '🧇', '🥓']
+        };
+
+        // Setup input handlers
+        this.keyHandlers = {
+          down: (e) => {
+            this.gameState.keys[e.key] = true;
+            if (e.key === ' ') {
+              e.preventDefault();
+              if (this.gameState.gameOver) {
+                this.restartGame();
+              } else {
+                this.shoot();
+              }
+            }
+          },
+          up: (e) => this.gameState.keys[e.key] = false
+        };
+
+        window.addEventListener('keydown', this.keyHandlers.down);
+        window.addEventListener('keyup', this.keyHandlers.up);
+
+        // Spawn initial asteroids
+        for (let i = 0; i < 4; i++) this.spawnAsteroid();
+      }
+
+      restartGame() {
+        const { w, h } = this.gameState;
+        this.gameState.ship = { x: w/2, y: h/2, vx: 0, vy: 0, angle: -Math.PI/2, thrustPower: 0 };
+        this.gameState.bullets = [];
+        this.gameState.asteroids = [];
+        this.gameState.score = 0;
+        this.gameState.gameOver = false;
+        this.gameState.collected = {};
+        for (let i = 0; i < 4; i++) this.spawnAsteroid();
+      }
+
+      spawnAsteroid(x, y, size = 3, emoji = null) {
+        const { w, h, emojiTypes, asteroids } = this.gameState;
+        const speed = (4 - size) * 0.5;
+        const numPoints = 8 + Math.floor(Math.random() * 4);
+        const vertices = [];
+
+        for (let i = 0; i < numPoints; i++) {
+          const angle = (i / numPoints) * Math.PI * 2;
+          const radius = 0.7 + Math.random() * 0.5;
+          vertices.push({ angle, radius });
+        }
+
+        asteroids.push({
+          x: x || Math.random() * w,
+          y: y || Math.random() * h,
+          vx: (Math.random() - 0.5) * speed,
+          vy: (Math.random() - 0.5) * speed,
+          size: size,
+          angle: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.05,
+          vertices: vertices,
+          emoji: emoji || emojiTypes[Math.floor(Math.random() * emojiTypes.length)]
+        });
+      }
+
+      shoot() {
+        if (this.gameState.gameOver) return;
+        const { ship, bullets } = this.gameState;
+        bullets.push({
+          x: ship.x + Math.cos(ship.angle) * 10,
+          y: ship.y + Math.sin(ship.angle) * 10,
+          vx: Math.cos(ship.angle) * 5,
+          vy: Math.sin(ship.angle) * 5,
+          life: 60
+        });
+      }
+
+      update() {
+        const { ship, keys, bullets, asteroids, w, h } = this.gameState;
+        if (this.gameState.gameOver) return;
+
+        // Ship rotation
+        if (keys['ArrowLeft']) ship.angle -= 0.08;
+        if (keys['ArrowRight']) ship.angle += 0.08;
+
+        // Smooth thrust
+        if (keys['ArrowUp']) {
+          ship.thrustPower = Math.min(ship.thrustPower + 0.008, 1);
+        } else {
+          ship.thrustPower = Math.max(ship.thrustPower - 0.03, 0);
+        }
+
+        // Apply thrust
+        if (ship.thrustPower > 0) {
+          const thrust = ship.thrustPower * 0.15;
+          ship.vx += Math.cos(ship.angle) * thrust;
+          ship.vy += Math.sin(ship.angle) * thrust;
+        }
+
+        // Friction
+        ship.vx *= 0.99;
+        ship.vy *= 0.99;
+
+        // Move ship
+        ship.x += ship.vx;
+        ship.y += ship.vy;
+
+        // Wrap ship
+        if (ship.x < 0) ship.x = w;
+        if (ship.x > w) ship.x = 0;
+        if (ship.y < 0) ship.y = h;
+        if (ship.y > h) ship.y = 0;
+
+        // Update bullets
+        this.gameState.bullets = bullets.filter(b => {
+          b.x += b.vx;
+          b.y += b.vy;
+          b.life--;
+          return b.life > 0 && b.x > 0 && b.x < w && b.y > 0 && b.y < h;
+        });
+
+        // Update asteroids
+        asteroids.forEach(a => {
+          a.x += a.vx;
+          a.y += a.vy;
+          a.angle += a.spin;
+          if (a.x < 0) a.x = w;
+          if (a.x > w) a.x = 0;
+          if (a.y < 0) a.y = h;
+          if (a.y > h) a.y = 0;
+
+          // Check collision with ship
+          if (!a.collectable) {
+            const dx = ship.x - a.x;
+            const dy = ship.y - a.y;
+            if (Math.sqrt(dx*dx + dy*dy) < a.size * 10) {
+              this.gameState.gameOver = true;
+            }
+          }
+        });
+
+        // Check bullet collisions
+        bullets.forEach((b, bi) => {
+          asteroids.forEach((a, ai) => {
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            if (Math.sqrt(dx*dx + dy*dy) < a.size * 10) {
+              bullets.splice(bi, 1);
+
+              if (a.size <= 2) {
+                a.collectable = true;
+                a.vx *= 0.5;
+                a.vy *= 0.5;
+                this.gameState.score += (4 - a.size) * 10;
+              } else {
+                asteroids.splice(ai, 1);
+                this.gameState.score += (4 - a.size) * 10;
+                this.spawnAsteroid(a.x, a.y, a.size - 1, a.emoji);
+                this.spawnAsteroid(a.x, a.y, a.size - 1, a.emoji);
+              }
+
+              const hasNonCollectables = asteroids.some(ast => !ast.collectable);
+              if (!hasNonCollectables) {
+                for (let i = 0; i < 4; i++) this.spawnAsteroid();
+              }
+            }
+          });
+        });
+
+        // Check ship collision with collectables
+        asteroids.forEach((a, ai) => {
+          if (a.collectable) {
+            const dx = ship.x - a.x;
+            const dy = ship.y - a.y;
+            if (Math.sqrt(dx*dx + dy*dy) < 15) {
+              asteroids.splice(ai, 1);
+              this.gameState.score += 50;
+              if (!this.gameState.collected[a.emoji]) {
+                this.gameState.collected[a.emoji] = 0;
+              }
+              this.gameState.collected[a.emoji]++;
+            }
+          }
+        });
+      }
+
+      render() {
+        const { w, h, ship, bullets, asteroids, score, collected, gameOver } = this.gameState;
+        const ctx = this.ctx;
+
+        // Clear
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+
+        // Draw ship
+        ctx.save();
+        ctx.translate(ship.x, ship.y);
+        ctx.rotate(ship.angle);
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(-8, -6);
+        ctx.lineTo(-5, 0);
+        ctx.lineTo(-8, 6);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Thrust flame
+        if (ship.thrustPower > 0 && !gameOver) {
+          const flameLength = 7 + ship.thrustPower * 5;
+          ctx.fillStyle = `rgba(255, 107, 107, ${ship.thrustPower})`;
+          ctx.beginPath();
+          ctx.moveTo(-5, 0);
+          ctx.lineTo(-5 - flameLength, -3);
+          ctx.lineTo(-5 - flameLength, 3);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Draw bullets
+        ctx.fillStyle = '#fff';
+        bullets.forEach(b => {
+          ctx.fillRect(b.x - 1, b.y - 1, 2, 2);
+        });
+
+        // Draw asteroids
+        asteroids.forEach(a => {
+          ctx.save();
+          ctx.translate(a.x, a.y);
+          ctx.rotate(a.angle);
+
+          if (!a.collectable) {
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const r = a.size * 10;
+            a.vertices.forEach((v, i) => {
+              const x = Math.cos(v.angle) * r * v.radius;
+              const y = Math.sin(v.angle) * r * v.radius;
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            ctx.closePath();
+            ctx.stroke();
+          }
+
+          const size = a.collectable ? 20 : a.size * 15;
+          ctx.font = `${size}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(a.emoji, 0, 0);
+
+          if (a.collectable) {
+            ctx.shadowColor = '#ffff00';
+            ctx.shadowBlur = 15;
+            ctx.fillText(a.emoji, 0, 0);
+            ctx.shadowBlur = 0;
+          }
+
+          ctx.restore();
+        });
+
+        // Score
+        ctx.fillStyle = '#667eea';
+        ctx.font = '16px monospace';
+        ctx.fillText(`SCORE: ${score}`, 10, 25);
+
+        // Collected emojis
+        let yOffset = 50;
+        Object.keys(collected).forEach(emoji => {
+          ctx.fillStyle = '#fff';
+          ctx.font = '18px Arial';
+          ctx.fillText(`${emoji} x${collected[emoji]}`, 10, yOffset);
+          yOffset += 25;
+        });
+
+        if (gameOver) {
+          const messages = [
+            'Destroyed by a 🌮',
+            'RIP Space Captain',
+            'You got memed',
+            'The 💩 got you',
+            'Git gud',
+            'Skill issue detected'
+          ];
+          const msg = messages[Math.floor(Math.random() * messages.length)];
+
+          ctx.fillStyle = '#ff6b6b';
+          ctx.font = 'bold 32px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('GAME OVER', w/2, h/2 - 20);
+          ctx.font = '18px monospace';
+          ctx.fillText(msg, w/2, h/2 + 15);
+          ctx.font = '14px monospace';
+          ctx.fillStyle = '#667eea';
+          ctx.fillText('Press SPACE to restart', w/2, h/2 + 45);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      startGameLoop() {
+        const loop = () => {
+          this.update();
+          this.render();
+          this.animationId = requestAnimationFrame(loop);
+        };
+        loop();
+      }
+    }
+
+    customElements.define('asteroids-game', AsteroidsGame);
+  </script>
+
+  <!-- TLog Interface Component -->
   <script type="module">
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-    let engine = null;
-    let scrollAnimationFrame = null;
-    let isScrolling = false;
+    class TLogInterface extends HTMLElement {
+      constructor() {
+        super();
+        this.engine = null;
+        this.scrollAnimationFrame = null;
+        this.isScrolling = false;
+      }
 
-    const elements = {
-      loadingContainer: document.getElementById('loadingContainer'),
-      loadingText: document.getElementById('loadingText'),
-      mainContent: document.getElementById('mainContent'),
-      input: document.getElementById('questionInput'),
-      thinkingSection: document.getElementById('thinkingSection'),
-      thinkingHeader: document.getElementById('thinkingHeader'),
-      thinkingContent: document.getElementById('thinkingContent'),
-      thinkingText: document.getElementById('thinkingText'),
-      chevron: document.getElementById('chevron'),
-      response: document.getElementById('response'),
-      responseText: document.getElementById('responseText')
-    };
+      connectedCallback() {
+        this.innerHTML = `
+          <div class="question-container">
+            <textarea
+              id="questionInput"
+              class="question-input"
+              placeholder="What's on your mind?"
+              rows="3"
+            ></textarea>
+            <div class="hint-text">Press Enter to explore</div>
+          </div>
+
+          <div class="results-container">
+            <div id="thinkingSection" style="display: none;">
+              <div class="thinking-header" id="thinkingHeader">
+                <div class="thinking-header-left">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display: inline-block; margin-right: 8px;">
+                    <path d="M8 2a6 6 0 100 12A6 6 0 008 2zm0 11a5 5 0 110-10 5 5 0 010 10z" fill="#667eea"/>
+                    <path d="M8 4.5v4l2.5 1.5" stroke="#667eea" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  <span style="color: #667eea; font-size: 14px; font-weight: 500;">Thinking...</span>
+                </div>
+                <svg class="chevron" id="chevron" viewBox="0 0 16 16">
+                  <path d="M4 6l4 4 4-4" stroke="#667eea" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="thinking-content" id="thinkingContent">
+                <div id="thinkingText" class="thinking-scroll"></div>
+              </div>
+            </div>
+
+            <div id="response" style="display: none;">
+              <div class="response-label">Answer</div>
+              <div id="responseText" class="response"></div>
+            </div>
+          </div>
+        `;
+
+        this.setupElements();
+        this.setupEventListeners();
+      }
+
+      setupElements() {
+        this.elements = {
+          input: this.querySelector('#questionInput'),
+          thinkingSection: this.querySelector('#thinkingSection'),
+          thinkingHeader: this.querySelector('#thinkingHeader'),
+          thinkingContent: this.querySelector('#thinkingContent'),
+          thinkingText: this.querySelector('#thinkingText'),
+          chevron: this.querySelector('#chevron'),
+          response: this.querySelector('#response'),
+          responseText: this.querySelector('#responseText')
+        };
+      }
+
+      setupEventListeners() {
+        // Toggle thinking section expand/collapse
+        this.elements.thinkingHeader.addEventListener('click', () => {
+          const isExpanded = this.elements.thinkingContent.classList.toggle('expanded');
+          this.elements.chevron.classList.toggle('expanded', isExpanded);
+        });
+
+        // Handle Enter key to submit question
+        this.elements.input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.askQuestion();
+          }
+        });
+      }
+
+      setEngine(engine) {
+        this.engine = engine;
+      }
+
+      startSmoothScroll() {
+        if (this._scrollAnimating) return;
+        this._scrollAnimating = true;
+
+        const scroll = () => {
+          if (!this._scrollAnimating) return;
+
+          // Don't auto-scroll when expanded
+          if (!this.elements.thinkingContent.classList.contains('expanded')) {
+            const container = this.elements.thinkingContent;
+            const maxScroll = container.scrollHeight - container.clientHeight;
+
+            // Continuous smooth scroll to bottom
+            if (container.scrollTop < maxScroll) {
+              container.scrollTop = Math.min(container.scrollTop + 1, maxScroll);
+            }
+          }
+
+          this._scrollAnimationFrame = requestAnimationFrame(scroll);
+        };
+
+        this._scrollAnimationFrame = requestAnimationFrame(scroll);
+      }
+
+      stopSmoothScroll() {
+        this._scrollAnimating = false;
+        if (this._scrollAnimationFrame) {
+          cancelAnimationFrame(this._scrollAnimationFrame);
+          this._scrollAnimationFrame = null;
+        }
+      }
+
+      streamCharacter(element, char, index = 0) {
+        const delay = index * 0.02 * 1000; // Convert to milliseconds
+
+        // Add character to DOM when its animation should start
+        setTimeout(() => {
+          const span = document.createElement('span');
+          span.className = 'char-reveal';
+          span.textContent = char;
+          element.appendChild(span);
+
+          // Start smooth scrolling if not already started
+          if (!this._scrollAnimating && element === this.elements.thinkingText) {
+            this.startSmoothScroll();
+          }
+        }, delay);
+      }
+
+      async askQuestion() {
+        const question = this.elements.input.value.trim();
+        if (!question || !this.engine) {
+          return;
+        }
+
+        // Clear input and disable while processing
+        this.elements.input.value = '';
+        this.elements.input.disabled = true;
+
+        // Reset UI
+        this.elements.thinkingSection.style.display = 'block';
+        this.elements.thinkingText.innerHTML = '';
+        this.elements.thinkingContent.scrollTop = 0;
+        this.elements.thinkingContent.classList.remove('expanded');
+        this.elements.chevron.classList.remove('expanded');
+        this.elements.thinkingContent.classList.add('streaming');
+        this.elements.response.style.display = 'none';
+        this.stopSmoothScroll();
+
+        try {
+          const messages = [
+            { role: "system", content: "You are a reasoning AI. You MUST structure your response in exactly this format:\n\nTHINKING:\n- First point of reasoning\n- Second point of reasoning\n- Third point of reasoning\n(add more bullet points as needed)\n\nANSWER:\nYour final answer here\n\nNEVER skip the THINKING section. Always show your reasoning with bullet points before giving the ANSWER." },
+            { role: "user", content: question }
+          ];
+
+          let fullResponse = '';
+          const completion = await this.engine.chat.completions.create({
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 600,
+            stream: true,
+          });
+
+          let buffer = '';
+          let mode = 'waiting'; // 'waiting', 'thinking', 'collecting_answer', 'rendering_answer'
+          let thinkingCharIndex = 0;
+          let answerCharIndex = 0;
+          let contentChunkCount = 0;
+          let answerContent = ''; // Collect answer content before rendering
+
+          for await (const chunk of completion) {
+            const content = chunk.choices[0]?.delta?.content || '';
+            if (!content) continue;
+
+            buffer += content;
+            contentChunkCount++;
+            console.log('[BUFFER]', buffer.slice(-20));
+
+            // Enter THINKING mode
+            if (mode === 'waiting' && buffer.includes('THINKING:')) {
+              mode = 'thinking';
+              buffer = buffer.split('THINKING:')[1] || '';
+              buffer = buffer.replace(/^[\s:]+/, '');
+              console.log('[MODE] Entered THINKING');
+            }
+
+            // Fallback: if we've received several chunks but haven't entered any mode
+            // Only trigger if buffer doesn't look like it's building up to "THINKING:"
+            if (mode === 'waiting' && contentChunkCount > 5 && buffer.length > 15) {
+              const looksLikeThinking = buffer.includes('THINK') || buffer.includes('THI');
+              if (!looksLikeThinking) {
+                console.log('[FALLBACK] Model not using expected format, treating as thinking');
+                mode = 'thinking';
+              }
+            }
+
+            // Check if ANSWER appears in buffer
+            if (mode === 'thinking' && buffer.includes('ANSWER')) {
+              console.log('[SWITCH] Found ANSWER');
+
+              // Stream everything before ANSWER
+              const beforeAnswer = buffer.split('ANSWER')[0];
+              for (const char of beforeAnswer) {
+                this.streamCharacter(this.elements.thinkingText, char, thinkingCharIndex++);
+              }
+
+              // Switch to collecting answer mode (don't render yet)
+              mode = 'collecting_answer';
+              this.elements.thinkingHeader.querySelector('span').textContent = 'Thought Process';
+              this.elements.thinkingContent.classList.remove('streaming');
+              this.stopSmoothScroll();
+
+              // Setup answer buffer
+              buffer = buffer.substring(buffer.indexOf('ANSWER'));
+              if (buffer.includes('ANSWER:')) {
+                buffer = buffer.split('ANSWER:')[1] || '';
+              }
+              buffer = buffer.replace(/^[\s:]+/, '');
+              console.log('[ANSWER] Collecting answer content');
+            }
+
+            // Filter out "THINKING:" from answer content
+            if (mode === 'collecting_answer') {
+              while (buffer.includes('THINKING:')) {
+                const thinkingStart = buffer.indexOf('THINKING:');
+                const nextAnswer = buffer.indexOf('ANSWER:', thinkingStart);
+                if (nextAnswer !== -1) {
+                  buffer = buffer.substring(0, thinkingStart) + buffer.substring(nextAnswer + 7);
+                  buffer = buffer.replace(/^[\s:]+/, '');
+                } else {
+                  buffer = buffer.substring(0, thinkingStart) + buffer.substring(thinkingStart + 9);
+                }
+                console.log('[FILTER] Removed THINKING marker from answer');
+              }
+            }
+
+            // Stream or collect characters (but not in waiting mode)
+            if (mode !== 'waiting') {
+              const bufferSize = mode === 'thinking' ? 6 : 0;
+              while (buffer.length > bufferSize) {
+                const char = buffer[0];
+                buffer = buffer.slice(1);
+
+                if (mode === 'thinking') {
+                  this.streamCharacter(this.elements.thinkingText, char, thinkingCharIndex++);
+                } else if (mode === 'collecting_answer') {
+                  answerContent += char;
+                } else if (mode === 'rendering_answer') {
+                  this.streamCharacter(this.elements.responseText, char, answerCharIndex++);
+                }
+              }
+            }
+          }
+
+          // Flush remaining buffer
+          console.log('[FLUSH] Final:', buffer);
+          for (const char of buffer) {
+            if (mode === 'thinking') {
+              this.streamCharacter(this.elements.thinkingText, char, thinkingCharIndex++);
+            } else if (mode === 'collecting_answer') {
+              answerContent += char;
+            } else if (mode === 'rendering_answer') {
+              this.streamCharacter(this.elements.responseText, char, answerCharIndex++);
+            }
+          }
+
+          // Wait for thinking animations to complete, then render answer
+          if (answerContent) {
+            const lastThinkingDelay = (thinkingCharIndex - 1) * 0.02 * 1000;
+            const animationDuration = 600;
+            const waitTime = lastThinkingDelay + animationDuration;
+
+            console.log(`[TIMING] Waiting ${waitTime}ms for ${thinkingCharIndex} thinking chars to animate`);
+
+            setTimeout(() => {
+              mode = 'rendering_answer';
+              this.elements.response.style.display = 'block';
+              this.elements.response.classList.add('streaming');
+              this.elements.responseText.innerHTML = '';
+
+              // Render all collected answer content
+              for (const char of answerContent) {
+                this.streamCharacter(this.elements.responseText, char, answerCharIndex++);
+              }
+
+              // Remove streaming cursor after answer animations complete
+              const lastAnswerDelay = (answerCharIndex - 1) * 0.02 * 1000;
+              setTimeout(() => {
+                this.elements.response.classList.remove('streaming');
+              }, lastAnswerDelay + animationDuration);
+            }, waitTime);
+          }
+        } catch (error) {
+          this.elements.thinkingSection.style.display = 'none';
+          this.elements.response.style.display = 'block';
+          this.elements.responseText.textContent = 'Error: ' + error.message;
+          console.error(error);
+        }
+
+        // Re-enable input
+        this.elements.input.disabled = false;
+        this.elements.input.focus();
+      }
+    }
+
+    customElements.define('tlog-interface', TLogInterface);
+
+    // Initialize the app
+    const loadingContainer = document.getElementById('loadingContainer');
+    const loadingText = document.getElementById('loadingText');
+    const mainContent = document.getElementById('mainContent');
+    const continueBtn = document.getElementById('continueBtn');
+    const loadingGame = document.getElementById('loadingGame');
 
     async function initModels() {
       try {
-        elements.loadingText.textContent = 'Loading Qwen2.5-1.5B reasoning model...';
+        loadingText.textContent = 'Loading Qwen2.5-1.5B reasoning model...';
 
-        // Initialize WebLLM engine with Qwen2.5-1.5B-Instruct
-        engine = await webllm.CreateMLCEngine(
+        const engine = await webllm.CreateMLCEngine(
           "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
           {
             initProgressCallback: (info) => {
-              elements.loadingText.textContent = info.text || 'Loading...';
+              loadingText.textContent = info.text || 'Loading...';
             }
           }
         );
 
-        // Hide loading screen and show main content
-        elements.loadingContainer.classList.add('hidden');
-        elements.mainContent.classList.add('visible');
+        // Show continue button
+        loadingText.textContent = 'Model ready!';
+        continueBtn.style.display = 'block';
 
-        // Focus on input
-        setTimeout(() => {
-          elements.input.focus();
-        }, 500);
-      } catch (error) {
-        elements.loadingText.textContent = 'Error loading model: ' + error.message;
-        console.error(error);
-      }
-    }
+        // Setup continue button
+        continueBtn.addEventListener('click', () => {
+          // Cleanup the game
+          loadingGame.cleanup();
 
+          loadingContainer.classList.add('hidden');
+          mainContent.classList.add('visible');
 
-    function startCreditsScroll() {
-      if (isScrolling) return;
-      isScrolling = true;
+          // Set the engine on the TLog interface
+          const tlogInterface = document.querySelector('tlog-interface');
+          tlogInterface.setEngine(engine);
 
-      const scrollSpeed = 1.5; // pixels per frame - adjust for faster/slower
-
-      function animate() {
-        if (!isScrolling) return;
-
-        // Don't auto-scroll when expanded - let user control it
-        if (elements.thinkingContent.classList.contains('expanded')) {
-          scrollAnimationFrame = requestAnimationFrame(animate);
-          return;
-        }
-
-        const container = elements.thinkingContent;
-        const maxScroll = container.scrollHeight - container.clientHeight;
-
-        // Keep scrolling if there's more content
-        if (container.scrollTop < maxScroll) {
-          container.scrollTop += scrollSpeed;
-          scrollAnimationFrame = requestAnimationFrame(animate);
-        } else {
-          // At the bottom, keep checking for new content
-          scrollAnimationFrame = requestAnimationFrame(animate);
-        }
-      }
-
-      scrollAnimationFrame = requestAnimationFrame(animate);
-    }
-
-    function stopCreditsScroll() {
-      isScrolling = false;
-      if (scrollAnimationFrame) {
-        cancelAnimationFrame(scrollAnimationFrame);
-        scrollAnimationFrame = null;
-      }
-    }
-
-    function addThinkingItem(text) {
-      // Skip if it's just "ANSWER" or empty
-      if (!text || text.match(/^ANSWER:?\s*$/i)) {
-        console.log('Skipping thought:', text);
-        return;
-      }
-
-      // Remove leading colon if present (e.g., ": text" -> "text")
-      const cleaned = text.trim().replace(/^:\s*/, '');
-      if (!cleaned) return;
-
-      console.log('Adding thought:', cleaned);
-      const item = document.createElement('div');
-      item.className = 'thinking-item';
-
-      // Render markdown - let marked handle all the parsing
-      if (typeof marked !== 'undefined') {
-        item.innerHTML = marked.parseInline(cleaned);
-      } else {
-        item.textContent = cleaned;
-      }
-
-      elements.thinkingText.appendChild(item);
-
-      // Start constant scrolling on first item
-      if (!isScrolling) {
-        startCreditsScroll();
-      }
-    }
-
-    async function askQuestion() {
-      const question = elements.input.value.trim();
-      console.log('askQuestion called with:', question);
-      if (!question || !engine) {
-        console.warn('No question or engine not ready');
-        return;
-      }
-
-      // Clear input and disable while processing
-      elements.input.value = '';
-      elements.input.disabled = true;
-
-      // Reset UI
-      elements.thinkingSection.style.display = 'block';
-      elements.thinkingText.innerHTML = '';
-      elements.thinkingContent.scrollTop = 0;
-      elements.thinkingContent.classList.remove('expanded');
-      elements.chevron.classList.remove('expanded');
-      stopCreditsScroll();
-      elements.response.style.display = 'none';
-
-      console.log('Starting to generate response...');
-      try {
-        const messages = [
-          { role: "system", content: "You are a reasoning AI. You MUST structure your response in exactly this format:\n\nTHINKING:\n- First point of reasoning\n- Second point of reasoning\n- Third point of reasoning\n(add more bullet points as needed)\n\nANSWER:\nYour final answer here\n\nNEVER skip the THINKING section. Always show your reasoning with bullet points before giving the ANSWER." },
-          { role: "user", content: question }
-        ];
-
-        let fullResponse = '';
-        const completion = await engine.chat.completions.create({
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 600,
-          stream: true,
+          setTimeout(() => {
+            const input = document.querySelector('#questionInput');
+            if (input) input.focus();
+          }, 500);
         });
-
-        let currentThought = '';
-        let answerText = '';
-        let previousAnswerLength = 0;
-        let inThinking = false;
-        let inAnswer = false;
-
-        for await (const chunk of completion) {
-          const content = chunk.choices[0]?.delta?.content || '';
-          fullResponse += content;
-
-          // Check if we're in THINKING section
-          if (fullResponse.includes('THINKING:') && !inThinking) {
-            inThinking = true;
-          }
-
-          // Check if we've moved to ANSWER section
-          if (fullResponse.includes('ANSWER:')) {
-            if (!inAnswer) {
-              // First time entering ANSWER - show answer section
-              elements.response.style.display = 'block';
-              elements.response.classList.add('streaming');
-              elements.responseText.innerHTML = '';
-              // Update header to show we're done thinking
-              elements.thinkingHeader.querySelector('span').textContent = 'Thought Process';
-              inAnswer = true;
-              // Stop the credits scroll since we're done thinking
-              stopCreditsScroll();
-            }
-            inThinking = false;
-          }
-
-          // Process thinking content
-          if (inThinking && content) {
-            currentThought += content;
-
-            // When we hit a newline, add the thought
-            if (content.includes('\n')) {
-              const thoughts = currentThought.split('\n').filter(t => t.trim());
-              thoughts.forEach(t => {
-                // Remove "THINKING:" prefix if present
-                const cleaned = t.replace(/^THINKING:\s*/i, '').trim();
-                addThinkingItem(cleaned);
-              });
-              currentThought = '';
-            }
-          } else if (inAnswer && content) {
-            // We're in ANSWER section - stream it
-            answerText += content;
-
-            // Get the answer text after ANSWER: marker and remove leading colons
-            const answerMatch = answerText.match(/ANSWER:\s*(.*)/si);
-            let cleanedAnswer = answerMatch ? answerMatch[1].trim() : answerText.trim();
-            cleanedAnswer = cleanedAnswer.replace(/^:\s*/, '');
-
-            // Get only the new characters
-            const newChars = cleanedAnswer.slice(previousAnswerLength);
-            previousAnswerLength = cleanedAnswer.length;
-
-            // Add new characters with fade-in effect
-            if (newChars) {
-              for (const char of newChars) {
-                const span = document.createElement('span');
-                span.className = 'char-reveal';
-                span.textContent = char;
-                elements.responseText.appendChild(span);
-              }
-            }
-          }
-        }
-
-        // Add any remaining thought
-        if (currentThought.trim()) {
-          const cleaned = currentThought.replace(/^THINKING:\s*/i, '').trim();
-          addThinkingItem(cleaned);
-        }
-
-        // Remove streaming cursor when done
-        elements.response.classList.remove('streaming');
-
-        console.log('Full response:', fullResponse);
       } catch (error) {
-        elements.thinkingSection.style.display = 'none';
-        elements.response.style.display = 'block';
-        elements.responseText.textContent = 'Error: ' + error.message;
+        loadingText.textContent = 'Error loading model: ' + error.message;
         console.error(error);
       }
-
-      // Re-enable input
-      elements.input.disabled = false;
-      elements.input.focus();
     }
 
-    // Toggle thinking section expand/collapse
-    elements.thinkingHeader.addEventListener('click', () => {
-      const isExpanded = elements.thinkingContent.classList.toggle('expanded');
-      elements.chevron.classList.toggle('expanded', isExpanded);
-    });
-
-    // Handle Enter key to submit question
-    elements.input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        askQuestion();
-      }
-    });
-
-    // Initialize
     initModels();
   </script>
 </body>
