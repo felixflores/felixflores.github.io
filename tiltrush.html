@@ -402,7 +402,10 @@
         width: 40px !important;
         height: 50px !important;
         font-size: 28px !important;
-        margin: 0 3px !important;
+      }
+
+      #nameEntry > div {
+        gap: 5px !important;
       }
 
       .start-button {
@@ -491,7 +494,7 @@
     <!-- Name Entry (Arcade Style) -->
     <div id="nameEntry" style="margin: 20px 0; display: none;">
       <p style="font-size: 14px; margin-bottom: 15px; animation: pulse 1s ease infinite;">ENTER YOUR NAME</p>
-      <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
+      <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: nowrap;">
         <input type="text" id="nameChar1" maxlength="1" class="name-input" value=" ">
         <input type="text" id="nameChar2" maxlength="1" class="name-input" value=" ">
         <input type="text" id="nameChar3" maxlength="1" class="name-input" value=" ">
