@@ -757,11 +757,18 @@
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
     class TLogInterface extends HTMLElement {
+      // Configuration constants
+      static STREAMING_CONSTANTS = {
+        FALLBACK_TOKEN_THRESHOLD: 5,      // Tokens to wait before fallback to direct answer
+        MAX_TOKENS: 600,                  // Maximum tokens per response
+        CURSOR_LINGER_MS: 1000            // How long cursor stays after streaming ends
+      };
+
       constructor() {
         super();
         this.engine = null;
-        this.scrollAnimationFrame = null;
-        this.isScrolling = false;
+        this._scrollAnimationFrame = null;
+        this._scrollAnimating = false;
       }
 
       connectedCallback() {
@@ -871,64 +878,69 @@
         }
       }
 
-      // Token bufferer class - accumulates tokens and flushes on whitespace
+      /**
+       * Creates a token bufferer that accumulates text and flushes on whitespace.
+       * This ensures smooth word-by-word streaming instead of character-by-character.
+       */
       createTokenBufferer() {
         let buffer = '';
-        let hasSeenNonWhitespace = false;
 
         return {
           append(token) {
             buffer += token;
-
-            // Check if we have whitespace to flush on
             const whitespaceIndex = buffer.search(/\s/);
+
             if (whitespaceIndex !== -1) {
-              // Flush up to and including the first whitespace
               const toFlush = buffer.substring(0, whitespaceIndex + 1);
               buffer = buffer.substring(whitespaceIndex + 1);
               return toFlush;
             }
 
-            return null; // Nothing to flush yet
+            return null;
           },
 
           flush() {
             const toFlush = buffer;
             buffer = '';
             return toFlush;
-          },
-
-          peek() {
-            return buffer;
           }
         };
       }
 
-      // Stream text component - handles character fade-in animations
+      /**
+       * Streams text to a component with character-by-character fade-in animations.
+       * Characters appear immediately but fade in with blur effect.
+       */
       streamToComponent(element, text) {
-        // Append characters immediately (real-time)
         for (const char of text) {
           const span = document.createElement('span');
           span.className = 'char-reveal';
           span.textContent = char;
           element.appendChild(span);
 
-          // Start smooth scrolling for thinking text
           if (element === this.elements.thinkingText && !this._scrollAnimating) {
             this.startSmoothScroll();
           }
         }
       }
 
+      /**
+       * Processes a question through the AI model with streaming response.
+       *
+       * Flow:
+       * 1. Detect format: THINKING/ANSWER or direct answer
+       * 2. Stream thinking process (if present)
+       * 3. Transition to answer section
+       * 4. Stream answer with real-time character fade-in
+       */
       async askQuestion() {
         const question = this.elements.input.value.trim();
         if (!question || !this.engine) return;
 
-        // Clear input and disable while processing
         this.elements.input.value = '';
         this.elements.input.disabled = true;
 
-        // Reset UI
+        // Reset UI state
         this.elements.thinkingSection.style.display = 'block';
         this.elements.thinkingText.innerHTML = '';
         this.elements.thinkingContent.scrollTop = 0;
@@ -947,136 +959,100 @@
           const completion = await this.engine.chat.completions.create({
             messages: messages,
             temperature: 0.7,
-            max_tokens: 600,
+            max_tokens: TLogInterface.STREAMING_CONSTANTS.MAX_TOKENS,
             stream: true,
           });
 
           const bufferer = this.createTokenBufferer();
-          let mode = 'initial'; // 'initial', 'thinking', 'answer'
-          let fullBuffer = ''; // Track everything for mode detection
-          let tokenCount = 0;
 
-          // Token velocity tracking
-          let lastTokenTime = Date.now();
-          let tokenTimings = [];
+          // State machine: initial -> thinking -> answer (or initial -> answer if no THINKING)
+          let mode = 'initial';
+          let fullBuffer = '';
+          let tokenCount = 0;
 
           for await (const chunk of completion) {
             const token = chunk.choices[0]?.delta?.content || '';
             if (!token) continue;
 
-            console.log('[RAW TOKEN]', JSON.stringify(token));
             tokenCount++;
-
-            // Track token velocity for dynamic char delay
-            const now = Date.now();
-            tokenTimings.push(now - lastTokenTime);
-            if (tokenTimings.length > 5) tokenTimings.shift();
-            lastTokenTime = now;
-
-            const avgTokenTime = tokenTimings.reduce((a, b) => a + b, 0) / tokenTimings.length;
-            this._currentCharDelay = Math.max(0.0005, Math.min(0.005, avgTokenTime / 1000 / 30));
-
-            // Check for mode transitions BEFORE adding to fullBuffer/bufferer
             const tempBuffer = fullBuffer + token;
 
-            // Mode detection using tempBuffer
+            // Initial mode: detect whether model is using THINKING/ANSWER format
             if (mode === 'initial') {
-              // Check if response starts with THINKING
               if (tempBuffer.includes('THINKING:')) {
+                // Model is using structured format - enter thinking mode
                 mode = 'thinking';
                 fullBuffer = tempBuffer;
-
-                // Clear the bufferer to remove any partial "THINKING:" text
                 bufferer.flush();
 
                 const afterThinking = fullBuffer.split('THINKING:')[1] || '';
-
-                // Feed the text after THINKING: into the bufferer
                 for (const char of afterThinking) {
                   const flushed = bufferer.append(char);
-                  if (flushed) {
-                    this.streamToComponent(this.elements.thinkingText, flushed);
-                  }
+                  if (flushed) this.streamToComponent(this.elements.thinkingText, flushed);
                 }
 
-                fullBuffer = ''; // Clear fullBuffer since we've processed it
-                console.log('[MODE] Thinking');
-                continue; // Skip the rest of this iteration
-              } else if (tokenCount > 5) {
-                // Fallback: if no THINKING after several tokens, go straight to answer
+                fullBuffer = '';
+                continue;
+
+              } else if (tokenCount > TLogInterface.STREAMING_CONSTANTS.FALLBACK_TOKEN_THRESHOLD) {
+                // Fallback: model didn't use THINKING format, stream directly to answer
                 mode = 'answer';
                 fullBuffer = tempBuffer;
-
-                // Clear the bufferer to ensure no stale content
                 bufferer.flush();
 
                 this.elements.response.style.display = 'block';
                 this.elements.response.classList.add('streaming');
                 this.elements.responseText.innerHTML = '';
 
-                // Feed accumulated fullBuffer into the bufferer
                 for (const char of fullBuffer) {
                   const flushed = bufferer.append(char);
-                  if (flushed) {
-                    this.streamToComponent(this.elements.responseText, flushed);
-                  }
+                  if (flushed) this.streamToComponent(this.elements.responseText, flushed);
                 }
 
-                fullBuffer = ''; // Clear fullBuffer
-                console.log('[MODE] Answer (no thinking)');
-                continue; // Skip the rest of this iteration
+                fullBuffer = '';
+                continue;
               }
             }
 
-            // Check for mode switch from thinking to answer
+            // Thinking to Answer transition
             if (mode === 'thinking' && tempBuffer.includes('ANSWER:')) {
               mode = 'answer';
               fullBuffer = tempBuffer;
-
-              // Clear the bufferer to remove any partial "ANSWER:" text
               bufferer.flush();
 
               const afterAnswer = fullBuffer.split('ANSWER:')[1] || '';
-              const cleanedAfterAnswer = afterAnswer.replace(/^[\s:.\-]+/, ''); // Clean leading punctuation
+              const cleanedAfterAnswer = afterAnswer.replace(/^[\s:.\-]+/, '');
 
+              // Update thinking section UI
               this.elements.thinkingHeader.querySelector('span').textContent = 'Thought Process';
               this.elements.thinkingContent.classList.remove('streaming');
               this.stopSmoothScroll();
 
-              // Show answer section immediately (no delay to avoid losing tokens)
+              // Show answer section
               this.elements.response.style.display = 'block';
               this.elements.response.classList.add('streaming');
               this.elements.responseText.innerHTML = '';
 
-              // Feed the text after ANSWER: into the bufferer by simulating tokens
+              // Stream content after ANSWER: marker
               for (const char of cleanedAfterAnswer) {
                 const flushed = bufferer.append(char);
-                if (flushed) {
-                  this.streamToComponent(this.elements.responseText, flushed);
-                }
+                if (flushed) this.streamToComponent(this.elements.responseText, flushed);
               }
 
-              fullBuffer = ''; // Clear fullBuffer since we've processed it
-              console.log('[MODE] Answer');
-              continue; // Skip the rest of this iteration since we've already processed
+              fullBuffer = '';
+              continue;
             }
 
-            // Normal token processing - only if not in initial mode
+            // Normal streaming: process token through bufferer
             if (mode !== 'initial') {
-              // Append token to bufferer
               const flushed = bufferer.append(token);
 
               if (flushed) {
-                // Stream flushed text to appropriate component
-                if (mode === 'thinking') {
-                  this.streamToComponent(this.elements.thinkingText, flushed);
-                } else if (mode === 'answer') {
-                  this.streamToComponent(this.elements.responseText, flushed);
-                }
+                const target = mode === 'thinking' ? this.elements.thinkingText : this.elements.responseText;
+                this.streamToComponent(target, flushed);
               }
             }
 
-            // Update fullBuffer for mode detection
             fullBuffer = tempBuffer;
           }
 
@@ -1090,10 +1066,10 @@
             }
           }
 
-          // Remove streaming cursor
+          // Remove streaming cursor after brief linger
           setTimeout(() => {
             this.elements.response.classList.remove('streaming');
-          }, 1000);
+          }, TLogInterface.STREAMING_CONSTANTS.CURSOR_LINGER_MS);
 
         } catch (error) {
           this.elements.thinkingSection.style.display = 'none';
