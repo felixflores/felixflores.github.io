@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TLog - Thought Space</title>
+  <script type="module" src="https://esm.run/@mlc-ai/web-llm"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 40px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 14px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .question-container {
+      max-width: 800px;
+      margin: 60px auto;
+    }
+
+    .question-input {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 40px;
+      color: #e0e0e0;
+      font-size: 18px;
+      font-family: inherit;
+      resize: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .question-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .question-input::placeholder {
+      color: #555;
+    }
+
+    .hint-text {
+      text-align: center;
+      color: #555;
+      font-size: 13px;
+      margin-top: -30px;
+      margin-bottom: 40px;
+    }
+
+    button {
+      padding: 12px 24px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      background: #333;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loading-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s ease;
+    }
+
+    .loading-container.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 3px solid #1a1a1a;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    .loading-text {
+      color: #667eea;
+      font-size: 14px;
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .main-content {
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .main-content.visible {
+      opacity: 1;
+    }
+
+    .response {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .response strong {
+      color: #e0e0e0;
+      font-weight: 600;
+    }
+
+    .response em {
+      color: #a0a0a0;
+      font-style: italic;
+    }
+
+    .response code {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+
+    .response p {
+      margin-bottom: 12px;
+    }
+
+    .response p:last-child {
+      margin-bottom: 0;
+    }
+
+    .response-label {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .thinking-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding: 12px 16px;
+      background: rgba(102, 126, 234, 0.1);
+      border-left: 3px solid #667eea;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .thinking-header:hover {
+      background: rgba(102, 126, 234, 0.15);
+    }
+
+    .thinking-header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .chevron {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s ease;
+      fill: #667eea;
+    }
+
+    .chevron.expanded {
+      transform: rotate(180deg);
+    }
+
+    .thinking-content {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 0;
+      margin-bottom: 20px;
+      max-height: 80px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      transition: max-height 0.3s ease;
+    }
+
+    .thinking-content.expanded {
+      max-height: 400px;
+    }
+
+    .thinking-scroll {
+      padding: 16px;
+      padding-bottom: 20px;
+      line-height: 1.8;
+      color: #b0b0b0;
+    }
+
+    .thinking-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .thinking-content::-webkit-scrollbar-track {
+      background: #1a1a1a;
+    }
+
+    .thinking-content::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
+
+    .thinking-content::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: linear-gradient(to bottom, #1a1a1a 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .thinking-item {
+      margin-bottom: 12px;
+      opacity: 0;
+      animation: fadeInUp 0.5s ease-out forwards;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .thinking-item::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: #667eea;
+    }
+
+    .thinking-item strong {
+      color: #e0e0e0;
+      font-weight: 600;
+    }
+
+    .thinking-item em {
+      color: #a0a0a0;
+      font-style: italic;
+    }
+
+    .thinking-item code {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #thinkingSection {
+      margin-bottom: 20px;
+    }
+
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .results-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="loading-container" id="loadingContainer">
+    <div class="loader"></div>
+    <div class="loading-text" id="loadingText">Initializing model...</div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container main-content" id="mainContent">
+    <a href="index.html" class="back-link">← Back to Home</a>
+
+    <header>
+      <h1>TLog</h1>
+      <p class="subtitle">Ask anything. Watch the model think.</p>
+    </header>
+
+    <div class="question-container">
+      <textarea
+        id="questionInput"
+        class="question-input"
+        placeholder="What's on your mind?"
+        rows="3"
+      ></textarea>
+      <div class="hint-text">Press Enter to explore</div>
+    </div>
+
+    <div class="results-container">
+      <div id="thinkingSection" style="display: none;">
+        <div class="thinking-header" id="thinkingHeader">
+          <div class="thinking-header-left">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display: inline-block; margin-right: 8px;">
+              <path d="M8 2a6 6 0 100 12A6 6 0 008 2zm0 11a5 5 0 110-10 5 5 0 010 10z" fill="#667eea"/>
+              <path d="M8 4.5v4l2.5 1.5" stroke="#667eea" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span style="color: #667eea; font-size: 14px; font-weight: 500;">Thinking...</span>
+          </div>
+          <svg class="chevron" id="chevron" viewBox="0 0 16 16">
+            <path d="M4 6l4 4 4-4" stroke="#667eea" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="thinking-content" id="thinkingContent">
+          <div id="thinkingText" class="thinking-scroll"></div>
+        </div>
+      </div>
+
+      <div id="response" style="display: none;">
+        <div class="response-label">Answer</div>
+        <div id="responseText" class="response"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+    let engine = null;
+    let scrollAnimationFrame = null;
+    let isScrolling = false;
+
+    const elements = {
+      loadingContainer: document.getElementById('loadingContainer'),
+      loadingText: document.getElementById('loadingText'),
+      mainContent: document.getElementById('mainContent'),
+      input: document.getElementById('questionInput'),
+      thinkingSection: document.getElementById('thinkingSection'),
+      thinkingHeader: document.getElementById('thinkingHeader'),
+      thinkingContent: document.getElementById('thinkingContent'),
+      thinkingText: document.getElementById('thinkingText'),
+      chevron: document.getElementById('chevron'),
+      response: document.getElementById('response'),
+      responseText: document.getElementById('responseText')
+    };
+
+    async function initModels() {
+      try {
+        elements.loadingText.textContent = 'Loading Qwen2.5-1.5B reasoning model...';
+
+        // Initialize WebLLM engine with Qwen2.5-1.5B-Instruct
+        engine = await webllm.CreateMLCEngine(
+          "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+          {
+            initProgressCallback: (info) => {
+              elements.loadingText.textContent = info.text || 'Loading...';
+            }
+          }
+        );
+
+        // Hide loading screen and show main content
+        elements.loadingContainer.classList.add('hidden');
+        elements.mainContent.classList.add('visible');
+
+        // Focus on input
+        setTimeout(() => {
+          elements.input.focus();
+        }, 500);
+      } catch (error) {
+        elements.loadingText.textContent = 'Error loading model: ' + error.message;
+        console.error(error);
+      }
+    }
+
+
+    function startCreditsScroll() {
+      if (isScrolling) return;
+      isScrolling = true;
+
+      const scrollSpeed = 1.5; // pixels per frame - adjust for faster/slower
+
+      function animate() {
+        if (!isScrolling) return;
+
+        // Don't auto-scroll when expanded - let user control it
+        if (elements.thinkingContent.classList.contains('expanded')) {
+          scrollAnimationFrame = requestAnimationFrame(animate);
+          return;
+        }
+
+        const container = elements.thinkingContent;
+        const maxScroll = container.scrollHeight - container.clientHeight;
+
+        // Keep scrolling if there's more content
+        if (container.scrollTop < maxScroll) {
+          container.scrollTop += scrollSpeed;
+          scrollAnimationFrame = requestAnimationFrame(animate);
+        } else {
+          // At the bottom, keep checking for new content
+          scrollAnimationFrame = requestAnimationFrame(animate);
+        }
+      }
+
+      scrollAnimationFrame = requestAnimationFrame(animate);
+    }
+
+    function stopCreditsScroll() {
+      isScrolling = false;
+      if (scrollAnimationFrame) {
+        cancelAnimationFrame(scrollAnimationFrame);
+        scrollAnimationFrame = null;
+      }
+    }
+
+    function addThinkingItem(text) {
+      console.log('Adding thought:', text);
+      const item = document.createElement('div');
+      item.className = 'thinking-item';
+      // Render markdown using marked library if available
+      if (typeof marked !== 'undefined') {
+        item.innerHTML = marked.parseInline(text);
+      } else {
+        item.textContent = text;
+      }
+      elements.thinkingText.appendChild(item);
+
+      // Start constant scrolling on first item
+      if (!isScrolling) {
+        startCreditsScroll();
+      }
+    }
+
+    async function askQuestion() {
+      const question = elements.input.value.trim();
+      console.log('askQuestion called with:', question);
+      if (!question || !engine) {
+        console.warn('No question or engine not ready');
+        return;
+      }
+
+      // Clear input and disable while processing
+      elements.input.value = '';
+      elements.input.disabled = true;
+
+      // Reset UI
+      elements.thinkingSection.style.display = 'block';
+      elements.thinkingText.innerHTML = '';
+      elements.thinkingContent.scrollTop = 0;
+      elements.thinkingContent.classList.remove('expanded');
+      elements.chevron.classList.remove('expanded');
+      stopCreditsScroll();
+      elements.response.style.display = 'none';
+
+      console.log('Starting to generate response...');
+      try {
+        const messages = [
+          { role: "system", content: "You are a reasoning AI. You MUST structure your response in exactly this format:\n\nTHINKING:\n- First point of reasoning\n- Second point of reasoning\n- Third point of reasoning\n(add more bullet points as needed)\n\nANSWER:\nYour final answer here\n\nNEVER skip the THINKING section. Always show your reasoning with bullet points before giving the ANSWER." },
+          { role: "user", content: question }
+        ];
+
+        let fullResponse = '';
+        const completion = await engine.chat.completions.create({
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 600,
+          stream: true,
+        });
+
+        let currentThought = '';
+        let inThinking = false;
+
+        for await (const chunk of completion) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          fullResponse += content;
+
+          if (fullResponse.includes('THINKING:') && !inThinking) {
+            inThinking = true;
+          }
+
+          if (fullResponse.includes('ANSWER:')) {
+            inThinking = false;
+          }
+
+          if (inThinking && content) {
+            currentThought += content;
+
+            // When we hit a newline, add the thought
+            if (content.includes('\n')) {
+              const thoughts = currentThought.split('\n').filter(t => t.trim());
+              thoughts.forEach(t => {
+                const cleaned = t.trim().replace(/^[-•*]\s*/, '').replace(/^THINKING:\s*/i, '');
+                if (cleaned) addThinkingItem(cleaned);
+              });
+              currentThought = '';
+            }
+          }
+        }
+
+        // Add any remaining thought
+        if (currentThought.trim()) {
+          const cleaned = currentThought.trim().replace(/^[-•*]\s*/, '');
+          if (cleaned) addThinkingItem(cleaned);
+        }
+
+        // Show answer
+        console.log('Full response:', fullResponse);
+        const answerMatch = fullResponse.match(/ANSWER:(.*?)$/s);
+        if (answerMatch) {
+          elements.response.style.display = 'block';
+          const answerText = answerMatch[1].trim();
+          if (typeof marked !== 'undefined') {
+            elements.responseText.innerHTML = marked.parse(answerText);
+          } else {
+            elements.responseText.textContent = answerText;
+          }
+        } else {
+          // If no ANSWER section found, show the whole response
+          console.warn('No ANSWER section found in response');
+          elements.response.style.display = 'block';
+          elements.responseText.textContent = fullResponse;
+        }
+      } catch (error) {
+        elements.thinkingSection.style.display = 'none';
+        elements.response.style.display = 'block';
+        elements.responseText.textContent = 'Error: ' + error.message;
+        console.error(error);
+      }
+
+      // Re-enable input
+      elements.input.disabled = false;
+      elements.input.focus();
+    }
+
+    // Toggle thinking section expand/collapse
+    elements.thinkingHeader.addEventListener('click', () => {
+      const isExpanded = elements.thinkingContent.classList.toggle('expanded');
+      elements.chevron.classList.toggle('expanded', isExpanded);
+    });
+
+    // Handle Enter key to submit question
+    elements.input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        askQuestion();
+      }
+    });
+
+    // Initialize
+    initModels();
+  </script>
+</body>
+</html>
