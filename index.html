@@ -119,36 +119,48 @@
         transform: translateY(-50%) rotate(90deg) scale(0.98);
       }
 
-      .hidden-link.left {
+      .hidden-link-group {
         position: absolute;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        pointer-events: none;
+      }
+
+      .hidden-link-group.left {
         left: -80px;
         top: 50%;
         transform: translateY(-50%) rotate(-90deg);
       }
 
-      .hidden-link.left-top {
-        position: absolute;
-        left: -80px;
-        top: calc(50% - 60px);
-        transform: translateY(-50%) rotate(-90deg);
+      .hidden-link-group .hidden-link {
+        border-radius: 0;
       }
 
-      .hidden-link.left-bottom {
-        position: absolute;
-        left: -80px;
-        top: calc(50% + 60px);
-        transform: translateY(-50%) rotate(-90deg);
+      .hidden-link-group .hidden-link:first-child {
+        border-radius: 12px 12px 0 0;
+        border-bottom: none;
       }
 
-      .hidden-link.left-top:hover,
-      .hidden-link.left-bottom:hover {
-        transform: translateY(-50%) rotate(-90deg) scale(1.02);
+      .hidden-link-group .hidden-link:last-child {
+        border-radius: 0 0 12px 12px;
       }
 
-      .hidden-link.left-top:active,
-      .hidden-link.left-bottom:active {
+      .hidden-link-group .hidden-link:hover {
+        z-index: 1;
+        transform: scale(1.02);
+      }
+
+      .hidden-link-group .hidden-link:active {
         background: #d1d1d6;
-        transform: translateY(-50%) rotate(-90deg) scale(0.98);
+        transform: scale(0.98);
+      }
+
+      .hidden-link.left {
+        position: absolute;
+        left: -80px;
+        top: 50%;
+        transform: translateY(-50%) rotate(-90deg);
       }
 
       .hidden-link.right {
@@ -530,14 +542,16 @@
     <canvas id="matrixCanvas"></canvas>
     <div class="container">
       <div class="hidden-layer">
-        <a href="blog.html" class="hidden-link left-top">
-          <i class="fa-solid fa-blog" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
-          BLOG
-        </a>
-        <a href="tiltrush.html" class="hidden-link left-bottom">
-          <i class="fa-solid fa-gamepad" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
-          TILTRUSH
-        </a>
+        <div class="hidden-link-group left">
+          <a href="blog.html" class="hidden-link">
+            <i class="fa-solid fa-blog" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
+            BLOG
+          </a>
+          <a href="tiltrush.html" class="hidden-link">
+            <i class="fa-solid fa-gamepad" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
+            TILTRUSH
+          </a>
+        </div>
         <a href="photos.html" class="hidden-link right">
           <i class="fa-solid fa-images" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
           PHOTOS
