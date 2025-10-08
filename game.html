@@ -406,11 +406,11 @@
     <div id="nameEntry" style="margin: 20px 0; display: none;">
       <p style="font-size: 14px; margin-bottom: 15px; animation: pulse 1s ease infinite;">ENTER YOUR NAME</p>
       <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
-        <input type="text" id="nameChar1" maxlength="1" class="name-input" value="A">
-        <input type="text" id="nameChar2" maxlength="1" class="name-input" value="A">
-        <input type="text" id="nameChar3" maxlength="1" class="name-input" value="A">
-        <input type="text" id="nameChar4" maxlength="1" class="name-input" value="A">
-        <input type="text" id="nameChar5" maxlength="1" class="name-input" value="A">
+        <input type="text" id="nameChar1" maxlength="1" class="name-input" value=" ">
+        <input type="text" id="nameChar2" maxlength="1" class="name-input" value=" ">
+        <input type="text" id="nameChar3" maxlength="1" class="name-input" value=" ">
+        <input type="text" id="nameChar4" maxlength="1" class="name-input" value=" ">
+        <input type="text" id="nameChar5" maxlength="1" class="name-input" value=" ">
       </div>
       <button class="start-button" id="submitScoreButton">SUBMIT SCORE</button>
     </div>
@@ -1325,11 +1325,21 @@
 
       // Show name entry if Firebase is enabled
       const nameEntry = document.getElementById('nameEntry');
+      const submitButton = document.getElementById('submitScoreButton');
       if (database) {
         nameEntry.style.display = 'block';
-        // Focus first character
-        document.getElementById('nameChar1').focus();
-        document.getElementById('nameChar1').select();
+        // Reset submit button state
+        submitButton.disabled = false;
+        submitButton.textContent = 'SUBMIT SCORE';
+        // Reset name inputs to spaces
+        ['nameChar1', 'nameChar2', 'nameChar3', 'nameChar4', 'nameChar5'].forEach(id => {
+          document.getElementById(id).value = ' ';
+        });
+        // Focus first character and select it
+        setTimeout(() => {
+          document.getElementById('nameChar1').focus();
+          document.getElementById('nameChar1').select();
+        }, 100);
       } else {
         nameEntry.style.display = 'none';
       }
@@ -1485,6 +1495,12 @@
     }
 
     function startGame() {
+      // Clean up old game if exists
+      if (gameState.mazeGroup) scene.remove(gameState.mazeGroup);
+      gameState.ballVelocity = { x: 0, z: 0 };
+      gameState.dots = [];
+      gameState.ball = null;
+
       document.getElementById('startScreen').classList.remove('visible');
       document.getElementById('timerDisplay').style.display = 'block';
       gameState.isPlaying = true;
@@ -1622,7 +1638,7 @@
     });
 
     document.getElementById('submitScoreButton').addEventListener('click', async () => {
-      const name = nameInputs.map(input => input.value || 'A').join('');
+      const name = nameInputs.map(input => input.value || ' ').join('');
       const level = LEVELS[gameState.currentLevel];
       const time = gameState.lastCompletionTime;
 
