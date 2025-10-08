@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TiltRush - Head-Controlled Maze Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      background: #000;
+      color: #00ff00;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #videoCanvas {
+      display: none;
+    }
+
+    .tilt-overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 150px;
+      height: 150px;
+      background: rgba(0, 0, 0, 0.8);
+      border: 2px solid #00ff00;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .tilt-grid {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    .tilt-grid-line-h,
+    .tilt-grid-line-v {
+      position: absolute;
+      background: #00ff00;
+      opacity: 0.3;
+    }
+
+    .tilt-grid-line-h {
+      width: 100%;
+      height: 1px;
+      top: 50%;
+    }
+
+    .tilt-grid-line-v {
+      width: 1px;
+      height: 100%;
+      left: 50%;
+    }
+
+    .tilt-dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: #00ff00;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: all 0.05s ease-out;
+    }
+
+    .tilt-info {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      font-size: 11px;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      line-height: 1.3;
+    }
+
+    .timer-display {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Courier New', monospace;
+      font-size: 48px;
+      font-weight: bold;
+      color: #00ff00;
+      text-shadow: 0 0 30px rgba(0, 255, 0, 1), 0 0 60px rgba(0, 255, 0, 0.5);
+      z-index: 50;
+      pointer-events: none;
+      letter-spacing: 6px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px 40px;
+      border-radius: 15px;
+      border: 3px solid #00ff00;
+      box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
+      display: none;
+    }
+
+    .start-screen {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      padding: 40px 60px;
+      border-radius: 12px;
+      border: 2px solid #00ff00;
+      text-align: center;
+      z-index: 200;
+      font-family: 'Courier New', monospace;
+      box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+      display: none;
+      max-width: min(600px, 90vw);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .start-screen.visible {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .start-screen h1 {
+      font-size: 36px;
+      margin-bottom: 20px;
+      color: #00ff00;
+    }
+
+    .start-screen p {
+      font-size: 16px;
+      margin-bottom: 30px;
+      color: #00ff00;
+      opacity: 0.8;
+    }
+
+    .start-button {
+      background: #00ff00;
+      color: #000;
+      border: none;
+      padding: 15px 40px;
+      font-size: 18px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .start-button:hover {
+      background: #00dd00;
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    }
+
+    .start-button:active {
+      transform: scale(0.98);
+    }
+
+    .level-button {
+      background: rgba(0, 255, 0, 0.1);
+      color: #00ff00;
+      border: 2px solid #00ff00;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      min-width: 45px;
+    }
+
+    .level-button:hover {
+      background: rgba(0, 255, 0, 0.2);
+      transform: scale(1.05);
+    }
+
+    .level-button.selected {
+      background: #00ff00;
+      color: #000;
+    }
+
+    .level-button.completed {
+      border-color: #00dd00;
+      color: #00dd00;
+    }
+
+    .name-input {
+      width: 50px;
+      height: 60px;
+      font-size: 36px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      text-align: center;
+      background: rgba(0, 255, 0, 0.1);
+      border: 3px solid #00ff00;
+      color: #00ff00;
+      border-radius: 8px;
+      text-transform: uppercase;
+    }
+
+    .name-input:focus {
+      outline: none;
+      background: rgba(0, 255, 0, 0.2);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    }
+
+    .leaderboard-entry {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 20px;
+      margin: 5px 0;
+      background: rgba(0, 255, 0, 0.05);
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .leaderboard-entry.top3 {
+      background: rgba(0, 255, 0, 0.15);
+      border-color: #00ff00;
+    }
+
+    .leaderboard-entry.current-player {
+      background: rgba(255, 255, 0, 0.1);
+      border-color: #ffff00;
+      animation: flash 1s ease infinite;
+    }
+
+    @keyframes flash {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    .win-screen {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      padding: 40px 60px;
+      border-radius: 12px;
+      border: 2px solid #00ff00;
+      text-align: center;
+      z-index: 200;
+      font-family: 'Courier New', monospace;
+      box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+      display: none;
+      max-width: min(600px, 90vw);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .win-screen.visible {
+      display: block;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
+    .win-screen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: #00ff00;
+      animation: pulse 1s ease infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    .debug-info {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #00ff00;
+      opacity: 0.6;
+      z-index: 100;
+    }
+
+    .loading-notice {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      background: rgba(0, 0, 0, 0.95);
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      pointer-events: none;
+      z-index: 150;
+      display: none;
+      border: 2px solid #00ff00;
+    }
+
+    .loading-notice.visible {
+      display: block;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 255, 0, 0.3);
+      border-radius: 50%;
+      border-top-color: #00ff00;
+      animation: spin 0.8s linear infinite;
+      margin-left: 10px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <canvas id="videoCanvas"></canvas>
+
+  <div class="timer-display" id="timerDisplay">00:00:00.000</div>
+
+  <div class="tilt-overlay" id="tiltOverlay">
+    <div class="tilt-grid">
+      <div class="tilt-grid-line-h"></div>
+      <div class="tilt-grid-line-v"></div>
+    </div>
+    <div class="tilt-dot" id="tiltDot"></div>
+    <div class="tilt-info" id="tiltInfo">x: 0.5<br>y: 0.5<br>Δx: 0.00<br>Δy: 0.00</div>
+  </div>
+
+  <div class="start-screen visible" id="startScreen">
+    <h1>TILTRUSH</h1>
+    <p>Tilt the maze to roll the ball from START to FINISH</p>
+    <p>Use your head movements or gyroscope to control</p>
+    <div id="levelSelect" style="margin: 20px 0;">
+      <p style="font-size: 14px; margin-bottom: 10px;">SELECT LEVEL</p>
+      <div id="levelButtons" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
+    </div>
+    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+      <button class="start-button" id="startButton">START GAME</button>
+      <button class="start-button" id="startLeaderboardButton">LEADERBOARD</button>
+    </div>
+  </div>
+
+  <div class="win-screen" id="winScreen">
+    <h1>YOU WIN!</h1>
+    <p id="winLevel" style="font-size: 18px; margin-bottom: 10px;"></p>
+    <p id="winTime">Time: 0:00</p>
+    <p id="bestTime" style="font-size: 14px; margin-top: 10px; opacity: 0.8;"></p>
+
+    <!-- Name Entry (Arcade Style) -->
+    <div id="nameEntry" style="margin: 20px 0; display: none;">
+      <p style="font-size: 14px; margin-bottom: 15px; animation: pulse 1s ease infinite;">ENTER YOUR NAME</p>
+      <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
+        <input type="text" id="nameChar1" maxlength="1" class="name-input" value="A">
+        <input type="text" id="nameChar2" maxlength="1" class="name-input" value="A">
+        <input type="text" id="nameChar3" maxlength="1" class="name-input" value="A">
+        <input type="text" id="nameChar4" maxlength="1" class="name-input" value="A">
+        <input type="text" id="nameChar5" maxlength="1" class="name-input" value="A">
+      </div>
+      <button class="start-button" id="submitScoreButton">SUBMIT SCORE</button>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center; flex-wrap: wrap;" id="winButtons">
+      <button class="start-button" id="restartButton">RETRY</button>
+      <button class="start-button" id="nextLevelButton" style="display: none;">NEXT LEVEL</button>
+      <button class="start-button" id="viewLeaderboardButton">LEADERBOARD</button>
+      <button class="start-button" id="menuButton">MENU</button>
+    </div>
+  </div>
+
+  <div class="win-screen" id="leaderboardScreen" style="display: none;">
+    <h1>LEADERBOARD</h1>
+    <p id="leaderboardLevel" style="font-size: 18px; margin-bottom: 10px;"></p>
+    <div id="leaderboardContent" style="max-height: 400px; overflow-y: auto; margin: 20px 0;"></div>
+    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+      <button class="start-button" id="leaderboardRetryButton">RETRY</button>
+      <button class="start-button" id="leaderboardNextButton" style="display: none;">NEXT LEVEL</button>
+      <button class="start-button" id="leaderboardMenuButton">MENU</button>
+    </div>
+  </div>
+
+  <div class="loading-notice" id="loadingNotice">
+    LOADING<span class="loading-spinner"></span>
+  </div>
+
+  <div class="debug-info" id="debugInfo">
+    Ball: (0.0, 0.0, 0.0)<br>
+    Velocity: (0.0, 0.0)
+  </div>
+
+  <script>
+    // ============================================
+    // FIREBASE CONFIGURATION
+    // ============================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyABCToXUnPVKdrDK2RkBcXQ8F3vYddOet8",
+      authDomain: "tilt-rush.firebaseapp.com",
+      databaseURL: "https://tilt-rush-default-rtdb.firebaseio.com",
+      projectId: "tilt-rush",
+      storageBucket: "tilt-rush.firebasestorage.app",
+      messagingSenderId: "1039276375061",
+      appId: "1:1039276375061:web:ae5138601d796cec01a21c",
+      measurementId: "G-R0M5DGW99S"
+    };
+
+    // Initialize Firebase
+    let database = null;
+    try {
+      if (typeof firebase !== 'undefined') {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        console.log('Firebase initialized successfully');
+      }
+    } catch (error) {
+      console.warn('Firebase initialization failed - leaderboard will be disabled:', error);
+    }
+
+    // ============================================
+    // SEEDED RANDOM NUMBER GENERATOR
+    // ============================================
+    class SeededRandom {
+      constructor(seed) {
+        this.seed = seed;
+      }
+
+      random() {
+        this.seed = (this.seed * 9301 + 49297) % 233280;
+        return this.seed / 233280;
+      }
+    }
+
+    // ============================================
+    // MAZE GENERATION (Recursive Backtracker)
+    // ============================================
+    class MazeGenerator {
+      constructor(width, height, seed = null) {
+        this.width = width;
+        this.height = height;
+        this.rng = seed !== null ? new SeededRandom(seed) : null;
+        this.grid = Array(height).fill(null).map(() =>
+          Array(width).fill(null).map(() => ({
+            visited: false,
+            walls: { top: true, right: true, bottom: true, left: true }
+          }))
+        );
+      }
+
+      getRandom() {
+        return this.rng ? this.rng.random() : Math.random();
+      }
+
+      generate() {
+        const stack = [];
+        let current = { x: 0, y: 0 };
+        this.grid[0][0].visited = true;
+
+        while (true) {
+          const neighbors = this.getUnvisitedNeighbors(current.x, current.y);
+
+          if (neighbors.length > 0) {
+            const next = neighbors[Math.floor(this.getRandom() * neighbors.length)];
+            stack.push(current);
+            this.removeWallBetween(current, next);
+            this.grid[next.y][next.x].visited = true;
+            current = next;
+          } else if (stack.length > 0) {
+            current = stack.pop();
+          } else {
+            break;
+          }
+        }
+
+        return this.grid;
+      }
+
+      getUnvisitedNeighbors(x, y) {
+        const neighbors = [];
+        const directions = [
+          { x: 0, y: -1, dir: 'top' },
+          { x: 1, y: 0, dir: 'right' },
+          { x: 0, y: 1, dir: 'bottom' },
+          { x: -1, y: 0, dir: 'left' }
+        ];
+
+        for (const d of directions) {
+          const nx = x + d.x;
+          const ny = y + d.y;
+          if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height && !this.grid[ny][nx].visited) {
+            neighbors.push({ x: nx, y: ny, dir: d.dir });
+          }
+        }
+
+        return neighbors;
+      }
+
+      removeWallBetween(current, next) {
+        const dx = next.x - current.x;
+        const dy = next.y - current.y;
+
+        if (dx === 1) {
+          this.grid[current.y][current.x].walls.right = false;
+          this.grid[next.y][next.x].walls.left = false;
+        } else if (dx === -1) {
+          this.grid[current.y][current.x].walls.left = false;
+          this.grid[next.y][next.x].walls.right = false;
+        } else if (dy === 1) {
+          this.grid[current.y][current.x].walls.bottom = false;
+          this.grid[next.y][next.x].walls.top = false;
+        } else if (dy === -1) {
+          this.grid[current.y][current.x].walls.top = false;
+          this.grid[next.y][next.x].walls.bottom = false;
+        }
+      }
+    }
+
+    // ============================================
+    // HEAD TRACKING & GYROSCOPE (from index.html)
+    // ============================================
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isSmallScreen = window.innerWidth <= 768;
+    const isActualMobile = isMobileDevice && isTouchDevice && isSmallScreen;
+
+    const trackingState = {
+      video: null,
+      isWebcamActive: false,
+      isGyroActive: false,
+      headX: 0.5,
+      headY: 0.5,
+      smoothHeadX: 0.5,
+      smoothHeadY: 0.5,
+      faceDetector: null,
+      smoothing: 0.25,
+      lockedFace: null, // Lock onto first detected face
+      faceLostFrames: 0
+    };
+
+    const CALIBRATED_CENTER = { x: 0.5, y: 0.5 };
+
+    const mapRange = (value, inMin, inMax, outMin, outMax) =>
+      ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+
+    const smoothValue = (smoothing, current, target) =>
+      current + (target - current) * smoothing;
+
+    const initFaceDetector = async () => {
+      try {
+        trackingState.faceDetector = await blazeface.load();
+      } catch (err) {
+        console.error('Failed to load BlazeFace:', err);
+      }
+    };
+
+    const mapGyroToPosition = (beta, gamma) => {
+      const clampedBeta = Math.max(15, Math.min(75, beta));
+      const clampedGamma = Math.max(-30, Math.min(30, gamma));
+      const x = mapRange(clampedGamma, -30, 30, 1, 0);
+      const y = mapRange(clampedBeta, 15, 75, 1, 0);
+      return { x, y };
+    };
+
+    const handleDeviceOrientation = (event) => {
+      if (!trackingState.isGyroActive) return;
+      const beta = event.beta || 0;
+      const gamma = event.gamma || 0;
+      const position = mapGyroToPosition(beta, gamma);
+      trackingState.headX = position.x;
+      trackingState.headY = position.y;
+      trackingState.smoothHeadX = smoothValue(trackingState.smoothing, trackingState.smoothHeadX, trackingState.headX);
+      trackingState.smoothHeadY = smoothValue(trackingState.smoothing, trackingState.smoothHeadY, trackingState.headY);
+    };
+
+    const createVideoElement = (stream) => {
+      const video = document.createElement('video');
+      video.setAttribute('playsinline', '');
+      video.srcObject = stream;
+      video.play();
+      return video;
+    };
+
+    const initTracking = async () => {
+      const loadingNotice = document.getElementById('loadingNotice');
+      loadingNotice.classList.add('visible');
+
+      if (!isActualMobile) {
+        // Desktop - use webcam with face tracking
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false
+          });
+
+          const video = createVideoElement(stream);
+          video.onloadedmetadata = async () => {
+            trackingState.video = video;
+            trackingState.isWebcamActive = true;
+            await initFaceDetector();
+            loadingNotice.classList.remove('visible');
+            startGame();
+          };
+        } catch (err) {
+          console.error('Webcam error:', err);
+          loadingNotice.classList.remove('visible');
+          alert('Camera access denied. Using keyboard controls (arrow keys).');
+          startGame();
+        }
+      } else {
+        // Mobile - use gyroscope
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+          try {
+            const permission = await DeviceOrientationEvent.requestPermission();
+            if (permission !== 'granted') {
+              loadingNotice.classList.remove('visible');
+              alert('Gyroscope access denied. Using touch controls.');
+              startGame();
+              return;
+            }
+          } catch (error) {
+            loadingNotice.classList.remove('visible');
+            startGame();
+            return;
+          }
+        }
+
+        trackingState.isGyroActive = true;
+        window.addEventListener('deviceorientation', handleDeviceOrientation);
+        loadingNotice.classList.remove('visible');
+        startGame();
+      }
+    };
+
+    const processWebcamFrame = async () => {
+      if (!trackingState.isWebcamActive || !trackingState.video || !trackingState.faceDetector) return;
+
+      try {
+        const predictions = await trackingState.faceDetector.estimateFaces(trackingState.video, false);
+
+        if (predictions.length > 0) {
+          let face = null;
+
+          // Lock onto first detected face, then track it by proximity
+          if (!trackingState.lockedFace) {
+            // No locked face yet - lock onto first detected face
+            face = predictions[0];
+            const [x1, y1] = face.topLeft;
+            const [x2, y2] = face.bottomRight;
+            trackingState.lockedFace = {
+              x: (x1 + x2) / 2,
+              y: (y1 + y2) / 2
+            };
+          } else {
+            // Find the face closest to our locked position
+            let minDistance = Infinity;
+            for (const prediction of predictions) {
+              const [x1, y1] = prediction.topLeft;
+              const [x2, y2] = prediction.bottomRight;
+              const centerX = (x1 + x2) / 2;
+              const centerY = (y1 + y2) / 2;
+
+              const distance = Math.sqrt(
+                Math.pow(centerX - trackingState.lockedFace.x, 2) +
+                Math.pow(centerY - trackingState.lockedFace.y, 2)
+              );
+
+              if (distance < minDistance) {
+                minDistance = distance;
+                face = prediction;
+              }
+            }
+
+            // Update locked position to track the same person
+            if (face) {
+              const [x1, y1] = face.topLeft;
+              const [x2, y2] = face.bottomRight;
+              trackingState.lockedFace.x = (x1 + x2) / 2;
+              trackingState.lockedFace.y = (y1 + y2) / 2;
+              trackingState.faceLostFrames = 0;
+            }
+          }
+
+          if (face) {
+            const [x1, y1] = face.topLeft;
+            const [x2, y2] = face.bottomRight;
+            const centerX = (x1 + x2) / 2;
+            const centerY = (y1 + y2) / 2;
+
+            trackingState.headX = 1 - (centerX / trackingState.video.videoWidth);
+            trackingState.headY = centerY / trackingState.video.videoHeight;
+
+            trackingState.smoothHeadX = smoothValue(trackingState.smoothing, trackingState.smoothHeadX, trackingState.headX);
+            trackingState.smoothHeadY = smoothValue(trackingState.smoothing, trackingState.smoothHeadY, trackingState.headY);
+          }
+        } else {
+          // No faces detected - reset lock after several frames
+          trackingState.faceLostFrames++;
+          if (trackingState.faceLostFrames > 30) {
+            trackingState.lockedFace = null;
+          }
+        }
+      } catch (err) {
+        console.error('Face tracking error:', err);
+      }
+    };
+
+    // ============================================
+    // THREE.JS SCENE SETUP
+    // ============================================
+    const canvas = document.getElementById('gameCanvas');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 28, 10); // 20° from vertical for more top-down view
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(8, 15, 15);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 50;
+    directionalLight.shadow.camera.left = -20;
+    directionalLight.shadow.camera.right = 20;
+    directionalLight.shadow.camera.top = 20;
+    directionalLight.shadow.camera.bottom = -20;
+    scene.add(directionalLight);
+
+    // Add a subtle fill light from the opposite side for depth
+    const fillLight = new THREE.DirectionalLight(0x4444ff, 0.3);
+    fillLight.position.set(-8, 10, -10);
+    scene.add(fillLight);
+
+    // ============================================
+    // LEVEL SYSTEM
+    // ============================================
+    const LEVELS = [
+      { number: 1, name: 'Starter', size: 8, seed: 12345 },
+      { number: 2, name: 'Novice', size: 10, seed: 23456 },
+      { number: 3, name: 'Casual', size: 12, seed: 34567 },
+      { number: 4, name: 'Intermediate', size: 14, seed: 45678 },
+      { number: 5, name: 'Skilled', size: 16, seed: 56789 },
+      { number: 6, name: 'Advanced', size: 18, seed: 67890 },
+      { number: 7, name: 'Expert', size: 20, seed: 78901 },
+      { number: 8, name: 'Master', size: 22, seed: 89012 },
+      { number: 9, name: 'Grandmaster', size: 24, seed: 90123 },
+      { number: 10, name: 'Legend', size: 26, seed: 10234 }
+    ];
+
+    // ============================================
+    // GAME STATE
+    // ============================================
+    const CELL_SIZE = 1;
+    const WALL_HEIGHT = 0.6;
+    const BALL_RADIUS = 0.25;
+    const GRAVITY = 0.015;
+    const FRICTION = 0.97;
+    const TILT_MULTIPLIER = 0.04;
+
+    const gameState = {
+      currentLevel: 0,
+      maze: null,
+      mazeSize: LEVELS[0].size,
+      mazeGroup: null,
+      ball: null,
+      ballVelocity: { x: 0, z: 0 },
+      ballPosition: { x: 0, z: 0 },
+      startTime: null,
+      isPlaying: false,
+      showingDots: true,
+      dots: [],
+      tiltX: 0,
+      tiltZ: 0,
+      targetRotationX: 0,
+      targetRotationZ: 0,
+      currentRotationX: 0,
+      currentRotationZ: 0,
+      startCell: { x: 0, y: 0 },
+      endCell: { x: 0, y: 0 }
+    };
+
+    // ============================================
+    // LEADERBOARD
+    // ============================================
+    function getLocalLeaderboard() {
+      const saved = localStorage.getItem('mazeLeaderboard');
+      return saved ? JSON.parse(saved) : {};
+    }
+
+    function saveLocalTime(level, time) {
+      const leaderboard = getLocalLeaderboard();
+      if (!leaderboard[level] || time < leaderboard[level]) {
+        leaderboard[level] = time;
+        localStorage.setItem('mazeLeaderboard', JSON.stringify(leaderboard));
+        return true; // New best time
+      }
+      return false;
+    }
+
+    function getBestTime(level) {
+      const leaderboard = getLocalLeaderboard();
+      return leaderboard[level] || null;
+    }
+
+    function formatTime(ms) {
+      const hours = Math.floor(ms / 3600000);
+      const minutes = Math.floor((ms % 3600000) / 60000);
+      const seconds = Math.floor((ms % 60000) / 1000);
+      const milliseconds = Math.floor(ms % 1000);
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+    }
+
+    // Global Leaderboard (Firebase)
+    async function submitScore(level, name, time) {
+      if (!database) {
+        console.warn('Firebase not initialized, score not submitted');
+        return false;
+      }
+
+      try {
+        const scoreRef = database.ref(`leaderboard/level${level}`).push();
+        await scoreRef.set({
+          name: name.toUpperCase(),
+          time: time,
+          timestamp: Date.now()
+        });
+        console.log('Score submitted successfully');
+        return scoreRef.key; // Return the key for highlighting
+      } catch (error) {
+        console.error('Error submitting score:', error);
+        return false;
+      }
+    }
+
+    async function getGlobalLeaderboard(level, limit = 50) {
+      if (!database) {
+        console.warn('Firebase not initialized');
+        return [];
+      }
+
+      try {
+        const snapshot = await database.ref(`leaderboard/level${level}`)
+          .orderByChild('time')
+          .limitToFirst(limit)
+          .once('value');
+
+        const scores = [];
+        snapshot.forEach((child) => {
+          scores.push({
+            key: child.key,
+            ...child.val()
+          });
+        });
+
+        return scores;
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        return [];
+      }
+    }
+
+    function displayLeaderboard(scores, currentPlayerKey = null) {
+      const container = document.getElementById('leaderboardContent');
+      container.innerHTML = '';
+
+      if (scores.length === 0) {
+        container.innerHTML = '<p style="text-align: center; opacity: 0.6;">No scores yet. Be the first!</p>';
+        return;
+      }
+
+      scores.forEach((score, index) => {
+        const entry = document.createElement('div');
+        entry.className = 'leaderboard-entry';
+
+        if (index < 3) {
+          entry.classList.add('top3');
+        }
+
+        if (currentPlayerKey && score.key === currentPlayerKey) {
+          entry.classList.add('current-player');
+        }
+
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+
+        entry.innerHTML = `
+            <span>${medal} ${score.name}</span>
+            <span>${formatTime(score.time)}</span>
+          `;
+
+        container.appendChild(entry);
+      });
+    }
+
+    async function showLeaderboardScreen() {
+      const level = LEVELS[gameState.currentLevel];
+      document.getElementById('leaderboardLevel').textContent = `Level ${level.number}: ${level.name}`;
+
+      // Hide all other screens
+      document.getElementById('winScreen').classList.remove('visible');
+      document.getElementById('startScreen').classList.remove('visible');
+
+      // Show leaderboard
+      const leaderboardScreen = document.getElementById('leaderboardScreen');
+      leaderboardScreen.style.display = 'block';
+      leaderboardScreen.classList.add('visible');
+
+      // Show/hide next level button (only show if game was just completed)
+      const nextBtn = document.getElementById('leaderboardNextButton');
+      const retryBtn = document.getElementById('leaderboardRetryButton');
+      if (gameState.isPlaying || gameState.ball) {
+        // Coming from win screen
+        retryBtn.style.display = 'inline-block';
+        if (gameState.currentLevel < LEVELS.length - 1) {
+          nextBtn.style.display = 'inline-block';
+        } else {
+          nextBtn.style.display = 'none';
+        }
+      } else {
+        // Coming from start screen - hide game action buttons
+        retryBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+      }
+
+      const scores = await getGlobalLeaderboard(level.number);
+      displayLeaderboard(scores);
+    }
+
+    // ============================================
+    // MAZE VISUALIZATION
+    // ============================================
+    function createDotMaze(mazeGrid) {
+      const MAZE_SIZE = gameState.mazeSize;
+      const dotGroup = new THREE.Group();
+      const dotGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+      const dotMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+      for (let y = 0; y <= MAZE_SIZE; y++) {
+        for (let x = 0; x <= MAZE_SIZE; x++) {
+          const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+          dot.position.set(
+            (x - MAZE_SIZE / 2) * CELL_SIZE,
+            0,
+            (y - MAZE_SIZE / 2) * CELL_SIZE
+          );
+          dotGroup.add(dot);
+          gameState.dots.push(dot);
+        }
+      }
+
+      scene.add(dotGroup);
+      return dotGroup;
+    }
+
+    function create3DMaze(mazeGrid) {
+      const mazeGroup = new THREE.Group();
+      const MAZE_SIZE = gameState.mazeSize;
+
+      // Floor with thickness
+      const floorThickness = 0.5;
+      const floorGeometry = new THREE.BoxGeometry(
+        MAZE_SIZE * CELL_SIZE,
+        floorThickness,
+        MAZE_SIZE * CELL_SIZE
+      );
+      const floorMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a,
+        roughness: 0.7,
+        metalness: 0.3
+      });
+      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+      floor.position.y = -floorThickness / 2;
+      floor.receiveShadow = true;
+      floor.castShadow = true;
+      mazeGroup.add(floor);
+
+      // Internal walls
+      const wallMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        roughness: 0.2,
+        metalness: 0.8,
+        emissive: 0x004400,
+        emissiveIntensity: 0.4
+      });
+
+      for (let y = 0; y < MAZE_SIZE; y++) {
+        for (let x = 0; x < MAZE_SIZE; x++) {
+          const cell = mazeGrid[y][x];
+          const cellX = (x - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+          const cellZ = (y - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+
+          // Top wall
+          if (cell.walls.top) {
+            const wall = createWall(cellX, cellZ - CELL_SIZE / 2, CELL_SIZE, 0, wallMaterial);
+            mazeGroup.add(wall);
+          }
+
+          // Right wall
+          if (cell.walls.right) {
+            const wall = createWall(cellX + CELL_SIZE / 2, cellZ, 0, CELL_SIZE, wallMaterial);
+            mazeGroup.add(wall);
+          }
+
+          // Bottom wall
+          if (cell.walls.bottom) {
+            const wall = createWall(cellX, cellZ + CELL_SIZE / 2, CELL_SIZE, 0, wallMaterial);
+            mazeGroup.add(wall);
+          }
+
+          // Left wall
+          if (cell.walls.left) {
+            const wall = createWall(cellX - CELL_SIZE / 2, cellZ, 0, CELL_SIZE, wallMaterial);
+            mazeGroup.add(wall);
+          }
+        }
+      }
+
+      // Outer boundary walls
+      const boundaryMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        roughness: 0.2,
+        metalness: 0.8,
+        emissive: 0x006600,
+        emissiveIntensity: 0.6
+      });
+
+      const halfSize = (MAZE_SIZE * CELL_SIZE) / 2;
+
+      // Top boundary
+      const topBoundary = createWall(0, -halfSize - 0.05, MAZE_SIZE * CELL_SIZE + 0.1, 0, boundaryMaterial);
+      mazeGroup.add(topBoundary);
+
+      // Bottom boundary
+      const bottomBoundary = createWall(0, halfSize + 0.05, MAZE_SIZE * CELL_SIZE + 0.1, 0, boundaryMaterial);
+      mazeGroup.add(bottomBoundary);
+
+      // Left boundary
+      const leftBoundary = createWall(-halfSize - 0.05, 0, 0, MAZE_SIZE * CELL_SIZE + 0.1, boundaryMaterial);
+      mazeGroup.add(leftBoundary);
+
+      // Right boundary
+      const rightBoundary = createWall(halfSize + 0.05, 0, 0, MAZE_SIZE * CELL_SIZE + 0.1, boundaryMaterial);
+      mazeGroup.add(rightBoundary);
+
+      return mazeGroup;
+    }
+
+    function createWall(x, z, width, depth, material) {
+      const wallWidth = width || 0.1;
+      const wallDepth = depth || 0.1;
+      const geometry = new THREE.BoxGeometry(wallWidth, WALL_HEIGHT, wallDepth);
+      const wall = new THREE.Mesh(geometry, material);
+      wall.position.set(x, WALL_HEIGHT / 2, z);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      return wall;
+    }
+
+    function createBall() {
+      const geometry = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.2,
+        metalness: 0.9,
+        emissive: 0x666666,
+        emissiveIntensity: 0.5
+      });
+      const ball = new THREE.Mesh(geometry, material);
+      ball.castShadow = true;
+
+      // Start position - START CELL
+      const MAZE_SIZE = gameState.mazeSize;
+      const startX = (gameState.startCell.x - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+      const startZ = (gameState.startCell.y - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+
+      ball.position.set(startX, BALL_RADIUS, startZ);
+      gameState.ballPosition = { x: startX, z: startZ };
+
+      return ball;
+    }
+
+    function createStartEndMarkers() {
+      const MAZE_SIZE = gameState.mazeSize;
+
+      // Start marker (green glow)
+      const startGeometry = new THREE.CircleGeometry(CELL_SIZE * 0.4, 32);
+      const startMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.5
+      });
+      const startMarker = new THREE.Mesh(startGeometry, startMaterial);
+      startMarker.rotation.x = -Math.PI / 2;
+      const startX = (gameState.startCell.x - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+      const startZ = (gameState.startCell.y - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+      startMarker.position.set(startX, 0.01, startZ);
+      gameState.mazeGroup.add(startMarker);
+
+      // Animate start marker
+      function animateStartMarker() {
+        if (gameState.isPlaying) {
+          startMaterial.opacity = 0.3 + Math.sin(Date.now() * 0.003) * 0.2;
+          requestAnimationFrame(animateStartMarker);
+        }
+      }
+      animateStartMarker();
+
+      // End marker (pulsing red)
+      const endGeometry = new THREE.CircleGeometry(CELL_SIZE * 0.4, 32);
+      const endMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.5
+      });
+      const endMarker = new THREE.Mesh(endGeometry, endMaterial);
+      endMarker.rotation.x = -Math.PI / 2;
+      const endX = (gameState.endCell.x - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+      const endZ = (gameState.endCell.y - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+      endMarker.position.set(endX, 0.01, endZ);
+      gameState.mazeGroup.add(endMarker);
+
+      // Animate end marker
+      function animateEndMarker() {
+        if (gameState.isPlaying) {
+          endMaterial.opacity = 0.3 + Math.sin(Date.now() * 0.003) * 0.2;
+          requestAnimationFrame(animateEndMarker);
+        }
+      }
+      animateEndMarker();
+    }
+
+    // ============================================
+    // PHYSICS & COLLISION
+    // ============================================
+    function updateBallPhysics() {
+      // Get maze rotation angles to calculate gravity effect
+      const mazeRotationX = gameState.mazeGroup.rotation.x; // Pitch (forward/back tilt)
+      const mazeRotationZ = gameState.mazeGroup.rotation.z; // Roll (left/right tilt)
+
+      // Calculate gravity components based on maze tilt
+      // When maze tilts on Z axis (roll), ball rolls in X direction
+      // When maze tilts on X axis (pitch), ball rolls in Z direction
+      const gravityX = -Math.sin(mazeRotationZ) * GRAVITY * 2;
+      const gravityZ = Math.sin(mazeRotationX) * GRAVITY * 2;
+
+      // Apply gravity forces
+      gameState.ballVelocity.x += gravityX;
+      gameState.ballVelocity.z += gravityZ;
+
+      // Cap max velocity
+      const maxVelocity = 0.5;
+      const speed = Math.sqrt(gameState.ballVelocity.x ** 2 + gameState.ballVelocity.z ** 2);
+      if (speed > maxVelocity) {
+        gameState.ballVelocity.x = (gameState.ballVelocity.x / speed) * maxVelocity;
+        gameState.ballVelocity.z = (gameState.ballVelocity.z / speed) * maxVelocity;
+      }
+
+      // Apply friction
+      gameState.ballVelocity.x *= FRICTION;
+      gameState.ballVelocity.z *= FRICTION;
+
+      // Update position with collision detection
+      const newX = gameState.ballPosition.x + gameState.ballVelocity.x;
+      const newZ = gameState.ballPosition.z + gameState.ballVelocity.z;
+
+      // Check boundary collision (bounce off edges)
+      const MAZE_SIZE = gameState.mazeSize;
+      const halfSize = (MAZE_SIZE * CELL_SIZE) / 2 - BALL_RADIUS;
+
+      // Check X collision with walls
+      if (Math.abs(newX) > halfSize || checkCollision(newX, gameState.ballPosition.z)) {
+        gameState.ballVelocity.x *= -0.5;
+      } else {
+        gameState.ballPosition.x = newX;
+        gameState.ball.position.x = newX;
+      }
+
+      // Check Z collision with walls
+      if (Math.abs(newZ) > halfSize || checkCollision(gameState.ballPosition.x, newZ)) {
+        gameState.ballVelocity.z *= -0.5;
+      } else {
+        gameState.ballPosition.z = newZ;
+        gameState.ball.position.z = newZ;
+      }
+
+      // Always keep ball on surface
+      gameState.ball.position.y = BALL_RADIUS;
+
+      // Check win condition
+      checkWinCondition();
+    }
+
+    function checkCollision(x, z) {
+      const MAZE_SIZE = gameState.mazeSize;
+
+      // Convert position to grid coordinates
+      const gridX = Math.floor((x + MAZE_SIZE * CELL_SIZE / 2) / CELL_SIZE);
+      const gridZ = Math.floor((z + MAZE_SIZE * CELL_SIZE / 2) / CELL_SIZE);
+
+      if (gridX < 0 || gridX >= MAZE_SIZE || gridZ < 0 || gridZ >= MAZE_SIZE) {
+        return true; // Out of bounds
+      }
+
+      const cell = gameState.maze[gridZ][gridX];
+      const cellCenterX = (gridX - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+      const cellCenterZ = (gridZ - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+
+      const relativeX = x - cellCenterX;
+      const relativeZ = z - cellCenterZ;
+
+      const threshold = CELL_SIZE / 2 - BALL_RADIUS;
+
+      // Check each wall
+      if (cell.walls.top && relativeZ < -threshold) return true;
+      if (cell.walls.bottom && relativeZ > threshold) return true;
+      if (cell.walls.left && relativeX < -threshold) return true;
+      if (cell.walls.right && relativeX > threshold) return true;
+
+      return false;
+    }
+
+    function checkWinCondition() {
+      const MAZE_SIZE = gameState.mazeSize;
+      const endX = (gameState.endCell.x - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+      const endZ = (gameState.endCell.y - MAZE_SIZE / 2) * CELL_SIZE + CELL_SIZE / 2;
+
+      const distance = Math.sqrt(
+        Math.pow(gameState.ballPosition.x - endX, 2) +
+        Math.pow(gameState.ballPosition.z - endZ, 2)
+      );
+
+      if (distance < CELL_SIZE * 0.3) {
+        winGame();
+      }
+    }
+
+    function winGame() {
+      gameState.isPlaying = false;
+      const elapsed = Date.now() - gameState.startTime;
+      const level = LEVELS[gameState.currentLevel];
+
+      // Store the time for submission
+      gameState.lastCompletionTime = elapsed;
+
+      // Save time locally and check if it's a new best
+      const isNewBest = saveLocalTime(level.number, elapsed);
+
+      // Format time display
+      const timeStr = formatTime(elapsed);
+      document.getElementById('winLevel').textContent = `Level ${level.number}: ${level.name}`;
+      document.getElementById('winTime').textContent = `Time: ${timeStr}`;
+
+      // Show best time
+      const bestTime = getBestTime(level.number);
+      if (isNewBest) {
+        document.getElementById('bestTime').textContent = `🏆 NEW PERSONAL BEST!`;
+      } else {
+        document.getElementById('bestTime').textContent = `Personal Best: ${formatTime(bestTime)}`;
+      }
+
+      // Show name entry if Firebase is enabled
+      const nameEntry = document.getElementById('nameEntry');
+      if (database) {
+        nameEntry.style.display = 'block';
+        // Focus first character
+        document.getElementById('nameChar1').focus();
+        document.getElementById('nameChar1').select();
+      } else {
+        nameEntry.style.display = 'none';
+      }
+
+      // Show/hide next level button
+      const nextButton = document.getElementById('nextLevelButton');
+      if (gameState.currentLevel < LEVELS.length - 1) {
+        nextButton.style.display = 'block';
+      } else {
+        nextButton.style.display = 'none';
+        if (isNewBest) {
+          document.getElementById('bestTime').textContent += ' 🎉 ALL LEVELS COMPLETE!';
+        }
+      }
+
+      document.getElementById('winScreen').classList.add('visible');
+      document.getElementById('timerDisplay').style.display = 'none';
+    }
+
+    // ============================================
+    // GAME LOOP
+    // ============================================
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (trackingState.isWebcamActive) {
+        processWebcamFrame();
+      }
+
+      if (gameState.isPlaying) {
+        // Calculate tilt from head position (board level when centered at 0.5, 0.58)
+        const offsetX = trackingState.smoothHeadX - 0.5;
+        const offsetY = trackingState.smoothHeadY - 0.58;
+
+        gameState.tiltX = -offsetX * 5; // Inverted for natural control
+        gameState.tiltZ = offsetY * 12; // Much more sensitive for up/down
+
+        // Apply tilt to maze with smooth interpolation
+        if (gameState.mazeGroup) {
+          const maxTilt = 0.35;
+          const rotationSmoothing = 0.08; // Lower = smoother but slower response
+
+          // Calculate target rotations
+          gameState.targetRotationX = Math.max(-maxTilt, Math.min(maxTilt, gameState.tiltZ * 0.4));
+          gameState.targetRotationZ = Math.max(-maxTilt, Math.min(maxTilt, gameState.tiltX * 0.4));
+
+          // Smoothly interpolate to target
+          gameState.currentRotationX += (gameState.targetRotationX - gameState.currentRotationX) * rotationSmoothing;
+          gameState.currentRotationZ += (gameState.targetRotationZ - gameState.currentRotationZ) * rotationSmoothing;
+
+          // Apply smoothed rotation
+          gameState.mazeGroup.rotation.x = gameState.currentRotationX;
+          gameState.mazeGroup.rotation.z = gameState.currentRotationZ;
+        }
+
+        // Update physics
+        updateBallPhysics();
+
+        // Update timer with milliseconds
+        const elapsed = Date.now() - gameState.startTime;
+        const hours = Math.floor(elapsed / 3600000);
+        const minutes = Math.floor((elapsed % 3600000) / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+        const milliseconds = Math.floor(elapsed % 1000);
+
+        document.getElementById('timerDisplay').textContent =
+          `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+
+        // Update tilt overlay
+        const dotX = trackingState.smoothHeadX * 100;
+        const dotY = trackingState.smoothHeadY * 100;
+        document.getElementById('tiltDot').style.left = `${dotX}%`;
+        document.getElementById('tiltDot').style.top = `${dotY}%`;
+
+        document.getElementById('tiltInfo').innerHTML =
+          `x:${trackingState.smoothHeadX.toFixed(2)}<br>y:${trackingState.smoothHeadY.toFixed(2)}<br>Δx:${offsetX.toFixed(2)}<br>Δy:${offsetY.toFixed(2)}`;
+
+        // Update debug info
+        document.getElementById('debugInfo').innerHTML = `Ball: (${gameState.ballPosition.x.toFixed(1)}, ${gameState.ballPosition.z.toFixed(1)})<br>Velocity: (${gameState.ballVelocity.x.toFixed(3)}, ${gameState.ballVelocity.z.toFixed(3)})`;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // ============================================
+    // GAME INITIALIZATION
+    // ============================================
+    async function initGame() {
+      const level = LEVELS[gameState.currentLevel];
+      gameState.mazeSize = level.size;
+
+      // Update start and end cells based on maze size
+      gameState.startCell = { x: 0, y: 0 };
+      gameState.endCell = { x: level.size - 1, y: level.size - 1 };
+
+      // Generate maze with seed for consistent levels
+      const generator = new MazeGenerator(level.size, level.size, level.seed);
+      gameState.maze = generator.generate();
+
+      // Adjust camera based on maze size
+      const cameraDistance = Math.max(16, level.size * 0.8);
+      const cameraHeight = Math.max(16, level.size * 0.9);
+      camera.position.set(0, cameraHeight, cameraDistance);
+      camera.lookAt(0, 0, 0);
+
+      // Create 3D maze
+      gameState.mazeGroup = create3DMaze(gameState.maze);
+      gameState.mazeGroup.rotation.set(0, 0, 0);
+      scene.add(gameState.mazeGroup);
+
+      // Create ball
+      gameState.ball = createBall();
+      gameState.mazeGroup.add(gameState.ball);
+
+      // Reset ball velocity and tilt
+      gameState.ballVelocity = { x: 0, z: 0 };
+      gameState.tiltX = 0;
+      gameState.tiltZ = 0;
+      gameState.targetRotationX = 0;
+      gameState.targetRotationZ = 0;
+      gameState.currentRotationX = 0;
+      gameState.currentRotationZ = 0;
+
+      // Create markers
+      createStartEndMarkers();
+    }
+
+    function initLevelButtons() {
+      const container = document.getElementById('levelButtons');
+      container.innerHTML = '';
+
+      LEVELS.forEach((level, index) => {
+        const button = document.createElement('button');
+        button.className = 'level-button';
+        button.textContent = level.number;
+        button.title = level.name;
+
+        if (index === gameState.currentLevel) {
+          button.classList.add('selected');
+        }
+
+        if (getBestTime(level.number) !== null) {
+          button.classList.add('completed');
+        }
+
+        button.addEventListener('click', () => {
+          gameState.currentLevel = index;
+          initLevelButtons();
+        });
+
+        container.appendChild(button);
+      });
+    }
+
+    function startGame() {
+      document.getElementById('startScreen').classList.remove('visible');
+      document.getElementById('timerDisplay').style.display = 'block';
+      gameState.isPlaying = true;
+      gameState.startTime = Date.now();
+      initGame();
+    }
+
+    function restartGame() {
+      // Clean up old game
+      if (gameState.mazeGroup) scene.remove(gameState.mazeGroup);
+
+      gameState.ballVelocity = { x: 0, z: 0 };
+      gameState.dots = [];
+      gameState.ball = null;
+
+      document.getElementById('winScreen').classList.remove('visible');
+      document.getElementById('timerDisplay').style.display = 'block';
+
+      // Start new game
+      gameState.isPlaying = true;
+      gameState.startTime = Date.now();
+      initGame();
+    }
+
+    function nextLevel() {
+      if (gameState.currentLevel < LEVELS.length - 1) {
+        gameState.currentLevel++;
+        restartGame();
+      }
+    }
+
+    function showLevelSelect() {
+      // Clean up old game
+      if (gameState.mazeGroup) scene.remove(gameState.mazeGroup);
+
+      gameState.ballVelocity = { x: 0, z: 0 };
+      gameState.dots = [];
+      gameState.ball = null;
+
+      document.getElementById('winScreen').classList.remove('visible');
+      document.getElementById('startScreen').classList.add('visible');
+      document.getElementById('timerDisplay').style.display = 'none';
+
+      initLevelButtons();
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    document.getElementById('startButton').addEventListener('click', () => {
+      initTracking();
+    });
+
+    document.getElementById('restartButton').addEventListener('click', restartGame);
+
+    document.getElementById('nextLevelButton').addEventListener('click', nextLevel);
+
+    document.getElementById('viewLeaderboardButton').addEventListener('click', showLeaderboardScreen);
+
+    document.getElementById('startLeaderboardButton').addEventListener('click', showLeaderboardScreen);
+
+    document.getElementById('menuButton').addEventListener('click', () => {
+      document.getElementById('winScreen').classList.remove('visible');
+      document.getElementById('startScreen').classList.add('visible');
+      document.getElementById('timerDisplay').style.display = 'none';
+    });
+
+    document.getElementById('leaderboardRetryButton').addEventListener('click', () => {
+      const leaderboardScreen = document.getElementById('leaderboardScreen');
+      leaderboardScreen.style.display = 'none';
+      leaderboardScreen.classList.remove('visible');
+      restartGame();
+    });
+
+    document.getElementById('leaderboardNextButton').addEventListener('click', () => {
+      const leaderboardScreen = document.getElementById('leaderboardScreen');
+      leaderboardScreen.style.display = 'none';
+      leaderboardScreen.classList.remove('visible');
+      nextLevel();
+    });
+
+    document.getElementById('leaderboardMenuButton').addEventListener('click', () => {
+      const leaderboardScreen = document.getElementById('leaderboardScreen');
+      leaderboardScreen.style.display = 'none';
+      leaderboardScreen.classList.remove('visible');
+      document.getElementById('startScreen').classList.add('visible');
+      document.getElementById('timerDisplay').style.display = 'none';
+    });
+
+    // Arcade-style name entry
+    const nameInputs = [
+      document.getElementById('nameChar1'),
+      document.getElementById('nameChar2'),
+      document.getElementById('nameChar3'),
+      document.getElementById('nameChar4'),
+      document.getElementById('nameChar5')
+    ];
+
+    nameInputs.forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        const value = e.target.value.toUpperCase();
+        e.target.value = value;
+
+        // Auto-advance to next input
+        if (value && index < 4) {
+          nameInputs[index + 1].focus();
+          nameInputs[index + 1].select();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        // Backspace goes to previous input
+        if (e.key === 'Backspace' && !e.target.value && index > 0) {
+          nameInputs[index - 1].focus();
+          nameInputs[index - 1].select();
+        }
+
+        // Enter submits
+        if (e.key === 'Enter') {
+          document.getElementById('submitScoreButton').click();
+        }
+
+        // Arrow keys navigate
+        if (e.key === 'ArrowLeft' && index > 0) {
+          e.preventDefault();
+          nameInputs[index - 1].focus();
+          nameInputs[index - 1].select();
+        }
+        if (e.key === 'ArrowRight' && index < 4) {
+          e.preventDefault();
+          nameInputs[index + 1].focus();
+          nameInputs[index + 1].select();
+        }
+      });
+    });
+
+    document.getElementById('submitScoreButton').addEventListener('click', async () => {
+      const name = nameInputs.map(input => input.value || 'A').join('');
+      const level = LEVELS[gameState.currentLevel];
+      const time = gameState.lastCompletionTime;
+
+      // Disable button while submitting
+      const button = document.getElementById('submitScoreButton');
+      button.disabled = true;
+      button.textContent = 'SUBMITTING...';
+
+      const scoreKey = await submitScore(level.number, name, time);
+
+      if (scoreKey) {
+        // Hide name entry
+        document.getElementById('nameEntry').style.display = 'none';
+        button.textContent = '✓ SUBMITTED';
+
+        // Show leaderboard with player's score highlighted
+        setTimeout(async () => {
+          document.getElementById('leaderboardLevel').textContent = `Level ${level.number}: ${level.name}`;
+          document.getElementById('winScreen').classList.remove('visible');
+          const leaderboardScreen = document.getElementById('leaderboardScreen');
+          leaderboardScreen.style.display = 'block';
+          leaderboardScreen.classList.add('visible');
+
+          // Show next level and retry buttons
+          const nextBtn = document.getElementById('leaderboardNextButton');
+          const retryBtn = document.getElementById('leaderboardRetryButton');
+          retryBtn.style.display = 'inline-block';
+          if (gameState.currentLevel < LEVELS.length - 1) {
+            nextBtn.style.display = 'inline-block';
+          } else {
+            nextBtn.style.display = 'none';
+          }
+
+          const scores = await getGlobalLeaderboard(level.number);
+          displayLeaderboard(scores, scoreKey);
+        }, 1000);
+      } else {
+        button.disabled = false;
+        button.textContent = 'SUBMIT SCORE';
+        alert('Failed to submit score. Please try again.');
+      }
+    });
+
+    // Initialize level selection
+    initLevelButtons();
+
+    // Keyboard controls (fallback)
+    window.addEventListener('keydown', (e) => {
+      if (!gameState.isPlaying) return;
+
+      const force = 0.5;
+      if (e.key === 'ArrowLeft') gameState.tiltX = -force;
+      if (e.key === 'ArrowRight') gameState.tiltX = force;
+      if (e.key === 'ArrowUp') gameState.tiltZ = -force;
+      if (e.key === 'ArrowDown') gameState.tiltZ = force;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key.startsWith('Arrow')) {
+        gameState.tiltX = 0;
+        gameState.tiltZ = 0;
+      }
+    });
+
+    // Window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start animation loop
+    animate();
+  </script>
+</body>
+
+</html>
