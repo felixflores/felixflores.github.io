@@ -906,31 +906,17 @@
 
       // Stream text component - handles character fade-in animations
       streamToComponent(element, text) {
-        if (!this._componentStates) this._componentStates = new Map();
-
-        if (!this._componentStates.has(element)) {
-          this._componentStates.set(element, { cumulativeDelay: 0 });
-        }
-
-        const state = this._componentStates.get(element);
-
-        // Calculate dynamic delay based on recent token velocity
-        const charDelay = this._currentCharDelay || 0.005;
-
+        // Append characters immediately (real-time)
         for (const char of text) {
-          setTimeout(() => {
-            const span = document.createElement('span');
-            span.className = 'char-reveal';
-            span.textContent = char;
-            element.appendChild(span);
+          const span = document.createElement('span');
+          span.className = 'char-reveal';
+          span.textContent = char;
+          element.appendChild(span);
 
-            // Start smooth scrolling for thinking text
-            if (element === this.elements.thinkingText && !this._scrollAnimating) {
-              this.startSmoothScroll();
-            }
-          }, state.cumulativeDelay);
-
-          state.cumulativeDelay += charDelay * 1000;
+          // Start smooth scrolling for thinking text
+          if (element === this.elements.thinkingText && !this._scrollAnimating) {
+            this.startSmoothScroll();
+          }
         }
       }
 
@@ -950,7 +936,6 @@
         this.elements.chevron.classList.remove('expanded');
         this.elements.thinkingContent.classList.add('streaming');
         this.elements.response.style.display = 'none';
-        this._componentStates = new Map();
         this.stopSmoothScroll();
 
         try {
@@ -989,7 +974,7 @@
             lastTokenTime = now;
 
             const avgTokenTime = tokenTimings.reduce((a, b) => a + b, 0) / tokenTimings.length;
-            this._currentCharDelay = Math.max(0.001, Math.min(0.010, avgTokenTime / 1000 / 20));
+            this._currentCharDelay = Math.max(0.0005, Math.min(0.005, avgTokenTime / 1000 / 30));
 
             // Check for mode transitions BEFORE adding to fullBuffer/bufferer
             const tempBuffer = fullBuffer + token;
