@@ -174,6 +174,38 @@
       line-height: 1.6;
     }
 
+    /* Character-by-character reveal effect */
+    .char-reveal {
+      display: inline;
+      animation: charReveal 0.6s ease-out forwards;
+      opacity: 0;
+    }
+
+    @keyframes charReveal {
+      from {
+        opacity: 0;
+        filter: blur(6px);
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+      }
+    }
+
+    /* Typing cursor effect while streaming */
+    .response.streaming::after {
+      content: '▊';
+      color: #667eea;
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
     .response strong {
       color: #e0e0e0;
       font-weight: 600;
@@ -515,15 +547,21 @@
         return;
       }
 
-      console.log('Adding thought:', text);
+      // Remove leading colon if present (e.g., ": text" -> "text")
+      const cleaned = text.trim().replace(/^:\s*/, '');
+      if (!cleaned) return;
+
+      console.log('Adding thought:', cleaned);
       const item = document.createElement('div');
       item.className = 'thinking-item';
-      // Render markdown using marked library if available
+
+      // Render markdown - let marked handle all the parsing
       if (typeof marked !== 'undefined') {
-        item.innerHTML = marked.parseInline(text);
+        item.innerHTML = marked.parseInline(cleaned);
       } else {
-        item.textContent = text;
+        item.textContent = cleaned;
       }
+
       elements.thinkingText.appendChild(item);
 
       // Start constant scrolling on first item
@@ -570,6 +608,7 @@
 
         let currentThought = '';
         let answerText = '';
+        let previousAnswerLength = 0;
         let inThinking = false;
         let inAnswer = false;
 
@@ -577,22 +616,28 @@
           const content = chunk.choices[0]?.delta?.content || '';
           fullResponse += content;
 
+          // Check if we're in THINKING section
           if (fullResponse.includes('THINKING:') && !inThinking) {
             inThinking = true;
           }
 
+          // Check if we've moved to ANSWER section
           if (fullResponse.includes('ANSWER:')) {
             if (!inAnswer) {
-              // First time entering ANSWER section - show the response container
+              // First time entering ANSWER - show answer section
               elements.response.style.display = 'block';
-              elements.responseText.innerHTML = ''; // Clear any previous content
+              elements.response.classList.add('streaming');
+              elements.responseText.innerHTML = '';
               // Update header to show we're done thinking
               elements.thinkingHeader.querySelector('span').textContent = 'Thought Process';
               inAnswer = true;
+              // Stop the credits scroll since we're done thinking
+              stopCreditsScroll();
             }
             inThinking = false;
           }
 
+          // Process thinking content
           if (inThinking && content) {
             currentThought += content;
 
@@ -600,29 +645,30 @@
             if (content.includes('\n')) {
               const thoughts = currentThought.split('\n').filter(t => t.trim());
               thoughts.forEach(t => {
-                const cleaned = t.trim().replace(/^[-•*]\s*/, '').replace(/^THINKING:\s*/i, '');
+                // Remove "THINKING:" prefix if present
+                const cleaned = t.replace(/^THINKING:\s*/i, '').trim();
                 addThinkingItem(cleaned);
               });
               currentThought = '';
             }
           } else if (inAnswer && content) {
-            // Stream the answer in real-time, character by character
-            console.log('Answer content chunk:', content);
-
-            // Build up the answer text with all content after "ANSWER:"
-            const rawAnswer = (answerText + content).replace(/^ANSWER:\s*/i, '');
-            const prevLength = answerText.replace(/^ANSWER:\s*/i, '').length;
+            // We're in ANSWER section - stream it
             answerText += content;
 
-            // Get only the new characters to add
-            const newChars = rawAnswer.slice(prevLength);
+            // Get the answer text after ANSWER: marker and remove leading colons
+            const answerMatch = answerText.match(/ANSWER:\s*(.*)/si);
+            let cleanedAnswer = answerMatch ? answerMatch[1].trim() : answerText.trim();
+            cleanedAnswer = cleanedAnswer.replace(/^:\s*/, '');
 
+            // Get only the new characters
+            const newChars = cleanedAnswer.slice(previousAnswerLength);
+            previousAnswerLength = cleanedAnswer.length;
+
+            // Add new characters with fade-in effect
             if (newChars) {
-              console.log('Adding new chars:', newChars);
-              // Add new characters with fade animation
               for (const char of newChars) {
                 const span = document.createElement('span');
-                span.className = 'char-fade';
+                span.className = 'char-reveal';
                 span.textContent = char;
                 elements.responseText.appendChild(span);
               }
@@ -632,16 +678,12 @@
 
         // Add any remaining thought
         if (currentThought.trim()) {
-          const cleaned = currentThought.trim().replace(/^[-•*]\s*/, '').replace(/^THINKING:\s*/i, '');
+          const cleaned = currentThought.replace(/^THINKING:\s*/i, '').trim();
           addThinkingItem(cleaned);
         }
 
-        // Final check if we didn't get an answer
-        if (!inAnswer) {
-          console.warn('No ANSWER section found in response');
-          elements.response.style.display = 'block';
-          elements.responseText.textContent = fullResponse;
-        }
+        // Remove streaming cursor when done
+        elements.response.classList.remove('streaming');
 
         console.log('Full response:', fullResponse);
       } catch (error) {
