@@ -41,14 +41,19 @@
 
     .tilt-overlay {
       position: absolute;
-      top: 20px;
-      left: 20px;
-      width: 150px;
-      height: 150px;
+      top: 2vh;
+      left: 2vw;
+      width: min(150px, 20vw);
+      height: min(150px, 20vw);
       background: rgba(0, 0, 0, 0.8);
       border: 2px solid #00ff00;
       z-index: 100;
       pointer-events: none;
+      display: none;
+    }
+
+    .tilt-overlay.visible {
+      display: block;
     }
 
     .tilt-grid {
@@ -98,19 +103,19 @@
 
     .timer-display {
       position: absolute;
-      top: 20px;
+      top: 2vh;
       left: 50%;
       transform: translateX(-50%);
       font-family: 'Courier New', monospace;
-      font-size: 48px;
+      font-size: clamp(24px, 5vw, 48px);
       font-weight: bold;
       color: #00ff00;
       text-shadow: 0 0 30px rgba(0, 255, 0, 1), 0 0 60px rgba(0, 255, 0, 0.5);
       z-index: 50;
       pointer-events: none;
-      letter-spacing: 6px;
+      letter-spacing: clamp(2px, 0.5vw, 6px);
       background: rgba(0, 0, 0, 0.7);
-      padding: 20px 40px;
+      padding: clamp(10px, 2vh, 20px) clamp(20px, 4vw, 40px);
       border-radius: 15px;
       border: 3px solid #00ff00;
       box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
@@ -317,10 +322,10 @@
 
     .debug-info {
       position: absolute;
-      bottom: 20px;
-      left: 20px;
+      bottom: 2vh;
+      left: 2vw;
       font-family: 'Courier New', monospace;
-      font-size: 12px;
+      font-size: clamp(10px, 1.2vw, 12px);
       color: #00ff00;
       opacity: 0.6;
       z-index: 100;
@@ -328,11 +333,11 @@
 
     .venmo-tip {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
+      bottom: 2vh;
+      right: 2vw;
       background: rgba(0, 0, 0, 0.9);
       border-radius: 12px;
-      padding: 15px;
+      padding: clamp(8px, 1.5vw, 15px);
       text-align: center;
       z-index: 150;
       font-family: 'Courier New', monospace;
@@ -343,19 +348,9 @@
     }
 
     @media (max-width: 768px) {
-      .timer-display {
-        font-size: 24px;
-        padding: 10px 20px;
-        top: 10px;
-        letter-spacing: 2px;
-        border: 2px solid #00ff00;
-      }
-
       .tilt-overlay {
-        width: 80px;
-        height: 80px;
-        top: 10px;
-        left: 10px;
+        width: min(80px, 25vw);
+        height: min(80px, 25vw);
       }
 
       .tilt-info {
@@ -368,20 +363,13 @@
         display: none;
       }
 
-      .venmo-tip {
-        bottom: 10px;
-        right: 10px;
-        padding: 8px;
-        border-radius: 8px;
-      }
-
       .venmo-tip img {
-        width: 60px !important;
-        height: 60px !important;
+        width: clamp(50px, 15vw, 60px) !important;
+        height: clamp(50px, 15vw, 60px) !important;
       }
 
       .venmo-tip p {
-        font-size: 8px !important;
+        font-size: clamp(7px, 2vw, 8px) !important;
         margin-bottom: 5px !important;
       }
 
@@ -1042,6 +1030,7 @@
       // Hide all other screens
       document.getElementById('winScreen').classList.remove('visible');
       document.getElementById('startScreen').classList.remove('visible');
+      document.getElementById('tiltOverlay').classList.remove('visible');
 
       // Show leaderboard
       const leaderboardScreen = document.getElementById('leaderboardScreen');
@@ -1435,6 +1424,7 @@
 
       document.getElementById('winScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
+      document.getElementById('tiltOverlay').classList.remove('visible');
     }
 
     // ============================================
@@ -1581,6 +1571,7 @@
 
       document.getElementById('startScreen').classList.remove('visible');
       document.getElementById('timerDisplay').style.display = 'block';
+      document.getElementById('tiltOverlay').classList.add('visible');
       gameState.isPlaying = true;
       gameState.startTime = Date.now();
       initGame();
@@ -1596,6 +1587,7 @@
 
       document.getElementById('winScreen').classList.remove('visible');
       document.getElementById('timerDisplay').style.display = 'block';
+      document.getElementById('tiltOverlay').classList.add('visible');
 
       // Start new game
       gameState.isPlaying = true;
@@ -1621,6 +1613,7 @@
       document.getElementById('winScreen').classList.remove('visible');
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
+      document.getElementById('tiltOverlay').classList.remove('visible');
 
       initLevelButtons();
     }
