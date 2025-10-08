@@ -871,28 +871,72 @@
         }
       }
 
-      streamCharacter(element, char, index = 0) {
-        const delay = index * 0.02 * 1000; // Convert to milliseconds
+      // Token bufferer class - accumulates tokens and flushes on whitespace
+      createTokenBufferer() {
+        let buffer = '';
+        let hasSeenNonWhitespace = false;
 
-        // Add character to DOM when its animation should start
-        setTimeout(() => {
-          const span = document.createElement('span');
-          span.className = 'char-reveal';
-          span.textContent = char;
-          element.appendChild(span);
+        return {
+          append(token) {
+            buffer += token;
 
-          // Start smooth scrolling if not already started
-          if (!this._scrollAnimating && element === this.elements.thinkingText) {
-            this.startSmoothScroll();
+            // Check if we have whitespace to flush on
+            const whitespaceIndex = buffer.search(/\s/);
+            if (whitespaceIndex !== -1) {
+              // Flush up to and including the first whitespace
+              const toFlush = buffer.substring(0, whitespaceIndex + 1);
+              buffer = buffer.substring(whitespaceIndex + 1);
+              return toFlush;
+            }
+
+            return null; // Nothing to flush yet
+          },
+
+          flush() {
+            const toFlush = buffer;
+            buffer = '';
+            return toFlush;
+          },
+
+          peek() {
+            return buffer;
           }
-        }, delay);
+        };
+      }
+
+      // Stream text component - handles character fade-in animations
+      streamToComponent(element, text) {
+        if (!this._componentStates) this._componentStates = new Map();
+
+        if (!this._componentStates.has(element)) {
+          this._componentStates.set(element, { cumulativeDelay: 0 });
+        }
+
+        const state = this._componentStates.get(element);
+
+        // Calculate dynamic delay based on recent token velocity
+        const charDelay = this._currentCharDelay || 0.005;
+
+        for (const char of text) {
+          setTimeout(() => {
+            const span = document.createElement('span');
+            span.className = 'char-reveal';
+            span.textContent = char;
+            element.appendChild(span);
+
+            // Start smooth scrolling for thinking text
+            if (element === this.elements.thinkingText && !this._scrollAnimating) {
+              this.startSmoothScroll();
+            }
+          }, state.cumulativeDelay);
+
+          state.cumulativeDelay += charDelay * 1000;
+        }
       }
 
       async askQuestion() {
         const question = this.elements.input.value.trim();
-        if (!question || !this.engine) {
-          return;
-        }
+        if (!question || !this.engine) return;
 
         // Clear input and disable while processing
         this.elements.input.value = '';
@@ -906,6 +950,7 @@
         this.elements.chevron.classList.remove('expanded');
         this.elements.thinkingContent.classList.add('streaming');
         this.elements.response.style.display = 'none';
+        this._componentStates = new Map();
         this.stopSmoothScroll();
 
         try {
@@ -914,7 +959,6 @@
             { role: "user", content: question }
           ];
 
-          let fullResponse = '';
           const completion = await this.engine.chat.completions.create({
             messages: messages,
             temperature: 0.7,
@@ -922,135 +966,150 @@
             stream: true,
           });
 
-          let buffer = '';
-          let mode = 'waiting'; // 'waiting', 'thinking', 'collecting_answer', 'rendering_answer'
-          let thinkingCharIndex = 0;
-          let answerCharIndex = 0;
-          let contentChunkCount = 0;
-          let answerContent = ''; // Collect answer content before rendering
+          const bufferer = this.createTokenBufferer();
+          let mode = 'initial'; // 'initial', 'thinking', 'answer'
+          let fullBuffer = ''; // Track everything for mode detection
+          let tokenCount = 0;
+
+          // Token velocity tracking
+          let lastTokenTime = Date.now();
+          let tokenTimings = [];
 
           for await (const chunk of completion) {
-            const content = chunk.choices[0]?.delta?.content || '';
-            if (!content) continue;
+            const token = chunk.choices[0]?.delta?.content || '';
+            if (!token) continue;
 
-            buffer += content;
-            contentChunkCount++;
-            console.log('[BUFFER]', buffer.slice(-20));
+            console.log('[RAW TOKEN]', JSON.stringify(token));
+            tokenCount++;
 
-            // Enter THINKING mode
-            if (mode === 'waiting' && buffer.includes('THINKING:')) {
-              mode = 'thinking';
-              buffer = buffer.split('THINKING:')[1] || '';
-              buffer = buffer.replace(/^[\s:]+/, '');
-              console.log('[MODE] Entered THINKING');
-            }
+            // Track token velocity for dynamic char delay
+            const now = Date.now();
+            tokenTimings.push(now - lastTokenTime);
+            if (tokenTimings.length > 5) tokenTimings.shift();
+            lastTokenTime = now;
 
-            // Fallback: if we've received several chunks but haven't entered any mode
-            // Only trigger if buffer doesn't look like it's building up to "THINKING:"
-            if (mode === 'waiting' && contentChunkCount > 5 && buffer.length > 15) {
-              const looksLikeThinking = buffer.includes('THINK') || buffer.includes('THI');
-              if (!looksLikeThinking) {
-                console.log('[FALLBACK] Model not using expected format, treating as thinking');
+            const avgTokenTime = tokenTimings.reduce((a, b) => a + b, 0) / tokenTimings.length;
+            this._currentCharDelay = Math.max(0.001, Math.min(0.010, avgTokenTime / 1000 / 20));
+
+            // Check for mode transitions BEFORE adding to fullBuffer/bufferer
+            const tempBuffer = fullBuffer + token;
+
+            // Mode detection using tempBuffer
+            if (mode === 'initial') {
+              // Check if response starts with THINKING
+              if (tempBuffer.includes('THINKING:')) {
                 mode = 'thinking';
+                fullBuffer = tempBuffer;
+
+                // Clear the bufferer to remove any partial "THINKING:" text
+                bufferer.flush();
+
+                const afterThinking = fullBuffer.split('THINKING:')[1] || '';
+
+                // Feed the text after THINKING: into the bufferer
+                for (const char of afterThinking) {
+                  const flushed = bufferer.append(char);
+                  if (flushed) {
+                    this.streamToComponent(this.elements.thinkingText, flushed);
+                  }
+                }
+
+                fullBuffer = ''; // Clear fullBuffer since we've processed it
+                console.log('[MODE] Thinking');
+                continue; // Skip the rest of this iteration
+              } else if (tokenCount > 5) {
+                // Fallback: if no THINKING after several tokens, go straight to answer
+                mode = 'answer';
+                fullBuffer = tempBuffer;
+
+                // Clear the bufferer to ensure no stale content
+                bufferer.flush();
+
+                this.elements.response.style.display = 'block';
+                this.elements.response.classList.add('streaming');
+                this.elements.responseText.innerHTML = '';
+
+                // Feed accumulated fullBuffer into the bufferer
+                for (const char of fullBuffer) {
+                  const flushed = bufferer.append(char);
+                  if (flushed) {
+                    this.streamToComponent(this.elements.responseText, flushed);
+                  }
+                }
+
+                fullBuffer = ''; // Clear fullBuffer
+                console.log('[MODE] Answer (no thinking)');
+                continue; // Skip the rest of this iteration
               }
             }
 
-            // Check if ANSWER appears in buffer
-            if (mode === 'thinking' && buffer.includes('ANSWER')) {
-              console.log('[SWITCH] Found ANSWER');
+            // Check for mode switch from thinking to answer
+            if (mode === 'thinking' && tempBuffer.includes('ANSWER:')) {
+              mode = 'answer';
+              fullBuffer = tempBuffer;
 
-              // Stream everything before ANSWER
-              const beforeAnswer = buffer.split('ANSWER')[0];
-              for (const char of beforeAnswer) {
-                this.streamCharacter(this.elements.thinkingText, char, thinkingCharIndex++);
-              }
+              // Clear the bufferer to remove any partial "ANSWER:" text
+              bufferer.flush();
 
-              // Switch to collecting answer mode (don't render yet)
-              mode = 'collecting_answer';
+              const afterAnswer = fullBuffer.split('ANSWER:')[1] || '';
+              const cleanedAfterAnswer = afterAnswer.replace(/^[\s:.\-]+/, ''); // Clean leading punctuation
+
               this.elements.thinkingHeader.querySelector('span').textContent = 'Thought Process';
               this.elements.thinkingContent.classList.remove('streaming');
               this.stopSmoothScroll();
 
-              // Setup answer buffer
-              buffer = buffer.substring(buffer.indexOf('ANSWER'));
-              if (buffer.includes('ANSWER:')) {
-                buffer = buffer.split('ANSWER:')[1] || '';
-              }
-              buffer = buffer.replace(/^[\s:]+/, '');
-              console.log('[ANSWER] Collecting answer content');
-            }
-
-            // Filter out "THINKING:" from answer content
-            if (mode === 'collecting_answer') {
-              while (buffer.includes('THINKING:')) {
-                const thinkingStart = buffer.indexOf('THINKING:');
-                const nextAnswer = buffer.indexOf('ANSWER:', thinkingStart);
-                if (nextAnswer !== -1) {
-                  buffer = buffer.substring(0, thinkingStart) + buffer.substring(nextAnswer + 7);
-                  buffer = buffer.replace(/^[\s:]+/, '');
-                } else {
-                  buffer = buffer.substring(0, thinkingStart) + buffer.substring(thinkingStart + 9);
-                }
-                console.log('[FILTER] Removed THINKING marker from answer');
-              }
-            }
-
-            // Stream or collect characters (but not in waiting mode)
-            if (mode !== 'waiting') {
-              const bufferSize = mode === 'thinking' ? 6 : 0;
-              while (buffer.length > bufferSize) {
-                const char = buffer[0];
-                buffer = buffer.slice(1);
-
-                if (mode === 'thinking') {
-                  this.streamCharacter(this.elements.thinkingText, char, thinkingCharIndex++);
-                } else if (mode === 'collecting_answer') {
-                  answerContent += char;
-                } else if (mode === 'rendering_answer') {
-                  this.streamCharacter(this.elements.responseText, char, answerCharIndex++);
-                }
-              }
-            }
-          }
-
-          // Flush remaining buffer
-          console.log('[FLUSH] Final:', buffer);
-          for (const char of buffer) {
-            if (mode === 'thinking') {
-              this.streamCharacter(this.elements.thinkingText, char, thinkingCharIndex++);
-            } else if (mode === 'collecting_answer') {
-              answerContent += char;
-            } else if (mode === 'rendering_answer') {
-              this.streamCharacter(this.elements.responseText, char, answerCharIndex++);
-            }
-          }
-
-          // Wait for thinking animations to complete, then render answer
-          if (answerContent) {
-            const lastThinkingDelay = (thinkingCharIndex - 1) * 0.02 * 1000;
-            const animationDuration = 600;
-            const waitTime = lastThinkingDelay + animationDuration;
-
-            console.log(`[TIMING] Waiting ${waitTime}ms for ${thinkingCharIndex} thinking chars to animate`);
-
-            setTimeout(() => {
-              mode = 'rendering_answer';
+              // Show answer section immediately (no delay to avoid losing tokens)
               this.elements.response.style.display = 'block';
               this.elements.response.classList.add('streaming');
               this.elements.responseText.innerHTML = '';
 
-              // Render all collected answer content
-              for (const char of answerContent) {
-                this.streamCharacter(this.elements.responseText, char, answerCharIndex++);
+              // Feed the text after ANSWER: into the bufferer by simulating tokens
+              for (const char of cleanedAfterAnswer) {
+                const flushed = bufferer.append(char);
+                if (flushed) {
+                  this.streamToComponent(this.elements.responseText, flushed);
+                }
               }
 
-              // Remove streaming cursor after answer animations complete
-              const lastAnswerDelay = (answerCharIndex - 1) * 0.02 * 1000;
-              setTimeout(() => {
-                this.elements.response.classList.remove('streaming');
-              }, lastAnswerDelay + animationDuration);
-            }, waitTime);
+              fullBuffer = ''; // Clear fullBuffer since we've processed it
+              console.log('[MODE] Answer');
+              continue; // Skip the rest of this iteration since we've already processed
+            }
+
+            // Normal token processing - only if not in initial mode
+            if (mode !== 'initial') {
+              // Append token to bufferer
+              const flushed = bufferer.append(token);
+
+              if (flushed) {
+                // Stream flushed text to appropriate component
+                if (mode === 'thinking') {
+                  this.streamToComponent(this.elements.thinkingText, flushed);
+                } else if (mode === 'answer') {
+                  this.streamToComponent(this.elements.responseText, flushed);
+                }
+              }
+            }
+
+            // Update fullBuffer for mode detection
+            fullBuffer = tempBuffer;
           }
+
+          // Flush any remaining buffer
+          const remaining = bufferer.flush();
+          if (remaining && mode !== 'initial') {
+            if (mode === 'thinking') {
+              this.streamToComponent(this.elements.thinkingText, remaining);
+            } else if (mode === 'answer') {
+              this.streamToComponent(this.elements.responseText, remaining);
+            }
+          }
+
+          // Remove streaming cursor
+          setTimeout(() => {
+            this.elements.response.classList.remove('streaming');
+          }, 1000);
+
         } catch (error) {
           this.elements.thinkingSection.style.display = 'none';
           this.elements.response.style.display = 'block';
