@@ -415,7 +415,7 @@
     }
 
     .loading-notice {
-      position: absolute;
+      position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -427,7 +427,7 @@
       border-radius: 8px;
       text-align: center;
       pointer-events: none;
-      z-index: 150;
+      z-index: 250;
       display: none;
       border: 2px solid #00ff00;
     }
@@ -738,6 +738,7 @@
 
     const initTracking = async () => {
       const loadingNotice = document.getElementById('loadingNotice');
+      document.getElementById('startScreen').classList.remove('visible');
       loadingNotice.classList.add('visible');
 
       if (!isActualMobile) {
