@@ -122,15 +122,16 @@
       .hidden-link-group {
         position: absolute;
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         gap: 0;
         pointer-events: none;
       }
 
       .hidden-link-group.left {
-        left: -80px;
+        right: 100%;
         top: 50%;
-        transform: translateY(-50%) rotate(-90deg);
+        transform: translateY(-50%);
+        margin-right: 20px;
       }
 
       .hidden-link-group .hidden-link {
@@ -138,12 +139,12 @@
       }
 
       .hidden-link-group .hidden-link:first-child {
-        border-radius: 12px 12px 0 0;
-        border-bottom: none;
+        border-radius: 12px 0 0 12px;
+        border-right: none;
       }
 
       .hidden-link-group .hidden-link:last-child {
-        border-radius: 0 0 12px 12px;
+        border-radius: 0 12px 12px 0;
       }
 
       .hidden-link-group .hidden-link:hover {
