@@ -57,17 +57,35 @@
       display: none;
     }
 
-    .tilt-overlay {
-      position: absolute;
-      top: 2vh;
-      left: 2vw;
-      width: min(150px, 20vw);
-      height: min(150px, 20vw);
-      background: rgba(0, 0, 0, 0.8);
-      border: 2px solid #00ff00;
+    /* Game HUD Container */
+    .game-hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
       z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: clamp(8px, 1.5vh, 20px) clamp(8px, 2vw, 20px);
+      gap: clamp(8px, 2vw, 20px);
+      pointer-events: none;
+    }
+
+    .game-hud > * {
+      pointer-events: auto;
+    }
+
+    .tilt-overlay {
+      position: relative;
+      width: clamp(100px, 15vw, 150px);
+      height: clamp(100px, 15vw, 150px);
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid #00ff00;
+      border-radius: 8px;
       pointer-events: none;
       display: none;
+      flex-shrink: 0;
     }
 
     .tilt-overlay.visible {
@@ -113,49 +131,51 @@
       position: absolute;
       bottom: 4px;
       left: 4px;
-      font-size: 11px;
+      font-size: clamp(8px, 1vw, 11px);
       color: #00ff00;
       font-family: 'Courier New', monospace;
       line-height: 1.3;
     }
 
+    /* Center column for timer */
+    .center-hud {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
     .timer-display {
-      position: absolute;
-      top: 2vh;
-      left: 50%;
-      transform: translateX(-50%);
       font-family: 'Courier New', monospace;
-      font-size: clamp(24px, 5vw, 48px);
+      font-size: clamp(20px, 4vw, 40px);
       font-weight: bold;
       color: #00ff00;
-      text-shadow: 0 0 30px rgba(0, 255, 0, 1), 0 0 60px rgba(0, 255, 0, 0.5);
-      z-index: 50;
+      text-shadow: 0 0 20px rgba(0, 255, 0, 0.8), 0 0 40px rgba(0, 255, 0, 0.4);
       pointer-events: none;
-      letter-spacing: clamp(2px, 0.5vw, 6px);
-      background: rgba(0, 0, 0, 0.7);
-      padding: clamp(10px, 2vh, 20px) clamp(20px, 4vw, 40px);
-      border-radius: 15px;
-      border: 3px solid #00ff00;
-      box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
+      letter-spacing: clamp(1px, 0.3vw, 4px);
+      background: rgba(0, 0, 0, 0.85);
+      padding: clamp(8px, 1.5vh, 15px) clamp(12px, 3vw, 30px);
+      border-radius: 10px;
+      border: 2px solid #00ff00;
+      box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
       display: none;
+      white-space: nowrap;
     }
 
     .top-scores-display {
-      position: absolute;
-      top: 2vh;
-      right: 2vw;
       font-family: 'Courier New', monospace;
-      font-size: clamp(10px, 1.2vw, 14px);
+      font-size: clamp(9px, 1.1vw, 13px);
       color: #00ff00;
-      background: rgba(0, 0, 0, 0.8);
-      padding: clamp(8px, 1.5vh, 15px);
+      background: rgba(0, 0, 0, 0.85);
+      padding: clamp(8px, 1.2vh, 12px);
       border-radius: 8px;
       border: 2px solid #00ff00;
       box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
-      z-index: 50;
       pointer-events: none;
       display: none;
-      min-width: clamp(150px, 20vw, 200px);
+      min-width: clamp(140px, 18vw, 180px);
+      max-width: 220px;
+      flex-shrink: 0;
     }
 
     .top-scores-display h3 {
@@ -413,57 +433,127 @@
       }
     }
 
+    /* Bottom HUD */
+    .bottom-hud {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: clamp(8px, 1.5vh, 15px) clamp(8px, 2vw, 20px);
+      gap: clamp(8px, 2vw, 20px);
+      pointer-events: none;
+    }
+
+    .bottom-hud > * {
+      pointer-events: auto;
+    }
+
+    .left-bottom-group {
+      display: flex;
+      gap: clamp(10px, 2vw, 20px);
+      align-items: flex-end;
+    }
+
     .debug-info {
-      position: absolute;
-      bottom: 2vh;
-      left: 2vw;
       font-family: 'Courier New', monospace;
-      font-size: clamp(10px, 1.2vw, 12px);
+      font-size: clamp(9px, 1.1vw, 11px);
       color: #00ff00;
       opacity: 0.6;
-      z-index: 100;
+      line-height: 1.4;
     }
 
-    .venmo-tip {
-      position: fixed;
-      bottom: 2vh;
-      right: 2vw;
-      background: rgba(0, 0, 0, 0.9);
-      border-radius: 12px;
-      padding: clamp(8px, 1.5vw, 15px);
-      text-align: center;
-      z-index: 150;
-      font-family: 'Courier New', monospace;
-    }
-
-    .venmo-tip p {
-      margin: 0;
-    }
-
+    .venmo-tip,
     .challenge-qr {
-      position: fixed;
-      bottom: 2vh;
-      left: 2vw;
       background: rgba(0, 0, 0, 0.9);
-      border-radius: 12px;
-      padding: clamp(8px, 1.5vw, 15px);
+      border-radius: 10px;
+      padding: clamp(6px, 1.2vh, 12px);
       text-align: center;
-      z-index: 150;
       font-family: 'Courier New', monospace;
+      border: 1px solid rgba(0, 255, 0, 0.3);
     }
 
+    .venmo-tip p,
     .challenge-qr p {
       margin: 0;
     }
 
-    @media (max-width: 768px) {
+    .venmo-tip img,
+    .challenge-qr img {
+      width: clamp(60px, 10vw, 100px);
+      height: clamp(60px, 10vw, 100px);
+      border-radius: 6px;
+    }
+
+    /* Tablet responsive */
+    @media (max-width: 1024px) and (min-width: 769px) {
       .tilt-overlay {
-        width: min(80px, 25vw);
-        height: min(80px, 25vw);
+        width: 120px;
+        height: 120px;
+      }
+
+      .timer-display {
+        font-size: clamp(22px, 4vw, 32px);
+      }
+
+      .top-scores-display {
+        min-width: 150px;
+        font-size: 11px;
+      }
+
+      .venmo-tip img,
+      .challenge-qr img {
+        width: 80px;
+        height: 80px;
+      }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .game-hud {
+        flex-wrap: wrap;
+        padding: 8px;
+        gap: 8px;
+      }
+
+      .tilt-overlay {
+        width: 90px;
+        height: 90px;
+        order: 1;
+      }
+
+      .center-hud {
+        order: 2;
+        flex-basis: 100%;
+      }
+
+      .timer-display {
+        font-size: clamp(18px, 5vw, 24px);
+        padding: 8px 12px;
+      }
+
+      .top-scores-display {
+        order: 3;
+        min-width: 130px;
+        font-size: 10px;
+        padding: 8px;
+      }
+
+      .top-scores-display h3 {
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+
+      .top-scores-display .score-entry {
+        font-size: 9px;
+        padding: 3px 0;
       }
 
       .tilt-info {
-        font-size: 8px;
+        font-size: 7px;
         bottom: 2px;
         left: 2px;
       }
@@ -472,28 +562,35 @@
         display: none;
       }
 
-      .venmo-tip img {
-        width: clamp(50px, 15vw, 60px) !important;
-        height: clamp(50px, 15vw, 60px) !important;
+      .bottom-hud {
+        padding: 8px;
       }
 
-      .venmo-tip p {
-        font-size: clamp(7px, 2vw, 8px) !important;
-        margin-bottom: 5px !important;
+      .left-bottom-group {
+        gap: 8px;
       }
 
-      .venmo-tip p:last-child {
-        margin-top: 4px !important;
+      .venmo-tip,
+      .challenge-qr {
+        padding: 6px;
       }
 
+      .venmo-tip img,
       .challenge-qr img {
-        width: clamp(50px, 15vw, 60px) !important;
-        height: clamp(50px, 15vw, 60px) !important;
+        width: 50px;
+        height: 50px;
       }
 
+      .venmo-tip p,
       .challenge-qr p {
-        font-size: clamp(7px, 2vw, 8px) !important;
-        margin-bottom: 5px !important;
+        font-size: 7px;
+        margin-bottom: 4px;
+      }
+
+      .venmo-tip p:last-child,
+      .challenge-qr p:last-child {
+        margin-top: 4px;
+        margin-bottom: 0;
       }
 
       .win-screen,
@@ -604,20 +701,25 @@
   <canvas id="gameCanvas"></canvas>
   <canvas id="videoCanvas"></canvas>
 
-  <div class="timer-display" id="timerDisplay">00:00:00.000</div>
-
-  <div class="top-scores-display" id="topScoresDisplay">
-    <h3>TOP 3</h3>
-    <div id="topScoresContent"></div>
-  </div>
-
-  <div class="tilt-overlay" id="tiltOverlay">
-    <div class="tilt-grid">
-      <div class="tilt-grid-line-h"></div>
-      <div class="tilt-grid-line-v"></div>
+  <!-- Top HUD -->
+  <div class="game-hud">
+    <div class="tilt-overlay" id="tiltOverlay">
+      <div class="tilt-grid">
+        <div class="tilt-grid-line-h"></div>
+        <div class="tilt-grid-line-v"></div>
+      </div>
+      <div class="tilt-dot" id="tiltDot"></div>
+      <div class="tilt-info" id="tiltInfo">x: 0.5<br>y: 0.5<br>Δx: 0.00<br>Δy: 0.00</div>
     </div>
-    <div class="tilt-dot" id="tiltDot"></div>
-    <div class="tilt-info" id="tiltInfo">x: 0.5<br>y: 0.5<br>Δx: 0.00<br>Δy: 0.00</div>
+
+    <div class="center-hud">
+      <div class="timer-display" id="timerDisplay">00:00:00.000</div>
+    </div>
+
+    <div class="top-scores-display" id="topScoresDisplay">
+      <h3>TOP 3</h3>
+      <div id="topScoresContent"></div>
+    </div>
   </div>
 
   <div class="start-screen visible" id="startScreen">
@@ -681,37 +783,42 @@
     LOADING<span class="loading-spinner"></span>
   </div>
 
-  <div class="debug-info" id="debugInfo">
-    Ball: (0.0, 0.0, 0.0)<br>
-    Velocity: (0.0, 0.0)
-  </div>
+  <!-- Bottom HUD -->
+  <div class="bottom-hud">
+    <div class="left-bottom-group">
+      <div class="debug-info" id="debugInfo">
+        Ball: (0.0, 0.0, 0.0)<br>
+        Velocity: (0.0, 0.0)
+      </div>
 
-  <!-- Challenge Friends QR Section -->
-  <div class="challenge-qr">
-    <p style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">Challenge a friend! 🎮</p>
-    <a href="tiltrush.html" target="_blank" rel="noopener noreferrer"
-      style="display: inline-block; text-decoration: none;">
-      <img
-        src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Ffelixflores.github.io%2Ftiltrush.html"
-        alt="TiltRush Challenge QR Code" style="border-radius: 6px; width: 100px; height: 100px;">
-    </a>
-    <p style="font-size: 10px; margin-top: 8px; color: #00ff00; opacity: 0.8;">Scan to play</p>
-  </div>
+      <!-- Challenge Friends QR Section -->
+      <div class="challenge-qr">
+        <p style="font-size: 11px; opacity: 0.7; margin-bottom: 8px;">Challenge! 🎮</p>
+        <a href="tiltrush.html" target="_blank" rel="noopener noreferrer"
+          style="display: inline-block; text-decoration: none;">
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Ffelixflores.github.io%2Ftiltrush.html"
+            alt="TiltRush Challenge QR Code">
+        </a>
+        <p style="font-size: 9px; margin-top: 6px; opacity: 0.8;">Scan to play</p>
+      </div>
+    </div>
 
-  <!-- Venmo Tip Section -->
-  <div class="venmo-tip">
-    <p style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">Enjoying TiltRush? 💚</p>
-    <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95"
-      target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
-      <img
-        src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Fvenmo.com%2Ffelixflores86%3Ftxn%3Dpay%26note%3DThanks%2520for%2520Tiltrush%252C%2520here%2527s%2520coffee%2520%25E2%2598%2595"
-        alt="Venmo QR Code" style="border-radius: 6px; width: 100px; height: 100px;">
-    </a>
-    <p style="font-size: 10px; margin-top: 8px;">
+    <!-- Venmo Tip Section -->
+    <div class="venmo-tip">
+      <p style="font-size: 11px; opacity: 0.7; margin-bottom: 8px;">Enjoying? 💚</p>
       <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95"
-        target="_blank" rel="noopener noreferrer"
-        style="color: #00ff00; text-decoration: none; opacity: 0.8;">@felixflores86</a>
-    </p>
+        target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+        <img
+          src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Fvenmo.com%2Ffelixflores86%3Ftxn%3Dpay%26note%3DThanks%2520for%2520Tiltrush%252C%2520here%2527s%2520coffee%2520%25E2%2598%2595"
+          alt="Venmo QR Code">
+      </a>
+      <p style="font-size: 9px; margin-top: 6px;">
+        <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95"
+          target="_blank" rel="noopener noreferrer"
+          style="color: #00ff00; text-decoration: none; opacity: 0.8;">@felixflores86</a>
+      </p>
+    </div>
   </div>
 
   <script>
@@ -1269,6 +1376,30 @@
       });
     }
 
+    async function displayTopScoresDuringPlay() {
+      const level = LEVELS[gameState.currentLevel];
+      const scores = await getGlobalLeaderboard(level.number, 3);
+      const container = document.getElementById('topScoresContent');
+
+      container.innerHTML = '';
+
+      if (scores.length === 0) {
+        container.innerHTML = '<div style="text-align: center; opacity: 0.6; font-size: 10px;">No scores yet!</div>';
+        return;
+      }
+
+      scores.forEach((score, index) => {
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+        const entry = document.createElement('div');
+        entry.className = 'score-entry';
+        entry.innerHTML = `
+          <span>${medal} ${score.name}</span>
+          <span>${formatTime(score.time)}</span>
+        `;
+        container.appendChild(entry);
+      });
+    }
+
     async function showLeaderboardScreen() {
       const level = LEVELS[gameState.currentLevel];
       document.getElementById('leaderboardLevel').textContent = `Level ${level.number}: ${level.name}`;
@@ -1277,6 +1408,7 @@
       document.getElementById('winScreen').classList.remove('visible');
       document.getElementById('startScreen').classList.remove('visible');
       document.getElementById('tiltOverlay').classList.remove('visible');
+      document.getElementById('topScoresDisplay').style.display = 'none';
 
       // Show leaderboard
       const leaderboardScreen = document.getElementById('leaderboardScreen');
@@ -1671,6 +1803,7 @@
       document.getElementById('winScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
       document.getElementById('tiltOverlay').classList.remove('visible');
+      document.getElementById('topScoresDisplay').style.display = 'none';
     }
 
     // ============================================
@@ -1808,7 +1941,7 @@
       });
     }
 
-    function startGame() {
+    async function startGame() {
       // Clean up old game if exists
       if (gameState.mazeGroup) scene.remove(gameState.mazeGroup);
       gameState.ballVelocity = { x: 0, z: 0 };
@@ -1818,16 +1951,20 @@
       document.getElementById('startScreen').classList.remove('visible');
       document.getElementById('timerDisplay').style.display = 'block';
       document.getElementById('tiltOverlay').classList.add('visible');
+      document.getElementById('topScoresDisplay').style.display = 'block';
       gameState.isPlaying = true;
       gameState.startTime = Date.now();
 
       // Request wake lock to keep screen on during gameplay
       requestWakeLock();
 
+      // Load and display top 3 scores
+      await displayTopScoresDuringPlay();
+
       initGame();
     }
 
-    function restartGame() {
+    async function restartGame() {
       // Clean up old game
       if (gameState.mazeGroup) scene.remove(gameState.mazeGroup);
 
@@ -1840,10 +1977,15 @@
       winScreen.classList.remove('keyboard-active');
       document.getElementById('timerDisplay').style.display = 'block';
       document.getElementById('tiltOverlay').classList.add('visible');
+      document.getElementById('topScoresDisplay').style.display = 'block';
 
       // Start new game
       gameState.isPlaying = true;
       gameState.startTime = Date.now();
+
+      // Load and display top 3 scores
+      await displayTopScoresDuringPlay();
+
       initGame();
     }
 
@@ -1868,6 +2010,7 @@
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
       document.getElementById('tiltOverlay').classList.remove('visible');
+      document.getElementById('topScoresDisplay').style.display = 'none';
 
       // Release wake lock when returning to menu
       releaseWakeLock();
@@ -1894,6 +2037,7 @@
       document.getElementById('winScreen').classList.remove('visible');
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
+      document.getElementById('topScoresDisplay').style.display = 'none';
     });
 
     // Share functionality
@@ -1964,6 +2108,7 @@
       leaderboardScreen.classList.remove('visible');
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
+      document.getElementById('topScoresDisplay').style.display = 'none';
     });
 
     // Arcade-style name entry
