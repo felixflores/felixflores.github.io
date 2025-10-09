@@ -736,7 +736,9 @@
         smoothHeadX: 0.5,
         smoothHeadY: 0.5,
         lastRenderTime: 0,
-        faceDetector: null
+        faceDetector: null,
+        lockedFace: null,
+        faceLostFrames: 0
       });
 
       let state = createState();
@@ -1100,25 +1102,83 @@
           const predictions = await state.faceDetector.estimateFaces(state.video, false);
 
           if (predictions.length > 0) {
-            const face = predictions[0];
-            // Get face center from bounding box
-            const [x1, y1] = face.topLeft;
-            const [x2, y2] = face.bottomRight;
-            const centerX = (x1 + x2) / 2;
-            const centerY = (y1 + y2) / 2;
+            let face = null;
 
-            // Normalize to 0-1 range, mirror X for selfie view
-            state.headX = 1 - (centerX / state.video.videoWidth);
-            state.headY = centerY / state.video.videoHeight;
+            // Lock onto most dominant (largest) face initially, then never switch
+            if (!state.lockedFace) {
+              // Find the largest face (most dominant/closest)
+              let largestArea = 0;
+              for (const prediction of predictions) {
+                const [x1, y1] = prediction.topLeft;
+                const [x2, y2] = prediction.bottomRight;
+                const area = (x2 - x1) * (y2 - y1);
+                if (area > largestArea) {
+                  largestArea = area;
+                  face = prediction;
+                }
+              }
 
-            // Update smoothed position (direct mutation for performance)
-            const smooth = smoothValue(CONFIG.smoothing);
-            state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
-            state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
+              // Lock onto this face permanently
+              const [x1, y1] = face.topLeft;
+              const [x2, y2] = face.bottomRight;
+              state.lockedFace = {
+                x: (x1 + x2) / 2,
+                y: (y1 + y2) / 2,
+                area: (x2 - x1) * (y2 - y1)
+              };
+            } else {
+              // Find the same face by proximity (never switch to a different person)
+              let minDistance = Infinity;
+              for (const prediction of predictions) {
+                const [x1, y1] = prediction.topLeft;
+                const [x2, y2] = prediction.bottomRight;
+                const centerX = (x1 + x2) / 2;
+                const centerY = (y1 + y2) / 2;
 
-            updateDebugOverlay(state, elements);
-            const transformData = create3DTransformData(state, CONFIG);
-            apply3DTransformToDOM(transformData, elements);
+                const distance = Math.sqrt(
+                  Math.pow(centerX - state.lockedFace.x, 2) +
+                  Math.pow(centerY - state.lockedFace.y, 2)
+                );
+
+                if (distance < minDistance) {
+                  minDistance = distance;
+                  face = prediction;
+                }
+              }
+
+              // Update locked position to track the same person
+              if (face) {
+                const [x1, y1] = face.topLeft;
+                const [x2, y2] = face.bottomRight;
+                state.lockedFace.x = (x1 + x2) / 2;
+                state.lockedFace.y = (y1 + y2) / 2;
+                state.faceLostFrames = 0;
+              }
+            }
+
+            if (face) {
+              // Get face center from bounding box
+              const [x1, y1] = face.topLeft;
+              const [x2, y2] = face.bottomRight;
+              const centerX = (x1 + x2) / 2;
+              const centerY = (y1 + y2) / 2;
+
+              // Normalize to 0-1 range, mirror X for selfie view
+              state.headX = 1 - (centerX / state.video.videoWidth);
+              state.headY = centerY / state.video.videoHeight;
+
+              // Update smoothed position (direct mutation for performance)
+              const smooth = smoothValue(CONFIG.smoothing);
+              state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
+              state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
+
+              updateDebugOverlay(state, elements);
+              const transformData = create3DTransformData(state, CONFIG);
+              apply3DTransformToDOM(transformData, elements);
+            }
+          } else {
+            // No faces detected - keep lock (don't reset, stay locked to same person)
+            state.faceLostFrames++;
           }
         }
 

@@ -845,18 +845,30 @@
         if (predictions.length > 0) {
           let face = null;
 
-          // Lock onto first detected face, then track it by proximity
+          // Lock onto most dominant (largest) face initially, then never switch
           if (!trackingState.lockedFace) {
-            // No locked face yet - lock onto first detected face
-            face = predictions[0];
+            // Find the largest face (most dominant/closest)
+            let largestArea = 0;
+            for (const prediction of predictions) {
+              const [x1, y1] = prediction.topLeft;
+              const [x2, y2] = prediction.bottomRight;
+              const area = (x2 - x1) * (y2 - y1);
+              if (area > largestArea) {
+                largestArea = area;
+                face = prediction;
+              }
+            }
+
+            // Lock onto this face permanently
             const [x1, y1] = face.topLeft;
             const [x2, y2] = face.bottomRight;
             trackingState.lockedFace = {
               x: (x1 + x2) / 2,
-              y: (y1 + y2) / 2
+              y: (y1 + y2) / 2,
+              area: (x2 - x1) * (y2 - y1)
             };
           } else {
-            // Find the face closest to our locked position
+            // Find the same face by proximity (never switch to a different person)
             let minDistance = Infinity;
             for (const prediction of predictions) {
               const [x1, y1] = prediction.topLeft;
@@ -898,11 +910,8 @@
             trackingState.smoothHeadY = smoothValue(trackingState.smoothing, trackingState.smoothHeadY, trackingState.headY);
           }
         } else {
-          // No faces detected - reset lock after several frames
+          // No faces detected - keep lock (don't reset, stay locked to same person)
           trackingState.faceLostFrames++;
-          if (trackingState.faceLostFrames > 30) {
-            trackingState.lockedFace = null;
-          }
         }
       } catch (err) {
         console.error('Face tracking error:', err);
