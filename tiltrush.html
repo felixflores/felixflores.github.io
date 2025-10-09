@@ -376,6 +376,22 @@
       margin: 0;
     }
 
+    .challenge-qr {
+      position: fixed;
+      bottom: 2vh;
+      left: 2vw;
+      background: rgba(0, 0, 0, 0.9);
+      border-radius: 12px;
+      padding: clamp(8px, 1.5vw, 15px);
+      text-align: center;
+      z-index: 150;
+      font-family: 'Courier New', monospace;
+    }
+
+    .challenge-qr p {
+      margin: 0;
+    }
+
     @media (max-width: 768px) {
       .tilt-overlay {
         width: min(80px, 25vw);
@@ -404,6 +420,16 @@
 
       .venmo-tip p:last-child {
         margin-top: 4px !important;
+      }
+
+      .challenge-qr img {
+        width: clamp(50px, 15vw, 60px) !important;
+        height: clamp(50px, 15vw, 60px) !important;
+      }
+
+      .challenge-qr p {
+        font-size: clamp(7px, 2vw, 8px) !important;
+        margin-bottom: 5px !important;
       }
 
       .win-screen,
@@ -450,7 +476,7 @@
         margin: 15px 0 !important;
       }
 
-      #nameEntry > div {
+      #nameEntry>div {
         gap: 5px !important;
       }
 
@@ -500,6 +526,15 @@
     }
   </style>
 </head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-R0M5DGW99S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+
+  gtag('config', 'G-R0M5DGW99S');
+</script>
 
 <body>
   <canvas id="gameCanvas"></canvas>
@@ -551,6 +586,7 @@
     </div>
 
     <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center; flex-wrap: wrap;" id="winButtons">
+      <button class="start-button" id="shareWinButton">📤 SHARE</button>
       <button class="start-button" id="restartButton">RETRY</button>
       <button class="start-button" id="nextLevelButton" style="display: none;">NEXT LEVEL</button>
       <button class="start-button" id="viewLeaderboardButton">LEADERBOARD</button>
@@ -564,6 +600,7 @@
     <p id="leaderboardLevel" style="font-size: 18px; margin-bottom: 10px;"></p>
     <div id="leaderboardContent" style="max-height: 400px; overflow-y: auto; margin: 20px 0;"></div>
     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+      <button class="start-button" id="shareLeaderboardButton">📤 SHARE</button>
       <button class="start-button" id="leaderboardRetryButton">RETRY</button>
       <button class="start-button" id="leaderboardNextButton" style="display: none;">NEXT LEVEL</button>
       <button class="start-button" id="leaderboardMenuButton">MENU</button>
@@ -580,14 +617,31 @@
     Velocity: (0.0, 0.0)
   </div>
 
+  <!-- Challenge Friends QR Section -->
+  <div class="challenge-qr">
+    <p style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">Challenge a friend! 🎮</p>
+    <a href="tiltrush.html" target="_blank" rel="noopener noreferrer"
+      style="display: inline-block; text-decoration: none;">
+      <img
+        src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Ffelixflores.github.io%2Ftiltrush.html"
+        alt="TiltRush Challenge QR Code" style="border-radius: 6px; width: 100px; height: 100px;">
+    </a>
+    <p style="font-size: 10px; margin-top: 8px; color: #00ff00; opacity: 0.8;">Scan to play</p>
+  </div>
+
   <!-- Venmo Tip Section -->
   <div class="venmo-tip">
     <p style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">Enjoying TiltRush? 💚</p>
-    <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Fvenmo.com%2Ffelixflores86%3Ftxn%3Dpay%26note%3DThanks%2520for%2520Tiltrush%252C%2520here%2527s%2520coffee%2520%25E2%2598%2595" alt="Venmo QR Code" style="border-radius: 6px; width: 100px; height: 100px;">
+    <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95"
+      target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+      <img
+        src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Fvenmo.com%2Ffelixflores86%3Ftxn%3Dpay%26note%3DThanks%2520for%2520Tiltrush%252C%2520here%2527s%2520coffee%2520%25E2%2598%2595"
+        alt="Venmo QR Code" style="border-radius: 6px; width: 100px; height: 100px;">
     </a>
     <p style="font-size: 10px; margin-top: 8px;">
-      <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95" target="_blank" rel="noopener noreferrer" style="color: #00ff00; text-decoration: none; opacity: 0.8;">@felixflores86</a>
+      <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95"
+        target="_blank" rel="noopener noreferrer"
+        style="color: #00ff00; text-decoration: none; opacity: 0.8;">@felixflores86</a>
     </p>
   </div>
 
@@ -1773,6 +1827,54 @@
       document.getElementById('timerDisplay').style.display = 'none';
     });
 
+    // Share functionality
+    document.getElementById('shareWinButton').addEventListener('click', async () => {
+      const level = LEVELS[gameState.currentLevel];
+      const timeText = document.getElementById('winTime').textContent;
+      const shareData = {
+        title: 'TiltRush - Head-Controlled Maze Game',
+        text: `I just beat ${level.name} (${level.size}×${level.size}) in ${timeText}! 🎮\n\nPlay TiltRush - control the maze with your head movements!`,
+        url: window.location.origin + '/tiltrush.html'
+      };
+
+      try {
+        if (navigator.share) {
+          await navigator.share(shareData);
+        } else {
+          // Fallback: copy to clipboard
+          await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+          alert('Link copied to clipboard!');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+      }
+    });
+
+    document.getElementById('shareLeaderboardButton').addEventListener('click', async () => {
+      const levelText = document.getElementById('leaderboardLevel').textContent;
+      const shareData = {
+        title: 'TiltRush - Leaderboard',
+        text: `Check out the ${levelText} leaderboard! 🏆\n\nPlay TiltRush - head-controlled maze speedrun game!`,
+        url: window.location.origin + '/tiltrush.html'
+      };
+
+      try {
+        if (navigator.share) {
+          await navigator.share(shareData);
+        } else {
+          // Fallback: copy to clipboard
+          await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+          alert('Link copied to clipboard!');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+      }
+    });
+
     document.getElementById('leaderboardRetryButton').addEventListener('click', () => {
       const leaderboardScreen = document.getElementById('leaderboardScreen');
       leaderboardScreen.style.display = 'none';
@@ -1944,6 +2046,15 @@
 
     // Start animation loop
     animate();
+  </script>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-R0M5DGW99S"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-R0M5DGW99S');
   </script>
 </body>
 
