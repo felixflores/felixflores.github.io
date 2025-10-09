@@ -312,7 +312,7 @@
       }
 
       .loading-notice {
-        position: absolute;
+        position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
@@ -324,8 +324,9 @@
         border-radius: 8px;
         text-align: center;
         pointer-events: none;
-        z-index: 10;
+        z-index: 100;
         display: none;
+        border: 1px solid #00ff00;
       }
 
       .loading-notice.visible {
@@ -800,6 +801,10 @@
           return;
         }
 
+        // Hide initial figure and show loading indicator
+        setDisplay(elements.initialFigure, 'none');
+        toggleClass(elements.loadingNotice, 'visible', true);
+
         // Mobile - use webcam for ASCII but gyro for tracking
         // Request gyroscope permission for iOS 13+
         if (typeof DeviceOrientationEvent !== 'undefined' &&
@@ -808,10 +813,12 @@
             const permission = await DeviceOrientationEvent.requestPermission();
             if (permission !== 'granted') {
               // Fallback to webcam with face tracking
+              toggleClass(elements.loadingNotice, 'visible', false);
               initWebcam();
               return;
             }
           } catch (error) {
+            toggleClass(elements.loadingNotice, 'visible', false);
             initWebcam();
             return;
           }
@@ -832,6 +839,7 @@
 
             toggleClass(elements.asciiContainer, 'active', true);
             setDisplay(elements.initialFigure, 'none');
+            toggleClass(elements.loadingNotice, 'visible', false);
 
             // Remember that user enabled camera/gyro
             localStorage.setItem('cameraEnabled', 'true');
@@ -841,6 +849,7 @@
             window.addEventListener('deviceorientation', handleDeviceOrientation);
           };
         } catch (err) {
+          toggleClass(elements.loadingNotice, 'visible', false);
           elements.asciiArt.textContent = `
 ╔══════════════════════════╗
 ║                          ║
@@ -1029,7 +1038,8 @@
       };
 
       const initWebcam = async () => {
-        // Show loading indicator
+        // Hide initial figure and show loading indicator
+        setDisplay(elements.initialFigure, 'none');
         toggleClass(elements.loadingNotice, 'visible', true);
 
         try {
