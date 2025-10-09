@@ -413,6 +413,13 @@
         width: 95vw;
       }
 
+      /* Shift modal up when keyboard is active */
+      .win-screen.keyboard-active,
+      .start-screen.keyboard-active,
+      .modal-base.keyboard-active {
+        top: 30%;
+      }
+
       .win-screen h1 {
         font-size: 32px !important;
         margin-bottom: 10px !important;
@@ -575,12 +582,12 @@
 
   <!-- Venmo Tip Section -->
   <div class="venmo-tip">
-    <p style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">Enjoying TiltRush? 💚</p>
-    <a href="https://venmo.com/felixflores86?txn=pay&note=Tiltrush%20%F0%9F%8E%AE" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Fvenmo.com%2Ffelixflores86%3Ftxn%3Dpay%26note%3DTiltrush%2520%25F0%259F%258E%25AE" alt="Venmo QR Code" style="border-radius: 6px; width: 100px; height: 100px;">
+    <p style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">buy me coffee ☕</p>
+    <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95" target="_blank" rel="noopener noreferrer" style="display: inline-block; text-decoration: none;">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https%3A%2F%2Fvenmo.com%2Ffelixflores86%3Ftxn%3Dpay%26note%3DThanks%2520for%2520Tiltrush%252C%2520here%2527s%2520coffee%2520%25E2%2598%2595" alt="Venmo QR Code" style="border-radius: 6px; width: 100px; height: 100px;">
     </a>
     <p style="font-size: 10px; margin-top: 8px;">
-      <a href="https://venmo.com/felixflores86?txn=pay&note=Tiltrush%20%F0%9F%8E%AE" target="_blank" rel="noopener noreferrer" style="color: #00ff00; text-decoration: none; opacity: 0.8;">@felixflores86</a>
+      <a href="https://venmo.com/felixflores86?txn=pay&note=Thanks%20for%20Tiltrush%2C%20here%27s%20coffee%20%E2%98%95" target="_blank" rel="noopener noreferrer" style="color: #00ff00; text-decoration: none; opacity: 0.8;">@felixflores86</a>
     </p>
   </div>
 
@@ -1696,7 +1703,9 @@
       gameState.dots = [];
       gameState.ball = null;
 
-      document.getElementById('winScreen').classList.remove('visible');
+      const winScreen = document.getElementById('winScreen');
+      winScreen.classList.remove('visible');
+      winScreen.classList.remove('keyboard-active');
       document.getElementById('timerDisplay').style.display = 'block';
       document.getElementById('tiltOverlay').classList.add('visible');
 
@@ -1721,7 +1730,9 @@
       gameState.dots = [];
       gameState.ball = null;
 
-      document.getElementById('winScreen').classList.remove('visible');
+      const winScreen = document.getElementById('winScreen');
+      winScreen.classList.remove('visible');
+      winScreen.classList.remove('keyboard-active');
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
       document.getElementById('tiltOverlay').classList.remove('visible');
@@ -1820,6 +1831,24 @@
           nameInputs[index + 1].select();
         }
       });
+
+      // Detect keyboard on mobile - shift modal up when input focused
+      input.addEventListener('focus', () => {
+        if (window.innerWidth <= 768) {
+          const winScreen = document.getElementById('winScreen');
+          winScreen.classList.add('keyboard-active');
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        // Small delay to handle switching between inputs
+        setTimeout(() => {
+          if (!nameInputs.some(i => i === document.activeElement)) {
+            const winScreen = document.getElementById('winScreen');
+            winScreen.classList.remove('keyboard-active');
+          }
+        }, 100);
+      });
     });
 
     document.getElementById('submitScoreButton').addEventListener('click', async () => {
@@ -1842,7 +1871,9 @@
         // Show leaderboard with player's score highlighted
         setTimeout(async () => {
           document.getElementById('leaderboardLevel').textContent = `Level ${level.number}: ${level.name}`;
-          document.getElementById('winScreen').classList.remove('visible');
+          const winScreen = document.getElementById('winScreen');
+          winScreen.classList.remove('visible');
+          winScreen.classList.remove('keyboard-active');
           const leaderboardScreen = document.getElementById('leaderboardScreen');
           leaderboardScreen.style.display = 'block';
           leaderboardScreen.classList.add('visible');
