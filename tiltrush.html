@@ -5,7 +5,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TiltRush - Head-Controlled Maze Game</title>
-  <link rel="icon" type="image/webp" href="logo.webp" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 
   <!-- Open Graph / Social Media Preview -->
   <meta property="og:title" content="TiltRush - Head-Controlled Maze Game" />
@@ -135,6 +138,52 @@
       border: 3px solid #00ff00;
       box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
       display: none;
+    }
+
+    .top-scores-display {
+      position: absolute;
+      top: 2vh;
+      right: 2vw;
+      font-family: 'Courier New', monospace;
+      font-size: clamp(10px, 1.2vw, 14px);
+      color: #00ff00;
+      background: rgba(0, 0, 0, 0.8);
+      padding: clamp(8px, 1.5vh, 15px);
+      border-radius: 8px;
+      border: 2px solid #00ff00;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+      z-index: 50;
+      pointer-events: none;
+      display: none;
+      min-width: clamp(150px, 20vw, 200px);
+    }
+
+    .top-scores-display h3 {
+      margin: 0 0 8px 0;
+      font-size: clamp(11px, 1.3vw, 16px);
+      text-align: center;
+      opacity: 0.8;
+    }
+
+    .top-scores-display .score-entry {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: clamp(9px, 1.1vw, 12px);
+      opacity: 0.9;
+    }
+
+    .top-scores-display .score-entry:first-of-type {
+      color: #ffd700;
+      font-weight: bold;
+    }
+
+    .top-scores-display .score-entry:nth-of-type(2) {
+      color: #c0c0c0;
+    }
+
+    .top-scores-display .score-entry:nth-of-type(3) {
+      color: #cd7f32;
     }
 
     /* Reusable modal base */
@@ -556,6 +605,11 @@
   <canvas id="videoCanvas"></canvas>
 
   <div class="timer-display" id="timerDisplay">00:00:00.000</div>
+
+  <div class="top-scores-display" id="topScoresDisplay">
+    <h3>TOP 3</h3>
+    <div id="topScoresContent"></div>
+  </div>
 
   <div class="tilt-overlay" id="tiltOverlay">
     <div class="tilt-grid">
