@@ -945,8 +945,38 @@
       currentRotationX: 0,
       currentRotationZ: 0,
       startCell: { x: 0, y: 0 },
-      endCell: { x: 0, y: 0 }
+      endCell: { x: 0, y: 0 },
+      wakeLock: null
     };
+
+    // ============================================
+    // SCREEN WAKE LOCK
+    // ============================================
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          gameState.wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Screen Wake Lock acquired');
+
+          gameState.wakeLock.addEventListener('release', () => {
+            console.log('Screen Wake Lock released');
+          });
+        }
+      } catch (err) {
+        console.error('Wake Lock error:', err);
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (gameState.wakeLock !== null) {
+        try {
+          await gameState.wakeLock.release();
+          gameState.wakeLock = null;
+        } catch (err) {
+          console.error('Wake Lock release error:', err);
+        }
+      }
+    }
 
     // ============================================
     // LEADERBOARD
@@ -1611,6 +1641,10 @@
       document.getElementById('tiltOverlay').classList.add('visible');
       gameState.isPlaying = true;
       gameState.startTime = Date.now();
+
+      // Request wake lock to keep screen on during gameplay
+      requestWakeLock();
+
       initGame();
     }
 
@@ -1651,6 +1685,9 @@
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
       document.getElementById('tiltOverlay').classList.remove('visible');
+
+      // Release wake lock when returning to menu
+      releaseWakeLock();
 
       initLevelButtons();
     }
@@ -1816,6 +1853,13 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Re-acquire wake lock when page becomes visible again
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && gameState.isPlaying) {
+        await requestWakeLock();
+      }
     });
 
     // Start animation loop
