@@ -122,6 +122,28 @@
       display: none;
     }
 
+    /* Reusable modal base */
+    .modal-base {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      padding: 40px 60px;
+      border-radius: 12px;
+      border: 2px solid #00ff00;
+      text-align: center;
+      z-index: 200;
+      font-family: 'Courier New', monospace;
+      box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+      display: none;
+      max-width: min(600px, 90vw);
+      max-height: 90vh;
+      max-height: 90dvh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .start-screen {
       position: fixed;
       top: 50%;
@@ -138,7 +160,9 @@
       display: none;
       max-width: min(600px, 90vw);
       max-height: 90vh;
+      max-height: 90dvh;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .start-screen.visible {
@@ -281,7 +305,9 @@
       display: none;
       max-width: min(600px, 90vw);
       max-height: 90vh;
+      max-height: 90dvh;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .win-screen.visible {
@@ -378,14 +404,9 @@
       }
 
       .win-screen,
-      .start-screen {
-        top: 0;
-        transform: translate(-50%, 0);
+      .start-screen,
+      .modal-base {
         padding: 20px;
-        max-height: 100vh;
-        max-height: 100dvh;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
       }
 
       .win-screen h1 {
@@ -398,10 +419,24 @@
         margin: 5px 0 !important;
       }
 
+      .start-screen h1 {
+        font-size: 28px !important;
+        margin-bottom: 12px !important;
+      }
+
+      .start-screen p {
+        font-size: 14px !important;
+        margin-bottom: 15px !important;
+      }
+
       .name-input {
         width: 40px !important;
         height: 50px !important;
         font-size: 28px !important;
+      }
+
+      #nameEntry {
+        margin: 15px 0 !important;
       }
 
       #nameEntry > div {
