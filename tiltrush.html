@@ -688,7 +688,8 @@
       smoothHeadX: 0.5,
       smoothHeadY: 0.5,
       faceDetector: null,
-      smoothing: 0.25,
+      smoothing: 0.25, // Camera smoothing (lower = more smoothing, less jitter)
+      gyroSmoothing: 0.7, // Gyroscope smoothing (higher = less smoothing, more responsive)
       lockedFace: null, // Lock onto first detected face
       faceLostFrames: 0
     };
@@ -724,8 +725,8 @@
       const position = mapGyroToPosition(beta, gamma);
       trackingState.headX = position.x;
       trackingState.headY = position.y;
-      trackingState.smoothHeadX = smoothValue(trackingState.smoothing, trackingState.smoothHeadX, trackingState.headX);
-      trackingState.smoothHeadY = smoothValue(trackingState.smoothing, trackingState.smoothHeadY, trackingState.headY);
+      trackingState.smoothHeadX = smoothValue(trackingState.gyroSmoothing, trackingState.smoothHeadX, trackingState.headX);
+      trackingState.smoothHeadY = smoothValue(trackingState.gyroSmoothing, trackingState.smoothHeadY, trackingState.headY);
     };
 
     const createVideoElement = (stream) => {
