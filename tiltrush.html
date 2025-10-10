@@ -713,6 +713,166 @@
         transform: rotate(360deg);
       }
     }
+
+    /* Attract Screen High Scores */
+    .attract-scores {
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px 0;
+      padding: 20px;
+      background: rgba(0, 255, 0, 0.05);
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .attract-scores-content {
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      opacity: 0;
+      animation: fadeIn 0.8s ease-in forwards;
+    }
+
+    .attract-level-card {
+      animation: fadeInOut 4s ease-in-out;
+    }
+
+    .attract-level-card.fade-in {
+      animation: fadeIn 0.8s ease-in forwards;
+    }
+
+    .attract-level-card.fade-out {
+      animation: fadeOut 0.8s ease-out forwards;
+    }
+
+    .attract-level-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #00ff00;
+      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+      letter-spacing: 2px;
+    }
+
+    .attract-level-subtitle {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 20px;
+    }
+
+    .attract-score-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px;
+      margin: 8px 0;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .attract-score-entry:first-of-type {
+      color: #ffd700;
+      font-weight: bold;
+    }
+
+    .attract-score-entry:nth-of-type(2) {
+      color: #c0c0c0;
+    }
+
+    .attract-score-entry:nth-of-type(3) {
+      color: #cd7f32;
+    }
+
+    .attract-score-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .attract-score-time {
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .attract-no-scores {
+      font-size: 14px;
+      opacity: 0.5;
+      font-style: italic;
+      padding: 30px;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+    }
+
+    @keyframes fadeInOut {
+      0% {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      15% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      85% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .attract-scores {
+        min-height: 160px;
+        margin: 15px 0;
+        padding: 15px;
+      }
+
+      .attract-level-title {
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      .attract-level-subtitle {
+        font-size: 10px;
+        margin-bottom: 15px;
+      }
+
+      .attract-score-entry {
+        font-size: 13px;
+        padding: 6px 10px;
+        margin: 5px 0;
+      }
+
+      .attract-score-time {
+        font-size: 12px;
+      }
+    }
   </style>
 </head>
 <!-- Google tag (gtag.js) -->
@@ -753,6 +913,14 @@
     <h1>TILTRUSH</h1>
     <p>Tilt the maze to roll the ball from START to FINISH</p>
     <p>Use your head movements or gyroscope to control</p>
+
+    <!-- Rotating High Scores Attract Screen -->
+    <div id="attractScores" class="attract-scores">
+      <div class="attract-scores-content" id="attractScoresContent">
+        <!-- Dynamically populated -->
+      </div>
+    </div>
+
     <div id="levelSelect" style="margin: 20px 0;">
       <p style="font-size: 14px; margin-bottom: 10px;">SELECT LEVEL</p>
       <div id="levelButtons" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
@@ -1428,6 +1596,9 @@
     }
 
     async function showLeaderboardScreen() {
+      // Stop attract screen rotation
+      stopAttractScoresRotation();
+
       const level = LEVELS[gameState.currentLevel];
       document.getElementById('leaderboardLevel').textContent = `Level ${level.number}: ${level.name}`;
 
@@ -1968,7 +2139,78 @@
       });
     }
 
+    // ============================================
+    // ATTRACT SCREEN HIGH SCORES ROTATION
+    // ============================================
+    let attractScoresInterval = null;
+    let currentAttractLevel = 0;
+
+    async function displayAttractScores(levelIndex) {
+      const container = document.getElementById('attractScoresContent');
+      const level = LEVELS[levelIndex];
+
+      // Fetch top 3 scores for this level
+      const scores = await getGlobalLeaderboard(level.number, 3);
+
+      // Create the card HTML
+      const cardHTML = `
+        <div class="attract-level-card">
+          <div class="attract-level-title">★ LEVEL ${level.number}: ${level.name.toUpperCase()} ★</div>
+          <div class="attract-level-subtitle">${level.size}×${level.size} MAZE</div>
+          ${scores.length > 0 ? scores.map((score, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+            return `
+              <div class="attract-score-entry">
+                <span class="attract-score-name">
+                  <span>${medal}</span>
+                  <span>${score.name}</span>
+                </span>
+                <span class="attract-score-time">${formatTime(score.time)}</span>
+              </div>
+            `;
+          }).join('') : '<div class="attract-no-scores">No scores yet - be the first!</div>'}
+        </div>
+      `;
+
+      container.innerHTML = cardHTML;
+    }
+
+    function startAttractScoresRotation() {
+      // Stop any existing rotation
+      stopAttractScoresRotation();
+
+      // Display first level immediately
+      currentAttractLevel = 0;
+      displayAttractScores(currentAttractLevel);
+
+      // Rotate through levels every 4 seconds
+      attractScoresInterval = setInterval(async () => {
+        // Fade out
+        const content = document.getElementById('attractScoresContent');
+        content.style.animation = 'fadeOut 0.5s ease-out forwards';
+
+        // Wait for fade out, then change content
+        setTimeout(async () => {
+          currentAttractLevel = (currentAttractLevel + 1) % LEVELS.length;
+          await displayAttractScores(currentAttractLevel);
+
+          // Fade in
+          content.style.animation = 'fadeIn 0.5s ease-in forwards';
+        }, 500);
+      }, 4000);
+    }
+
+    function stopAttractScoresRotation() {
+      if (attractScoresInterval) {
+        clearInterval(attractScoresInterval);
+        attractScoresInterval = null;
+      }
+    }
+
     async function startGame() {
+      // Stop attract screen rotation
+      stopAttractScoresRotation();
+
       // Clean up old game if exists
       if (gameState.mazeGroup) scene.remove(gameState.mazeGroup);
       gameState.ballVelocity = { x: 0, z: 0 };
@@ -2043,6 +2285,9 @@
       releaseWakeLock();
 
       initLevelButtons();
+
+      // Start attract screen rotation
+      startAttractScoresRotation();
     }
 
     // ============================================
@@ -2065,6 +2310,9 @@
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
       document.getElementById('topScoresDisplay').style.display = 'none';
+
+      // Start attract screen rotation when returning to menu
+      startAttractScoresRotation();
     });
 
     // Share functionality
@@ -2158,6 +2406,9 @@
       document.getElementById('startScreen').classList.add('visible');
       document.getElementById('timerDisplay').style.display = 'none';
       document.getElementById('topScoresDisplay').style.display = 'none';
+
+      // Start attract screen rotation when returning to menu
+      startAttractScoresRotation();
     });
 
     // Arcade-style name entry
@@ -2274,6 +2525,9 @@
 
     // Initialize level selection
     initLevelButtons();
+
+    // Start attract screen rotation on page load
+    startAttractScoresRotation();
 
     // Keyboard controls (fallback)
     window.addEventListener('keydown', (e) => {
