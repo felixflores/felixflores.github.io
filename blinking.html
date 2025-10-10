@@ -213,18 +213,22 @@
     async function loadModel() {
       try {
         loading.textContent = 'Loading FaceMesh model...';
+        console.log('Starting model load...');
+
         model = await faceLandmarksDetection.createDetector(
           faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
           {
-            runtime: 'tfjs',
-            refineLandmarks: true
+            runtime: 'mediapipe',
+            solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh'
           }
         );
+
+        console.log('Model loaded:', model);
         loading.textContent = 'Model loaded! Click START TRACKING';
         startButton.style.display = 'block';
       } catch (err) {
         loading.textContent = 'Error loading model: ' + err.message;
-        console.error(err);
+        console.error('Model load error:', err);
       }
     }
 
@@ -296,6 +300,9 @@
 
         const predictions = await model.estimateFaces(video);
         console.log('Predictions:', predictions.length);
+        if (predictions.length > 0) {
+          console.log('Face detected! Keypoints:', predictions[0].keypoints.length);
+        }
 
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
