@@ -212,14 +212,21 @@
     // Load FaceMesh model
     async function loadModel() {
       try {
-        loading.textContent = 'Loading FaceMesh model...';
+        loading.textContent = 'Loading TensorFlow backend...';
         console.log('Starting model load...');
 
+        // Ensure WebGL backend is loaded
+        await tf.setBackend('webgl');
+        await tf.ready();
+        console.log('Backend ready:', tf.getBackend());
+
+        loading.textContent = 'Loading FaceMesh model...';
+
+        // Use TFJS runtime which is more compatible
         model = await faceLandmarksDetection.createDetector(
           faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
           {
-            runtime: 'mediapipe',
-            solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh'
+            runtime: 'tfjs'
           }
         );
 
