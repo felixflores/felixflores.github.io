@@ -196,6 +196,7 @@
     let isTracking = false;
     let blinkCount = 0;
     let lastBlinkTime = 0;
+    let frameCount = 0;
 
     // Eye state tracking
     let leftEyeOpen = true;
@@ -244,25 +245,35 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: 640,
-            height: 480,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
             facingMode: 'user'
           }
         });
 
         video.srcObject = stream;
-        await video.play();
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        video.onloadedmetadata = async () => {
+          await video.play();
 
-        videoContainer.style.display = 'block';
-        debugPanel.style.display = 'block';
-        startButton.style.display = 'none';
-        loading.style.display = 'none';
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
 
-        isTracking = true;
-        detectFace();
+          console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+
+          videoContainer.style.display = 'block';
+          debugPanel.style.display = 'block';
+          startButton.style.display = 'none';
+          loading.style.display = 'none';
+
+          // Warm up the model with a test frame
+          console.log('Warming up model...');
+          await model.estimateFaces(video);
+          console.log('Model warmed up, starting tracking...');
+
+          isTracking = true;
+          detectFace();
+        };
       } catch (err) {
         loading.textContent = 'Error accessing camera: ' + err.message;
         console.error(err);
@@ -305,16 +316,23 @@
           return;
         }
 
-        const predictions = await model.estimateFaces(video);
-        console.log('Predictions:', predictions.length);
-        if (predictions.length > 0) {
-          console.log('Face detected! Keypoints:', predictions[0].keypoints.length);
-        }
+        frameCount++;
 
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // Run detection every 2 frames for better performance
+        if (frameCount % 2 !== 0) {
+          requestAnimationFrame(detectFace);
+          return;
+        }
+
+        const predictions = await model.estimateFaces(video, {
+          flipHorizontal: false
+        });
+
         if (predictions.length > 0) {
+          console.log('Face detected! Keypoints:', predictions[0].keypoints.length);
           const face = predictions[0];
           const keypoints = face.keypoints;
 
@@ -406,6 +424,8 @@
           ctx.fillStyle = '#00ff00';
           ctx.font = '20px Courier New';
           ctx.fillText('No face detected', 10, 30);
+          ctx.font = '14px Courier New';
+          ctx.fillText('Move closer or adjust lighting', 10, 55);
         }
       } catch (err) {
         console.error('Detection error:', err);
