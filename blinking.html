@@ -287,14 +287,22 @@
     async function detectFace() {
       if (!isTracking) return;
 
-      const predictions = await model.estimateFaces(video);
+      try {
+        // Make sure video is ready
+        if (video.readyState < 2) {
+          requestAnimationFrame(detectFace);
+          return;
+        }
 
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const predictions = await model.estimateFaces(video);
+        console.log('Predictions:', predictions.length);
 
-      if (predictions.length > 0) {
-        const face = predictions[0];
-        const keypoints = face.keypoints;
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (predictions.length > 0) {
+          const face = predictions[0];
+          const keypoints = face.keypoints;
 
         // Extract eye landmarks
         const leftEyeLandmarks = LEFT_EYE_INDICES.map(i => keypoints[i]);
@@ -379,6 +387,17 @@
           wasBlinking = false;
           document.getElementById('blinkStatus').textContent = 'NO';
         }
+        } else {
+          // No face detected - show debug message
+          ctx.fillStyle = '#00ff00';
+          ctx.font = '20px Courier New';
+          ctx.fillText('No face detected', 10, 30);
+        }
+      } catch (err) {
+        console.error('Detection error:', err);
+        ctx.fillStyle = '#ff0000';
+        ctx.font = '16px Courier New';
+        ctx.fillText('Error: ' + err.message, 10, 30);
       }
 
       requestAnimationFrame(detectFace);
