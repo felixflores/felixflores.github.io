@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
   <style>
     * {
       margin: 0;
@@ -202,11 +202,24 @@
     let rightEyeOpen = true;
     let wasBlinking = false;
 
-    // Load BlazeFace model
+    // Eye landmark indices for FaceMesh
+    const LEFT_EYE_INDICES = [33, 160, 158, 133, 153, 144];
+    const RIGHT_EYE_INDICES = [362, 385, 387, 263, 373, 380];
+
+    // EAR threshold for blink detection
+    const EAR_THRESHOLD = 0.21;
+
+    // Load FaceMesh model
     async function loadModel() {
       try {
-        loading.textContent = 'Loading face detection model...';
-        model = await blazeface.load();
+        loading.textContent = 'Loading FaceMesh model...';
+        model = await faceLandmarksDetection.createDetector(
+          faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+          {
+            runtime: 'tfjs',
+            refineLandmarks: true
+          }
+        );
         loading.textContent = 'Model loaded! Click START TRACKING';
         startButton.style.display = 'block';
       } catch (err) {
@@ -245,34 +258,28 @@
       }
     }
 
-    // Detect if eyes are closed based on face landmarks
-    function detectEyeState(face) {
-      // BlazeFace provides 6 keypoints:
-      // 0: right eye, 1: left eye, 2: nose, 3: mouth, 4: right ear, 5: left ear
-      const rightEye = face.landmarks[0];
-      const leftEye = face.landmarks[1];
-      const nose = face.landmarks[2];
+    // Calculate Euclidean distance between two points
+    function distance(p1, p2) {
+      return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
 
-      // Calculate eye aspect ratio (simplified)
-      // In a real implementation, we'd need more detailed eye landmarks
-      // For now, we'll use a simple heuristic based on the bounding box height
-      const faceHeight = face.bottomRight[1] - face.topLeft[1];
-      const faceWidth = face.bottomRight[0] - face.topLeft[0];
+    // Calculate Eye Aspect Ratio (EAR)
+    function calculateEAR(eyeLandmarks) {
+      // EAR = (||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)
+      const vertical1 = distance(eyeLandmarks[1], eyeLandmarks[5]);
+      const vertical2 = distance(eyeLandmarks[2], eyeLandmarks[4]);
+      const horizontal = distance(eyeLandmarks[0], eyeLandmarks[3]);
 
-      // Eye positions relative to face
-      const leftEyeY = (leftEye[1] - face.topLeft[1]) / faceHeight;
-      const rightEyeY = (rightEye[1] - face.topLeft[1]) / faceHeight;
+      return (vertical1 + vertical2) / (2.0 * horizontal);
+    }
 
-      // Simple blink detection: if face height shrinks significantly, likely a blink
-      // This is a very basic heuristic - a real app would use eye aspect ratio
-      const aspectRatio = faceHeight / faceWidth;
-
+    // Get eye center from landmarks
+    function getEyeCenter(eyeLandmarks) {
+      const sumX = eyeLandmarks.reduce((sum, p) => sum + p.x, 0);
+      const sumY = eyeLandmarks.reduce((sum, p) => sum + p.y, 0);
       return {
-        leftEye: leftEye,
-        rightEye: rightEye,
-        leftEyeOpen: aspectRatio > 0.7, // Simplified
-        rightEyeOpen: aspectRatio > 0.7, // Simplified
-        aspectRatio: aspectRatio
+        x: sumX / eyeLandmarks.length,
+        y: sumY / eyeLandmarks.length
       };
     }
 
@@ -280,58 +287,79 @@
     async function detectFace() {
       if (!isTracking) return;
 
-      const predictions = await model.estimateFaces(video, false);
+      const predictions = await model.estimateFaces(video);
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (predictions.length > 0) {
         const face = predictions[0];
+        const keypoints = face.keypoints;
 
-        // Draw face bounding box
+        // Extract eye landmarks
+        const leftEyeLandmarks = LEFT_EYE_INDICES.map(i => keypoints[i]);
+        const rightEyeLandmarks = RIGHT_EYE_INDICES.map(i => keypoints[i]);
+
+        // Calculate EAR for each eye
+        const leftEAR = calculateEAR(leftEyeLandmarks);
+        const rightEAR = calculateEAR(rightEyeLandmarks);
+
+        // Get eye centers
+        const leftEyeCenter = getEyeCenter(leftEyeLandmarks);
+        const rightEyeCenter = getEyeCenter(rightEyeLandmarks);
+
+        // Determine if eyes are open
+        const leftEyeOpenNow = leftEAR > EAR_THRESHOLD;
+        const rightEyeOpenNow = rightEAR > EAR_THRESHOLD;
+
+        // Draw eye contours
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 2;
-        ctx.strokeRect(
-          face.topLeft[0],
-          face.topLeft[1],
-          face.bottomRight[0] - face.topLeft[0],
-          face.bottomRight[1] - face.topLeft[1]
-        );
-
-        // Get eye state
-        const eyeState = detectEyeState(face);
-
-        // Draw eyes
-        ctx.fillStyle = '#00ff00';
-        ctx.strokeStyle = '#00ff00';
-
-        // Right eye
-        ctx.beginPath();
-        ctx.arc(eyeState.rightEye[0], eyeState.rightEye[1], 10, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.stroke();
 
         // Left eye
         ctx.beginPath();
-        ctx.arc(eyeState.leftEye[0], eyeState.leftEye[1], 10, 0, 2 * Math.PI);
-        ctx.fill();
+        leftEyeLandmarks.forEach((point, i) => {
+          if (i === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.closePath();
         ctx.stroke();
+
+        // Right eye
+        ctx.beginPath();
+        rightEyeLandmarks.forEach((point, i) => {
+          if (i === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.closePath();
+        ctx.stroke();
+
+        // Draw eye centers
+        ctx.fillStyle = leftEyeOpenNow ? '#00ff00' : '#ff0000';
+        ctx.beginPath();
+        ctx.arc(leftEyeCenter.x, leftEyeCenter.y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.fillStyle = rightEyeOpenNow ? '#00ff00' : '#ff0000';
+        ctx.beginPath();
+        ctx.arc(rightEyeCenter.x, rightEyeCenter.y, 5, 0, 2 * Math.PI);
+        ctx.fill();
 
         // Update debug info
         document.getElementById('leftEyePos').textContent =
-          `(${Math.round(eyeState.leftEye[0])}, ${Math.round(eyeState.leftEye[1])})`;
+          `(${Math.round(leftEyeCenter.x)}, ${Math.round(leftEyeCenter.y)}) EAR: ${leftEAR.toFixed(3)}`;
         document.getElementById('rightEyePos').textContent =
-          `(${Math.round(eyeState.rightEye[0])}, ${Math.round(eyeState.rightEye[1])})`;
+          `(${Math.round(rightEyeCenter.x)}, ${Math.round(rightEyeCenter.y)}) EAR: ${rightEAR.toFixed(3)}`;
 
         // Update eye indicators
         const leftIndicator = document.getElementById('leftEyeIndicator');
         const rightIndicator = document.getElementById('rightEyeIndicator');
 
-        leftIndicator.className = 'eye-indicator ' + (eyeState.leftEyeOpen ? 'eye-open' : 'eye-closed');
-        rightIndicator.className = 'eye-indicator ' + (eyeState.rightEyeOpen ? 'eye-open' : 'eye-closed');
+        leftIndicator.className = 'eye-indicator ' + (leftEyeOpenNow ? 'eye-open' : 'eye-closed');
+        rightIndicator.className = 'eye-indicator ' + (rightEyeOpenNow ? 'eye-open' : 'eye-closed');
 
         // Detect blinks
-        const bothEyesClosed = !eyeState.leftEyeOpen && !eyeState.rightEyeOpen;
+        const bothEyesClosed = !leftEyeOpenNow && !rightEyeOpenNow;
 
         if (bothEyesClosed && !wasBlinking) {
           // Blink started
