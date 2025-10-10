@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>👁️ Blinking Contest</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #00ff00;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 1200px;
+      width: 100%;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px #00ff00;
+    }
+
+    .video-container {
+      position: relative;
+      display: inline-block;
+      margin: 20px auto;
+    }
+
+    #video {
+      width: 640px;
+      height: 480px;
+      border: 2px solid #00ff00;
+      border-radius: 10px;
+      transform: scaleX(-1);
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 640px;
+      height: 480px;
+      pointer-events: none;
+      transform: scaleX(-1);
+    }
+
+    .debug-panel {
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid #00ff00;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 600px;
+      text-align: left;
+    }
+
+    .debug-item {
+      margin: 10px 0;
+      font-size: 14px;
+    }
+
+    .debug-label {
+      color: #00ff00;
+      font-weight: bold;
+    }
+
+    .debug-value {
+      color: #00cc00;
+      margin-left: 10px;
+    }
+
+    .eye-indicator {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    .eye-open {
+      background: #00ff00;
+      box-shadow: 0 0 10px #00ff00;
+    }
+
+    .eye-closed {
+      background: #ff0000;
+      box-shadow: 0 0 10px #ff0000;
+    }
+
+    button {
+      background: #00ff00;
+      color: #000;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      border-radius: 5px;
+      margin: 10px;
+      transition: all 0.3s;
+    }
+
+    button:hover {
+      background: #00cc00;
+      transform: scale(1.05);
+    }
+
+    .loading {
+      font-size: 24px;
+      margin: 20px;
+    }
+
+    .back-link {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #00ff00;
+      text-decoration: none;
+      font-size: 18px;
+    }
+
+    .back-link:hover {
+      text-shadow: 0 0 10px #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Back to Home</a>
+
+  <div class="container">
+    <h1>👁️ BLINKING CONTEST</h1>
+
+    <div class="loading" id="loading">Loading face detection...</div>
+
+    <div class="video-container" id="videoContainer" style="display: none;">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="debug-panel" id="debugPanel" style="display: none;">
+      <h3>👁️ Eye Tracking Debug</h3>
+      <div class="debug-item">
+        <span class="debug-label">Left Eye:</span>
+        <span class="debug-value" id="leftEyePos">N/A</span>
+        <span class="eye-indicator" id="leftEyeIndicator"></span>
+      </div>
+      <div class="debug-item">
+        <span class="debug-label">Right Eye:</span>
+        <span class="debug-value" id="rightEyePos">N/A</span>
+        <span class="eye-indicator" id="rightEyeIndicator"></span>
+      </div>
+      <div class="debug-item">
+        <span class="debug-label">Blink Detected:</span>
+        <span class="debug-value" id="blinkStatus">NO</span>
+      </div>
+      <div class="debug-item">
+        <span class="debug-label">Blink Count:</span>
+        <span class="debug-value" id="blinkCount">0</span>
+      </div>
+    </div>
+
+    <button id="startButton" style="display: none;">START TRACKING</button>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const loading = document.getElementById('loading');
+    const startButton = document.getElementById('startButton');
+    const videoContainer = document.getElementById('videoContainer');
+    const debugPanel = document.getElementById('debugPanel');
+
+    let model = null;
+    let isTracking = false;
+    let blinkCount = 0;
+    let lastBlinkTime = 0;
+
+    // Eye state tracking
+    let leftEyeOpen = true;
+    let rightEyeOpen = true;
+    let wasBlinking = false;
+
+    // Load BlazeFace model
+    async function loadModel() {
+      try {
+        loading.textContent = 'Loading face detection model...';
+        model = await blazeface.load();
+        loading.textContent = 'Model loaded! Click START TRACKING';
+        startButton.style.display = 'block';
+      } catch (err) {
+        loading.textContent = 'Error loading model: ' + err.message;
+        console.error(err);
+      }
+    }
+
+    // Start webcam
+    async function startWebcam() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: 640,
+            height: 480,
+            facingMode: 'user'
+          }
+        });
+
+        video.srcObject = stream;
+        await video.play();
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        videoContainer.style.display = 'block';
+        debugPanel.style.display = 'block';
+        startButton.style.display = 'none';
+        loading.style.display = 'none';
+
+        isTracking = true;
+        detectFace();
+      } catch (err) {
+        loading.textContent = 'Error accessing camera: ' + err.message;
+        console.error(err);
+      }
+    }
+
+    // Detect if eyes are closed based on face landmarks
+    function detectEyeState(face) {
+      // BlazeFace provides 6 keypoints:
+      // 0: right eye, 1: left eye, 2: nose, 3: mouth, 4: right ear, 5: left ear
+      const rightEye = face.landmarks[0];
+      const leftEye = face.landmarks[1];
+      const nose = face.landmarks[2];
+
+      // Calculate eye aspect ratio (simplified)
+      // In a real implementation, we'd need more detailed eye landmarks
+      // For now, we'll use a simple heuristic based on the bounding box height
+      const faceHeight = face.bottomRight[1] - face.topLeft[1];
+      const faceWidth = face.bottomRight[0] - face.topLeft[0];
+
+      // Eye positions relative to face
+      const leftEyeY = (leftEye[1] - face.topLeft[1]) / faceHeight;
+      const rightEyeY = (rightEye[1] - face.topLeft[1]) / faceHeight;
+
+      // Simple blink detection: if face height shrinks significantly, likely a blink
+      // This is a very basic heuristic - a real app would use eye aspect ratio
+      const aspectRatio = faceHeight / faceWidth;
+
+      return {
+        leftEye: leftEye,
+        rightEye: rightEye,
+        leftEyeOpen: aspectRatio > 0.7, // Simplified
+        rightEyeOpen: aspectRatio > 0.7, // Simplified
+        aspectRatio: aspectRatio
+      };
+    }
+
+    // Detect face and track eyes
+    async function detectFace() {
+      if (!isTracking) return;
+
+      const predictions = await model.estimateFaces(video, false);
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (predictions.length > 0) {
+        const face = predictions[0];
+
+        // Draw face bounding box
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          face.topLeft[0],
+          face.topLeft[1],
+          face.bottomRight[0] - face.topLeft[0],
+          face.bottomRight[1] - face.topLeft[1]
+        );
+
+        // Get eye state
+        const eyeState = detectEyeState(face);
+
+        // Draw eyes
+        ctx.fillStyle = '#00ff00';
+        ctx.strokeStyle = '#00ff00';
+
+        // Right eye
+        ctx.beginPath();
+        ctx.arc(eyeState.rightEye[0], eyeState.rightEye[1], 10, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+
+        // Left eye
+        ctx.beginPath();
+        ctx.arc(eyeState.leftEye[0], eyeState.leftEye[1], 10, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+
+        // Update debug info
+        document.getElementById('leftEyePos').textContent =
+          `(${Math.round(eyeState.leftEye[0])}, ${Math.round(eyeState.leftEye[1])})`;
+        document.getElementById('rightEyePos').textContent =
+          `(${Math.round(eyeState.rightEye[0])}, ${Math.round(eyeState.rightEye[1])})`;
+
+        // Update eye indicators
+        const leftIndicator = document.getElementById('leftEyeIndicator');
+        const rightIndicator = document.getElementById('rightEyeIndicator');
+
+        leftIndicator.className = 'eye-indicator ' + (eyeState.leftEyeOpen ? 'eye-open' : 'eye-closed');
+        rightIndicator.className = 'eye-indicator ' + (eyeState.rightEyeOpen ? 'eye-open' : 'eye-closed');
+
+        // Detect blinks
+        const bothEyesClosed = !eyeState.leftEyeOpen && !eyeState.rightEyeOpen;
+
+        if (bothEyesClosed && !wasBlinking) {
+          // Blink started
+          const now = Date.now();
+          if (now - lastBlinkTime > 300) { // Debounce (300ms between blinks)
+            blinkCount++;
+            lastBlinkTime = now;
+            document.getElementById('blinkCount').textContent = blinkCount;
+            document.getElementById('blinkStatus').textContent = 'YES!';
+
+            // Flash the canvas
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          wasBlinking = true;
+        } else if (!bothEyesClosed) {
+          wasBlinking = false;
+          document.getElementById('blinkStatus').textContent = 'NO';
+        }
+      }
+
+      requestAnimationFrame(detectFace);
+    }
+
+    // Event listeners
+    startButton.addEventListener('click', startWebcam);
+
+    // Initialize
+    loadModel();
+  </script>
+</body>
+</html>
