@@ -665,6 +665,9 @@
     elements.canvas.width = CONFIG.width;
     elements.canvas.height = CONFIG.height;
 
+    // Create canvas context once with willReadFrequently for better performance
+    const canvasCtx = elements.canvas.getContext('2d', { willReadFrequently: true });
+
     // Pure Functions
     const pipe = (...fns) => x => fns.reduce((v, f) => f(v), x);
     const curry = fn => (...args) => args.length >= fn.length ? fn(...args) : curry(fn.bind(null, ...args));
@@ -1109,8 +1112,7 @@
         return;
       }
 
-      const ctx = elements.canvas.getContext('2d');
-      const imageData = processVideoFrame(state.video, ctx, CONFIG);
+      const imageData = processVideoFrame(state.video, canvasCtx, CONFIG);
 
       if (!imageData) return;
 
