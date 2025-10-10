@@ -2045,46 +2045,68 @@
     document.getElementById('shareWinButton').addEventListener('click', async () => {
       const level = LEVELS[gameState.currentLevel];
       const timeText = document.getElementById('winTime').textContent;
+      const shareText = `I just beat ${level.name} (${level.size}×${level.size}) in ${timeText}! 🎮\n\nPlay TiltRush - control the maze with your head movements!\n${window.location.origin}/tiltrush.html`;
       const shareData = {
         title: 'TiltRush - Head-Controlled Maze Game',
-        text: `I just beat ${level.name} (${level.size}×${level.size}) in ${timeText}! 🎮\n\nPlay TiltRush - control the maze with your head movements!`,
+        text: shareText,
         url: window.location.origin + '/tiltrush.html'
       };
 
       try {
-        if (navigator.share) {
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+        } else if (navigator.share) {
+          // Try without canShare check (older browsers)
           await navigator.share(shareData);
         } else {
           // Fallback: copy to clipboard
-          await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-          alert('Link copied to clipboard!');
+          await navigator.clipboard.writeText(shareText);
+          alert('✅ Link copied to clipboard!');
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('Share failed:', err);
+          // Try clipboard as last resort
+          try {
+            await navigator.clipboard.writeText(shareText);
+            alert('✅ Link copied to clipboard!');
+          } catch (clipErr) {
+            alert('❌ Share failed. URL: ' + window.location.origin + '/tiltrush.html');
+          }
         }
       }
     });
 
     document.getElementById('shareLeaderboardButton').addEventListener('click', async () => {
       const levelText = document.getElementById('leaderboardLevel').textContent;
+      const shareText = `Check out the ${levelText} leaderboard! 🏆\n\nPlay TiltRush - head-controlled maze speedrun game!\n${window.location.origin}/tiltrush.html`;
       const shareData = {
         title: 'TiltRush - Leaderboard',
-        text: `Check out the ${levelText} leaderboard! 🏆\n\nPlay TiltRush - head-controlled maze speedrun game!`,
+        text: shareText,
         url: window.location.origin + '/tiltrush.html'
       };
 
       try {
-        if (navigator.share) {
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+        } else if (navigator.share) {
+          // Try without canShare check (older browsers)
           await navigator.share(shareData);
         } else {
           // Fallback: copy to clipboard
-          await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-          alert('Link copied to clipboard!');
+          await navigator.clipboard.writeText(shareText);
+          alert('✅ Link copied to clipboard!');
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('Share failed:', err);
+          // Try clipboard as last resort
+          try {
+            await navigator.clipboard.writeText(shareText);
+            alert('✅ Link copied to clipboard!');
+          } catch (clipErr) {
+            alert('❌ Share failed. URL: ' + window.location.origin + '/tiltrush.html');
+          }
         }
       }
     });
