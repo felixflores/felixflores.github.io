@@ -726,6 +726,31 @@
       border: 1px solid rgba(0, 255, 0, 0.2);
       border-radius: 8px;
       overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .attract-scores::after {
+      content: 'TAP TO START';
+      position: absolute;
+      bottom: 10px;
+      right: 15px;
+      font-size: 10px;
+      opacity: 0.4;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+      animation: pulse 2s ease infinite;
+    }
+
+    .attract-scores:hover {
+      background: rgba(0, 255, 0, 0.1);
+      border-color: rgba(0, 255, 0, 0.4);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+    }
+
+    .attract-scores:active {
+      transform: scale(0.98);
     }
 
     .attract-scores-content {
@@ -851,6 +876,12 @@
         min-height: 160px;
         margin: 15px 0;
         padding: 15px;
+      }
+
+      .attract-scores::after {
+        font-size: 9px;
+        bottom: 8px;
+        right: 10px;
       }
 
       .attract-level-title {
@@ -2294,6 +2325,11 @@
     // EVENT LISTENERS
     // ============================================
     document.getElementById('startButton').addEventListener('click', () => {
+      initTracking();
+    });
+
+    // Make attract scores clickable to start game
+    document.getElementById('attractScores').addEventListener('click', () => {
       initTracking();
     });
 
