@@ -2477,6 +2477,14 @@
         input.select();
       });
 
+      // Ensure selection happens on mousedown (before input event)
+      input.addEventListener('mousedown', (e) => {
+        // Defer to next tick to ensure it happens after focus
+        setTimeout(() => {
+          input.select();
+        }, 0);
+      });
+
       input.addEventListener('input', (e) => {
         let value = e.target.value;
 
@@ -2497,6 +2505,11 @@
       });
 
       input.addEventListener('keydown', (e) => {
+        // If typing a regular character and current value is just a space, clear it first
+        if (e.key.length === 1 && (e.target.value === ' ' || e.target.value.trim() === '')) {
+          e.target.value = '';
+        }
+
         // Backspace goes to previous input
         if (e.key === 'Backspace') {
           if ((!e.target.value || e.target.value === ' ') && index > 0) {
