@@ -679,26 +679,41 @@
                 proteinPoints.push({ x, y });
             }
 
-            // Morph protein points into neural network positions
-            if (t < 0.6) {
-                // Fade out protein structure
-                proteinPoints.forEach((point, i) => {
-                    const targetNeuron = neurons[Math.min(i, neurons.length - 1)];
-                    const x = lerp(point.x, targetNeuron.x, t / 0.6);
-                    const y = lerp(point.y, targetNeuron.y, t / 0.6);
+            // Draw protein connections (fade out during transition)
+            if (t < 0.5) {
+                for (let i = 1; i < numProteinPoints; i++) {
+                    const point = proteinPoints[i];
+                    const prevPoint = proteinPoints[i - 1];
 
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', x);
-                    circle.setAttribute('cy', y);
-                    circle.setAttribute('r', lerp(3, 4, t / 0.6));
-                    circle.setAttribute('fill', '#888888');
-                    circle.setAttribute('opacity', (1 - t / 0.6) * 0.8 + (t / 0.6) * 0.5);
-                    stage.appendChild(circle);
-                });
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', prevPoint.x);
+                    line.setAttribute('y1', prevPoint.y);
+                    line.setAttribute('x2', point.x);
+                    line.setAttribute('y2', point.y);
+                    line.setAttribute('stroke', '#555555');
+                    line.setAttribute('stroke-width', '2');
+                    line.setAttribute('opacity', (1 - t / 0.5) * 0.4);
+                    stage.appendChild(line);
+                }
             }
 
+            // Morph protein points into neural network positions
+            proteinPoints.forEach((point, i) => {
+                const targetNeuron = neurons[Math.min(i, neurons.length - 1)];
+                const x = lerp(point.x, targetNeuron.x, t);
+                const y = lerp(point.y, targetNeuron.y, t);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', lerp(3, 4, t));
+                circle.setAttribute('fill', '#888888');
+                circle.setAttribute('opacity', lerp(0.8, 0.5, t));
+                stage.appendChild(circle);
+            });
+
             // Draw neural network connections (fading in)
-            if (t > 0.4) {
+            if (t > 0.5) {
                 for (let i = 0; i < neurons.length; i++) {
                     for (let j = 0; j < neurons.length; j++) {
                         if (neurons[j].layer === neurons[i].layer + 1) {
@@ -709,22 +724,22 @@
                             line.setAttribute('y2', neurons[j].y);
                             line.setAttribute('stroke', '#444444');
                             line.setAttribute('stroke-width', '0.5');
-                            line.setAttribute('opacity', (t - 0.4) / 0.6 * 0.2);
+                            line.setAttribute('opacity', (t - 0.5) / 0.5 * 0.2);
                             stage.appendChild(line);
                         }
                     }
                 }
             }
 
-            // Draw neural network neurons (fading in)
-            if (t > 0.3) {
+            // Draw neural network neurons (overlaid on morphing points)
+            if (t > 0.7) {
                 neurons.forEach(neuron => {
                     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     circle.setAttribute('cx', neuron.x);
                     circle.setAttribute('cy', neuron.y);
                     circle.setAttribute('r', 4);
                     circle.setAttribute('fill', '#888888');
-                    circle.setAttribute('opacity', (t - 0.3) / 0.7);
+                    circle.setAttribute('opacity', (t - 0.7) / 0.3);
                     stage.appendChild(circle);
                 });
             }
