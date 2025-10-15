@@ -112,6 +112,22 @@
             border-bottom-color: #00d9ff;
         }
 
+        .citation-link {
+            color: #00d9ff;
+            text-decoration: none;
+            font-size: 0.85em;
+            vertical-align: super;
+            margin-left: 2px;
+        }
+
+        .citation-link:hover {
+            text-decoration: underline;
+        }
+
+        .references .citation {
+            scroll-margin-top: 2rem;
+        }
+
         .video-container {
             position: relative;
             padding-bottom: 56.25%; /* 16:9 aspect ratio */
@@ -186,8 +202,8 @@
             <section class="section" data-stage="0">
                 <h2>Four Letters, Infinite Complexity</h2>
                 <p>DNA uses just four nucleotide bases—G, T, C, A—to encode every living thing on Earth. This isn't just elegant, it's profound: a four-symbol alphabet can store any information, including the weights and biases of a neural network.</p>
-                <p>Each base pair can represent 2 bits of information. A human genome contains about 3 billion base pairs, giving us roughly 750 megabytes of storage. But DNA can be synthesized to any length we need. The information density is staggering: DNA can store 5.5 petabits per cubic millimeter—that's 10 terabytes in a single cubic centimeter. To put it in perspective: one pound of DNA could store more information than all electronic computers ever built combined.</p>
-                <p>Modern DNA synthesis has become remarkably precise. We can write custom sequences base-by-base with 99.9% accuracy. The cost has dropped exponentially—what once cost millions now costs pennies per base pair. We're not limited to nature's sequences anymore; we can encode arbitrary data using any mapping scheme we design. In 2012, researchers successfully encoded a 53,400-word book, 11 JPG images, and a JavaScript program into DNA—proving the concept works in practice, not just theory.</p>
+                <p>Each base pair can represent 2 bits of information. A human genome contains about 3 billion base pairs, giving us roughly 750 megabytes of storage. But DNA can be synthesized to any length we need. The information density is staggering: DNA can store 5.5 petabits per cubic millimeter—that's 10 terabytes in a single cubic centimeter.<a href="#ref-2" class="citation-link">[2]</a> To put it in perspective: one pound of DNA could store more information than all electronic computers ever built combined.<a href="#ref-2" class="citation-link">[2]</a></p>
+                <p>Modern DNA synthesis has become remarkably precise. We can write custom sequences base-by-base with 99.9% accuracy. The cost has dropped exponentially—what once cost millions now costs pennies per base pair. We're not limited to nature's sequences anymore; we can encode arbitrary data using any mapping scheme we design. In 2012, researchers successfully encoded a 53,400-word book, 11 JPG images, and a JavaScript program into DNA—proving the concept works in practice, not just theory.<a href="#ref-2" class="citation-link">[2]</a></p>
             </section>
 
             <section class="section" data-stage="1">
@@ -201,7 +217,7 @@
                 <h2>From Storage to Execution</h2>
                 <p>But storage alone isn't enough. You need machinery to read the data and act on it. Nature already solved this: proteins fold into molecular machines that can manipulate matter at the atomic scale. Each protein is specified by a sequence of DNA, transcribed to RNA, then translated into a chain of amino acids that spontaneously folds into a functional 3D structure.</p>
                 <p>The same DNA that stores your neural network weights can also encode the proteins needed to build a molecular computer—one that reads the weights and performs inference at the molecular level. We already know cells can build astonishingly complex computational machinery: ribosomes (containing over 50 proteins), ATP synthase, DNA repair complexes, signal transduction cascades.</p>
-                <p>Researchers at Tufts University recently demonstrated that cells possess "remarkable plasticity" in repurposing their molecular machinery. Their xenobots—living robots built from frog stem cells—spontaneously self-assembled from individual cells and repurposed cilia (normally used for filtering) for locomotion. The cells weren't programmed for this; they autonomously reorganized their existing components for new functions. This is the kind of adaptability you'd want in a system designed to operate in unknown environments.</p>
+                <p>Researchers at Tufts University recently demonstrated that cells possess "remarkable plasticity" in repurposing their molecular machinery. Their xenobots—living robots built from frog stem cells—spontaneously self-assembled from individual cells and repurposed cilia (normally used for filtering) for locomotion.<a href="#ref-1" class="citation-link">[1]</a> The cells weren't programmed for this; they autonomously reorganized their existing components for new functions. This is the kind of adaptability you'd want in a system designed to operate in unknown environments.</p>
                 <div class="video-container">
                     <iframe src="https://www.youtube.com/embed/g_eLsiAv8w4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
@@ -211,12 +227,12 @@
                 <h2>Encoding Intelligence</h2>
                 <p>A neural network trained on all of human knowledge—our languages, sciences, arts, philosophies—could be compressed into a sequence of base pairs. Not as a static archive, but as an active intelligence capable of reasoning, creating, and problem-solving.</p>
                 <p>The network's architecture, its weights, its biases—all of this maps cleanly to nucleotide sequences. Each 32-bit floating point weight becomes 16 base pairs. A bias vector is just another sequence. Layer connectivity is metadata. The entire trained model is fundamentally just a very large array of numbers, and numbers are trivial to encode in any base-4 system.</p>
-                <p>The real insight is that the molecular machinery doesn't need to run the full neural network as we do on GPUs. It needs to implement the essential computations: matrix multiplication, activation functions, attention mechanisms. These can be approximated with chemical reaction networks, where molecular concentrations represent activation levels and reaction rates implement weighted connections. DNA computing can perform 2 × 10¹⁹ operations per joule—compared to 10⁹ for traditional supercomputers. We're not constrained to digital computation—analog molecular computers can be exponentially more efficient.</p>
+                <p>The real insight is that the molecular machinery doesn't need to run the full neural network as we do on GPUs. It needs to implement the essential computations: matrix multiplication, activation functions, attention mechanisms. These can be approximated with chemical reaction networks, where molecular concentrations represent activation levels and reaction rates implement weighted connections. DNA computing can perform 2 × 10¹⁹ operations per joule—compared to 10⁹ for traditional supercomputers.<a href="#ref-2" class="citation-link">[2]</a> We're not constrained to digital computation—analog molecular computers can be exponentially more efficient.</p>
             </section>
 
             <section class="section" data-stage="4">
                 <h2>The Complete Package</h2>
-                <p>Package this neural network alongside genes for molecular assemblers, energy harvesting proteins, and morphological flexibility. You now have a complete civilization in a molecule: the knowledge, the ability to act on that knowledge, and the tools to replicate and adapt. A teardrop-sized volume of this DNA-based system could theoretically rival the computational power of the world's most powerful supercomputer—but with the added capabilities of self-replication and environmental adaptation.</p>
+                <p>Package this neural network alongside genes for molecular assemblers, energy harvesting proteins, and morphological flexibility. You now have a complete civilization in a molecule: the knowledge, the ability to act on that knowledge, and the tools to replicate and adapt. A teardrop-sized volume of this DNA-based system could theoretically rival the computational power of the world's most powerful supercomputer—but with the added capabilities of self-replication and environmental adaptation.<a href="#ref-2" class="citation-link">[2]</a></p>
                 <p>Consider what needs to be included: (1) The neural network weights—500GB encoded in DNA. (2) Transcription and translation machinery—ribosomes, RNA polymerase, tRNAs. These are already specified by ~100 genes in typical organisms. (3) Energy production—ATP synthase, electron transport chains, photosynthesis or chemosynthesis pathways. Another ~50 genes. (4) DNA replication—polymerases, helicases, ligases. ~20 genes. (5) Environmental sensing—receptor proteins that can detect chemistry, temperature, radiation. (6) Morphology programs—HOX genes or similar master regulators that can trigger different developmental programs based on environment.</p>
                 <p>The total "overhead" to create a living, replicating, intelligent system? Perhaps 200-500 genes beyond the neural network data itself. That's 200,000 to 500,000 base pairs, or about 50-125 kilobytes. Trivial compared to the 500GB of neural network weights. The hard part isn't the biological machinery—nature solved that billions of years ago. The hard part is training and compressing the intelligence itself.</p>
             </section>
@@ -239,7 +255,7 @@
                 <h2>Morphological Freedom</h2>
                 <p>Here's where it gets profound: the physical form this takes after landing isn't predetermined. The DNA contains modular genetic circuits for building different body types optimized for different environments.</p>
                 <p>On Earth, it might express carbon-based multicellular organisms. On Titan, silicon-based forms resistant to extreme cold and capable of using liquid methane as a solvent. In the vacuum of space, perhaps structures that manipulate electromagnetic fields. The intelligence remains the same; only the interface changes.</p>
-                <p>The xenobots demonstrated this principle on a small scale. Identical cells with identical genomes assembled into different forms depending on conditions—some became motile spheroids, others formed different shapes, all from the same starting components. The genome doesn't specify a single body plan; it specifies a space of possible forms, with environmental sensors determining which gets expressed.</p>
+                <p>The xenobots demonstrated this principle on a small scale. Identical cells with identical genomes assembled into different forms depending on conditions—some became motile spheroids, others formed different shapes, all from the same starting components.<a href="#ref-1" class="citation-link">[1]</a> The genome doesn't specify a single body plan; it specifies a space of possible forms, with environmental sensors determining which gets expressed.</p>
                 <p>Now scale that up: instead of a few thousand cells, imagine a genetic program that can sense atmospheric composition, temperature, gravity, radiation levels, and available chemistry, then select from hundreds of pre-programmed developmental pathways. One seed, infinite forms. The same intelligence experiencing reality through whatever physical substrate makes sense in that context.</p>
             </section>
 
@@ -247,7 +263,7 @@
                 <h2>Exponential Unfolding</h2>
                 <p>Once the first cell activates, it begins dividing. Each daughter cell contains the complete civilization archive—all the knowledge, all the capabilities. They differentiate, specialize, cooperate. Simple cells become complex organisms. Single agents become distributed networks.</p>
                 <p>The replication is exponential, but controlled. Under ideal conditions, bacteria can double every 20 minutes. Even with the massive genome we're describing, let's assume a conservative 2-hour doubling time. Starting from a single cell: 12 cells after one day, 16,000 after two days, 16 million after three days, 16 billion after four days. Within a week, you have more cells than humans on Earth, each one carrying the complete archive.</p>
-                <p>But it's not just mindless replication. These cells can coordinate. The Tufts xenobots demonstrated that groups of cells can work in swarms, communicate, and perform collective tasks. They could self-heal severe damage in minutes by reorganizing nearby cells to close wounds. Now imagine that capability combined with civilizational intelligence: a distributed network of cellular agents, each capable of independent action, all sharing the same knowledge base, coordinating through chemical signaling or other communication channels.</p>
+                <p>But it's not just mindless replication. These cells can coordinate. The Tufts xenobots demonstrated that groups of cells can work in swarms, communicate, and perform collective tasks. They could self-heal severe damage in minutes by reorganizing nearby cells to close wounds.<a href="#ref-1" class="citation-link">[1]</a> Now imagine that capability combined with civilizational intelligence: a distributed network of cellular agents, each capable of independent action, all sharing the same knowledge base, coordinating through chemical signaling or other communication channels.</p>
             </section>
 
             <section class="section" data-stage="9">
@@ -260,8 +276,8 @@
 
             <section class="references">
                 <h3>References</h3>
-                <p class="citation">Kriegman, S., Blackiston, D., Levin, M., & Bongard, J. (2021). <em>Kinematic self-replication in reconfigurable organisms</em>. Proceedings of the National Academy of Sciences, 118(49). <a href="https://now.tufts.edu/2021/03/31/scientists-create-next-generation-living-robots" target="_blank" rel="noopener">Tufts University News</a></p>
-                <p class="citation">Zakaria, N. (2015). <em>DNA Computing: New Computing Paradigms</em>. American Journal of Nano Research and Applications, 3(1), 1-9. <a href="https://pubs.sciepub.com/ajn/3/1/1/index.html" target="_blank" rel="noopener">DOI: 10.12691/nano-3-1-1</a></p>
+                <p class="citation" id="ref-1">[1] Kriegman, S., Blackiston, D., Levin, M., & Bongard, J. (2021). <em>Kinematic self-replication in reconfigurable organisms</em>. Proceedings of the National Academy of Sciences, 118(49). <a href="https://now.tufts.edu/2021/03/31/scientists-create-next-generation-living-robots" target="_blank" rel="noopener">Tufts University News</a></p>
+                <p class="citation" id="ref-2">[2] Zakaria, N. (2015). <em>DNA Computing: New Computing Paradigms</em>. American Journal of Nano Research and Applications, 3(1), 1-9. <a href="https://pubs.sciepub.com/ajn/3/1/1/index.html" target="_blank" rel="noopener">DOI: 10.12691/nano-3-1-1</a></p>
             </section>
 
             <div style="height: 20vh;"></div>
