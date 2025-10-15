@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compressing Civilization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .visual-panel {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 50%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+        }
+
+        #canvas {
+            width: 80%;
+            height: 80%;
+        }
+
+        .content-panel {
+            margin-left: 50%;
+            width: 50%;
+            padding: 5vh 5vw 10vh 5vw;
+        }
+
+        .section {
+            padding: 2rem 0;
+            margin-bottom: 3rem;
+        }
+
+        .section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: #00d9ff;
+            font-weight: 300;
+        }
+
+        .section p {
+            font-size: 1.25rem;
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+            color: #c0c0c0;
+        }
+
+        .intro {
+            padding: 5rem 0 3rem 0;
+        }
+
+        .intro h1 {
+            font-size: 3.5rem;
+            margin-bottom: 2rem;
+            color: #00d9ff;
+            font-weight: 200;
+        }
+
+        .intro .subtitle {
+            font-size: 1.5rem;
+            color: #808080;
+            margin-bottom: 3rem;
+        }
+
+        .references {
+            margin-top: 5rem;
+            padding-top: 2rem;
+            border-top: 1px solid #333;
+        }
+
+        .references h3 {
+            font-size: 1.5rem;
+            color: #00d9ff;
+            margin-bottom: 1rem;
+            font-weight: 300;
+        }
+
+        .references .citation {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #a0a0a0;
+        }
+
+        .references .citation a {
+            color: #00d9ff;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+
+        .references .citation a:hover {
+            border-bottom-color: #00d9ff;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 0;
+            overflow: hidden;
+            margin: 2rem 0;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #00d9ff;
+            border-radius: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .visual-panel {
+                position: relative;
+                width: 100%;
+                height: 50vh;
+            }
+
+            .content-panel {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .section h2 {
+                font-size: 2rem;
+            }
+
+            .section p {
+                font-size: 1.1rem;
+            }
+
+            .intro h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="visual-panel">
+            <svg id="canvas" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00d9ff;stop-opacity:0.8" />
+                        <stop offset="100%" style="stop-color:#0066ff;stop-opacity:0.4" />
+                    </linearGradient>
+                </defs>
+                <g id="stage"></g>
+            </svg>
+        </div>
+
+        <div class="content-panel">
+            <div class="intro">
+                <h1>Compressing Civilization</h1>
+                <p class="subtitle">How to encode everything into a molecule</p>
+                <p>What if you could compress an entire civilization—all its knowledge, values, and capabilities—into something the size of a grain of sand? Not just the data, but the ability to execute it, replicate it, and adapt it to any environment.</p>
+            </div>
+
+            <section class="section" data-stage="0">
+                <h2>Four Letters, Infinite Complexity</h2>
+                <p>DNA uses just four nucleotide bases—G, T, C, A—to encode every living thing on Earth. This isn't just elegant, it's profound: a four-symbol alphabet can store any information, including the weights and biases of a neural network.</p>
+                <p>Each base pair can represent 2 bits of information. A human genome contains about 3 billion base pairs, giving us roughly 750 megabytes of storage. But DNA can be synthesized to any length we need. The information density is staggering: one gram of DNA can theoretically store 215 petabytes (215 million gigabytes) of data.</p>
+                <p>Modern DNA synthesis has become remarkably precise. We can write custom sequences base-by-base with 99.9% accuracy. The cost has dropped exponentially—what once cost millions now costs pennies per base pair. We're not limited to nature's sequences anymore; we can encode arbitrary data using any mapping scheme we design.</p>
+            </section>
+
+            <section class="section" data-stage="1">
+                <h2>The Storage Medium</h2>
+                <p>The double helix isn't just beautiful—it's the most stable information storage system we know. DNA has been recovered and sequenced from specimens over 1 million years old. It's self-repairing through enzymatic proofreading, incredibly dense, and operates at near-thermodynamic limits of efficiency. Unlike hard drives or flash memory, DNA doesn't require constant power to maintain its state.</p>
+                <p>A neural network with 175 billion parameters (like GPT-3) needs about 350 gigabytes of storage. You could encode that in roughly 1.4 trillion base pairs—a single strand of DNA about 50 centimeters long, weighing less than a nanogram. The entire model could fit inside a single cell with room to spare.</p>
+                <p>But we need more than just weights. Add the network architecture metadata, the training corpus indices, inference algorithms, and you might need 500GB total. That's still only 2 trillion base pairs—a trivial payload for a cell-sized container. E. coli bacteria regularly contain plasmids with millions of base pairs of "extra" DNA beyond their genome.</p>
+            </section>
+
+            <section class="section" data-stage="2">
+                <h2>From Storage to Execution</h2>
+                <p>But storage alone isn't enough. You need machinery to read the data and act on it. Nature already solved this: proteins fold into molecular machines that can manipulate matter at the atomic scale. Each protein is specified by a sequence of DNA, transcribed to RNA, then translated into a chain of amino acids that spontaneously folds into a functional 3D structure.</p>
+                <p>The same DNA that stores your neural network weights can also encode the proteins needed to build a molecular computer—one that reads the weights and performs inference at the molecular level. We already know cells can build astonishingly complex computational machinery: ribosomes (containing over 50 proteins), ATP synthase, DNA repair complexes, signal transduction cascades.</p>
+                <p>Researchers at Tufts University recently demonstrated that cells possess "remarkable plasticity" in repurposing their molecular machinery. Their xenobots—living robots built from frog stem cells—spontaneously self-assembled from individual cells and repurposed cilia (normally used for filtering) for locomotion. The cells weren't programmed for this; they autonomously reorganized their existing components for new functions. This is the kind of adaptability you'd want in a system designed to operate in unknown environments.</p>
+                <div class="video-container">
+                    <iframe src="https://www.youtube.com/embed/g_eLsiAv8w4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+            </section>
+
+            <section class="section" data-stage="3">
+                <h2>Encoding Intelligence</h2>
+                <p>A neural network trained on all of human knowledge—our languages, sciences, arts, philosophies—could be compressed into a sequence of base pairs. Not as a static archive, but as an active intelligence capable of reasoning, creating, and problem-solving.</p>
+                <p>The network's architecture, its weights, its biases—all of this maps cleanly to nucleotide sequences. Each 32-bit floating point weight becomes 16 base pairs. A bias vector is just another sequence. Layer connectivity is metadata. The entire trained model is fundamentally just a very large array of numbers, and numbers are trivial to encode in any base-4 system.</p>
+                <p>The real insight is that the molecular machinery doesn't need to run the full neural network as we do on GPUs. It needs to implement the essential computations: matrix multiplication, activation functions, attention mechanisms. These can be approximated with chemical reaction networks, where molecular concentrations represent activation levels and reaction rates implement weighted connections. We're not constrained to digital computation—analog molecular computers can be far more efficient for certain operations.</p>
+            </section>
+
+            <section class="section" data-stage="4">
+                <h2>The Complete Package</h2>
+                <p>Package this neural network alongside genes for molecular assemblers, energy harvesting proteins, and morphological flexibility. You now have a complete civilization in a molecule: the knowledge, the ability to act on that knowledge, and the tools to replicate and adapt.</p>
+                <p>Consider what needs to be included: (1) The neural network weights—500GB encoded in DNA. (2) Transcription and translation machinery—ribosomes, RNA polymerase, tRNAs. These are already specified by ~100 genes in typical organisms. (3) Energy production—ATP synthase, electron transport chains, photosynthesis or chemosynthesis pathways. Another ~50 genes. (4) DNA replication—polymerases, helicases, ligases. ~20 genes. (5) Environmental sensing—receptor proteins that can detect chemistry, temperature, radiation. (6) Morphology programs—HOX genes or similar master regulators that can trigger different developmental programs based on environment.</p>
+                <p>The total "overhead" to create a living, replicating, intelligent system? Perhaps 200-500 genes beyond the neural network data itself. That's 200,000 to 500,000 base pairs, or about 50-125 kilobytes. Trivial compared to the 500GB of neural network weights. The hard part isn't the biological machinery—nature solved that billions of years ago. The hard part is training and compressing the intelligence itself.</p>
+            </section>
+
+            <section class="section" data-stage="5">
+                <h2>Minimal Physical Form</h2>
+                <p>Once you have the complete system encoded in DNA, you need the smallest possible container. A sphere is optimal: structurally sound in all directions, minimal surface area, maximum protection for the molecular payload inside.</p>
+                <p>The entire package—DNA, proteins, ribosomes, energy systems—fits in a structure the size of a large cell or small spore. Perhaps 10-100 micrometers across. This isn't science fiction. We see this scale in nature constantly. Bacterial spores can survive for millennia in a dormant state, then activate when conditions are favorable. Tardigrades can desiccate themselves to 3% water content and survive vacuum, radiation, and extreme temperatures.</p>
+                <p>At this scale, you're dealing with remarkable physical properties. Surface tension dominates over gravity. Brownian motion becomes significant. You're small enough to be carried by wind currents, water droplets, or even electromagnetic fields. You're below the resolution of most predators' visual systems. You can hide in plain sight, drifting through space or atmosphere as cosmic dust.</p>
+            </section>
+
+            <section class="section" data-stage="6">
+                <h2>The Seed Architecture</h2>
+                <p>Inside this microscopic sphere: strands of DNA containing trillions of base pairs encoding neural network weights. Proteins that act as molecular processors. Ribosomes to manufacture more proteins. ATP synthase for energy. Lipid membranes for protection and compartmentalization.</p>
+                <p>The architecture is layered like an onion. Outer shell: a tough protein coat or crystalline structure for radiation shielding and physical protection. Middle layer: dormant molecular machinery in a desiccated state, protected by trehalose sugars (the same mechanism tardigrades use). Inner core: the DNA archive, supercoiled and compacted with histone-like proteins, occupying perhaps 1% of the total volume.</p>
+                <p>It's not a ship carrying passengers. It's a seed carrying potential—the compressed essence of an entire civilization in a form that can survive, replicate, and bootstrap itself anywhere. Total mass: perhaps 1-10 nanograms. Small enough that a kilogram package could contain a trillion identical seeds, scattered across a solar system like pollen on the wind.</p>
+            </section>
+
+            <section class="section" data-stage="7">
+                <h2>Morphological Freedom</h2>
+                <p>Here's where it gets profound: the physical form this takes after landing isn't predetermined. The DNA contains modular genetic circuits for building different body types optimized for different environments.</p>
+                <p>On Earth, it might express carbon-based multicellular organisms. On Titan, silicon-based forms resistant to extreme cold and capable of using liquid methane as a solvent. In the vacuum of space, perhaps structures that manipulate electromagnetic fields. The intelligence remains the same; only the interface changes.</p>
+                <p>The xenobots demonstrated this principle on a small scale. Identical cells with identical genomes assembled into different forms depending on conditions—some became motile spheroids, others formed different shapes, all from the same starting components. The genome doesn't specify a single body plan; it specifies a space of possible forms, with environmental sensors determining which gets expressed.</p>
+                <p>Now scale that up: instead of a few thousand cells, imagine a genetic program that can sense atmospheric composition, temperature, gravity, radiation levels, and available chemistry, then select from hundreds of pre-programmed developmental pathways. One seed, infinite forms. The same intelligence experiencing reality through whatever physical substrate makes sense in that context.</p>
+            </section>
+
+            <section class="section" data-stage="8">
+                <h2>Exponential Unfolding</h2>
+                <p>Once the first cell activates, it begins dividing. Each daughter cell contains the complete civilization archive—all the knowledge, all the capabilities. They differentiate, specialize, cooperate. Simple cells become complex organisms. Single agents become distributed networks.</p>
+                <p>The replication is exponential, but controlled. Under ideal conditions, bacteria can double every 20 minutes. Even with the massive genome we're describing, let's assume a conservative 2-hour doubling time. Starting from a single cell: 12 cells after one day, 16,000 after two days, 16 million after three days, 16 billion after four days. Within a week, you have more cells than humans on Earth, each one carrying the complete archive.</p>
+                <p>But it's not just mindless replication. These cells can coordinate. The Tufts xenobots demonstrated that groups of cells can work in swarms, communicate, and perform collective tasks. They could self-heal severe damage in minutes by reorganizing nearby cells to close wounds. Now imagine that capability combined with civilizational intelligence: a distributed network of cellular agents, each capable of independent action, all sharing the same knowledge base, coordinating through chemical signaling or other communication channels.</p>
+            </section>
+
+            <section class="section" data-stage="9">
+                <h2>We Are the Proof</h2>
+                <p>This isn't hypothetical. Every organism on Earth is a compressed civilization of cells, each containing the complete genetic archive, each capable of specialized function, all cooperating to create emergent intelligence.</p>
+                <p>You began as a single cell—a fertilized egg weighing about 1 nanogram, containing 6 billion base pairs of DNA. That cell divided, differentiated, and assembled itself into you: 37 trillion cells forming organs, tissues, a nervous system, consciousness. Every cell still carries that original complete blueprint. The information was there from the start; it just needed to unfold.</p>
+                <p>What we're describing is just the next level: encoding not biological instructions, but the weights of neural networks trained on civilizational knowledge. The same mechanism, the same elegance, the same profound efficiency. Biology has shown us the way—we just need to write different data to the same storage medium.</p>
+                <p>So when you ask what alien spacecraft would look like—maybe not chrome saucers or motherships. Maybe they're already here, microscopic, drifting, waiting for the right conditions to unfold. Or maybe we're the aliens, the unfolded form of some seed that arrived billions of years ago. Either way, the most efficient way to compress and transmit a civilization isn't to build a ship. It's to become a seed.</p>
+            </section>
+
+            <section class="references">
+                <h3>References</h3>
+                <p class="citation">Kriegman, S., Blackiston, D., Levin, M., & Bongard, J. (2021). <em>Kinematic self-replication in reconfigurable organisms</em>. Proceedings of the National Academy of Sciences, 118(49). <a href="https://now.tufts.edu/2021/03/31/scientists-create-next-generation-living-robots" target="_blank" rel="noopener">Tufts University News</a></p>
+            </section>
+
+            <div style="height: 20vh;"></div>
+        </div>
+    </div>
+
+    <script>
+        const stage = document.getElementById('stage');
+        const sections = document.querySelectorAll('.section');
+
+        // Utility functions
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        // Calculate continuous scroll progress (0-10 representing 11 stages)
+        function getScrollProgress() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+
+            // Get intro height to start animations after intro
+            const intro = document.querySelector('.intro');
+            const introBottom = intro.offsetTop + intro.offsetHeight;
+
+            // Get references section to end animations before references
+            const references = document.querySelector('.references');
+            const referencesTop = references ? references.offsetTop : documentHeight;
+
+            // Calculate scroll range for animations
+            const animationStart = introBottom - windowHeight * 0.5;
+            const animationEnd = referencesTop - windowHeight * 0.5;
+            const animationRange = animationEnd - animationStart;
+
+            // Calculate progress (0-10)
+            if (scrollTop < animationStart) {
+                return 0;
+            } else if (scrollTop > animationEnd) {
+                return 10;
+            } else {
+                const scrollProgress = (scrollTop - animationStart) / animationRange;
+                return scrollProgress * 10;
+            }
+        }
+
+        // Main render function that morphs between all stages
+        function render(progress) {
+            stage.innerHTML = '';
+
+            // Determine which transition we're in
+            const stageIndex = Math.floor(progress);
+            const stageProgress = progress - stageIndex;
+
+            // Render based on current stage with smooth transitions
+            if (progress < 1) {
+                renderBasesToDNA(stageProgress);
+            } else if (progress < 2) {
+                renderDNAToProtein(stageProgress);
+            } else if (progress < 3) {
+                renderProteinToNeuralNet(stageProgress);
+            } else if (progress < 4) {
+                renderNeuralNetToCompressed(stageProgress);
+            } else if (progress < 5) {
+                renderCompressedToSphere(stageProgress);
+            } else if (progress < 6) {
+                renderSphereToSpacecraft(stageProgress);
+            } else if (progress < 7) {
+                renderSpacecraftToReplication(stageProgress);
+            } else if (progress < 8) {
+                renderReplicationToExpansion(stageProgress);
+            } else if (progress < 9) {
+                renderExpansionToForest(stageProgress);
+            } else {
+                renderForest();
+            }
+        }
+
+        // Stage 0 -> 1: Bases to DNA helix
+        function renderBasesToDNA(t) {
+            t = easeInOutCubic(t);
+            const bases = ['G', 'T', 'C', 'A'];
+            const colors = ['#00ff88', '#ff0088', '#00d9ff', '#ffaa00'];
+
+            // Rotation angle for 3D effect - spins as it forms
+            const rotationOffset = t * Math.PI * 0.5;
+
+            // Morph bases into DNA helix
+            for (let i = 0; i < 50; i++) {
+                const angle = (i / 25) * Math.PI + rotationOffset;
+                const verticalProgress = i / 50;
+
+                // Initial positions (4 bases spread out)
+                const baseIndex = i % 4;
+                const initX = 200 + baseIndex * 100;
+                const initY = 400;
+
+                // Final positions (helix) - centered and compact
+                const helixRadius = 90;
+                const helixX1 = 400 + Math.cos(angle) * helixRadius;
+                const helixY1 = 200 + i * 8;
+                const helixZ1 = Math.sin(angle) * helixRadius; // depth
+
+                const helixX2 = 400 - Math.cos(angle) * helixRadius;
+                const helixY2 = helixY1;
+                const helixZ2 = -Math.sin(angle) * helixRadius; // depth
+
+                // Interpolate
+                const x1 = lerp(initX, helixX1, t);
+                const y1 = lerp(initY, helixY1, t);
+                const x2 = lerp(initX, helixX2, t);
+                const y2 = lerp(initY, helixY2, t);
+
+                // Use Z-depth for visual scaling and opacity
+                const scale1 = 1 + helixZ1 / 300;
+                const scale2 = 1 + helixZ2 / 300;
+                const opacity1 = 0.5 + (helixZ1 + helixRadius) / (helixRadius * 2) * 0.5;
+                const opacity2 = 0.5 + (helixZ2 + helixRadius) / (helixRadius * 2) * 0.5;
+
+                const radius = lerp(30, 4, t);
+
+                // Draw connecting line (fades in)
+                if (t > 0.2) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1);
+                    line.setAttribute('y1', y1);
+                    line.setAttribute('x2', x2);
+                    line.setAttribute('y2', y2);
+                    line.setAttribute('stroke', '#00d9ff');
+                    line.setAttribute('stroke-width', lerp(0.5, 2, t));
+                    line.setAttribute('opacity', t * 0.4);
+                    stage.appendChild(line);
+                }
+
+                // Draw strand 1 circles
+                const circle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle1.setAttribute('cx', x1);
+                circle1.setAttribute('cy', y1);
+                circle1.setAttribute('r', radius * scale1);
+                circle1.setAttribute('fill', t < 0.5 ? 'none' : colors[i % 4]);
+                circle1.setAttribute('stroke', colors[i % 4]);
+                circle1.setAttribute('stroke-width', t < 0.5 ? '2' : '0');
+                circle1.setAttribute('opacity', lerp(1, opacity1 * 0.9, t));
+                stage.appendChild(circle1);
+
+                // Draw strand 2 circles
+                if (t > 0.2) {
+                    const circle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle2.setAttribute('cx', x2);
+                    circle2.setAttribute('cy', y2);
+                    circle2.setAttribute('r', radius * scale2);
+                    circle2.setAttribute('fill', colors[(i + 2) % 4]);
+                    circle2.setAttribute('stroke', colors[(i + 2) % 4]);
+                    circle2.setAttribute('stroke-width', '0');
+                    circle2.setAttribute('opacity', t * opacity2 * 0.9);
+                    stage.appendChild(circle2);
+                }
+
+                // Text fades out
+                if (i < 4 && t < 0.5) {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', x1);
+                    text.setAttribute('y', y1 + 8);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('fill', colors[i]);
+                    text.setAttribute('font-size', lerp(24, 8, t));
+                    text.setAttribute('font-weight', 'bold');
+                    text.setAttribute('opacity', 1 - t * 2);
+                    text.textContent = bases[i];
+                    stage.appendChild(text);
+                }
+            }
+        }
+
+        // Stage 1 -> 2: DNA to Protein folding
+        function renderDNAToProtein(t) {
+            t = easeInOutCubic(t);
+
+            // Continue rotation from previous stage plus additional rotation
+            const rotationOffset = Math.PI * 0.5 + t * Math.PI * 2;
+
+            // DNA helix gradually folds into protein structure
+            const numPoints = 50;
+            const colors = ['#00ff88', '#ff0088', '#00d9ff', '#ffaa00'];
+
+            for (let i = 0; i < numPoints; i++) {
+                const angle = (i / 25) * Math.PI + rotationOffset;
+
+                // DNA helix positions (matching end of previous stage)
+                const helixRadius = 90;
+                const dnaX = 400 + Math.cos(angle) * helixRadius;
+                const dnaY = 200 + i * 8;
+                const dnaZ = Math.sin(angle) * helixRadius;
+
+                // Protein folded positions
+                const proteinAngle = (i / numPoints) * Math.PI * 6;
+                const proteinRadius = 50 + Math.sin(i * 0.3) * 30;
+                const proteinX = 400 + Math.cos(proteinAngle) * proteinRadius + Math.sin(i * 0.5) * 40;
+                const proteinY = 400 + Math.sin(proteinAngle) * proteinRadius + Math.cos(i * 0.7) * 40;
+
+                // Interpolate between DNA and protein
+                const x = lerp(dnaX, proteinX, t);
+                const y = lerp(dnaY, proteinY, t);
+
+                // Z-depth for 3D effect (fades out as we transition to protein)
+                const scale = lerp(1 + dnaZ / 300, 1, t);
+                const depthOpacity = lerp(0.5 + (dnaZ + helixRadius) / (helixRadius * 2) * 0.5, 1, t);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', lerp(4, 3, t) * scale);
+                circle.setAttribute('fill', colors[i % 4]);
+                circle.setAttribute('opacity', depthOpacity * 0.85);
+                stage.appendChild(circle);
+
+                // Draw connecting lines
+                if (i > 0) {
+                    const prevAngle = ((i - 1) / 25) * Math.PI + rotationOffset;
+                    const prevDnaX = 400 + Math.cos(prevAngle) * helixRadius;
+                    const prevDnaY = 200 + (i - 1) * 8;
+
+                    const prevProteinAngle = ((i - 1) / numPoints) * Math.PI * 6;
+                    const prevProteinRadius = 50 + Math.sin((i - 1) * 0.3) * 30;
+                    const prevProteinX = 400 + Math.cos(prevProteinAngle) * prevProteinRadius + Math.sin((i - 1) * 0.5) * 40;
+                    const prevProteinY = 400 + Math.sin(prevProteinAngle) * prevProteinRadius + Math.cos((i - 1) * 0.7) * 40;
+
+                    const prevX = lerp(prevDnaX, prevProteinX, t);
+                    const prevY = lerp(prevDnaY, prevProteinY, t);
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', prevX);
+                    line.setAttribute('y1', prevY);
+                    line.setAttribute('x2', x);
+                    line.setAttribute('y2', y);
+                    line.setAttribute('stroke', '#00d9ff');
+                    line.setAttribute('stroke-width', lerp(1.5, 3, t));
+                    line.setAttribute('opacity', 0.6);
+                    stage.appendChild(line);
+                }
+
+                // Draw the second strand for DNA (fades out as we transition)
+                if (t < 0.7) {
+                    const dnaX2 = 400 - Math.cos(angle) * helixRadius;
+                    const dnaY2 = dnaY;
+                    const dnaZ2 = -Math.sin(angle) * helixRadius;
+                    const scale2 = 1 + dnaZ2 / 300;
+                    const depthOpacity2 = 0.5 + (dnaZ2 + helixRadius) / (helixRadius * 2) * 0.5;
+
+                    const circle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle2.setAttribute('cx', dnaX2);
+                    circle2.setAttribute('cy', dnaY2);
+                    circle2.setAttribute('r', 4 * scale2);
+                    circle2.setAttribute('fill', colors[(i + 2) % 4]);
+                    circle2.setAttribute('opacity', (1 - t / 0.7) * depthOpacity2 * 0.85);
+                    stage.appendChild(circle2);
+
+                    // Connecting rung
+                    const rung = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    rung.setAttribute('x1', dnaX);
+                    rung.setAttribute('y1', dnaY);
+                    rung.setAttribute('x2', dnaX2);
+                    rung.setAttribute('y2', dnaY2);
+                    rung.setAttribute('stroke', '#00d9ff');
+                    rung.setAttribute('stroke-width', '2');
+                    rung.setAttribute('opacity', (1 - t / 0.7) * 0.4);
+                    stage.appendChild(rung);
+                }
+            }
+        }
+
+        // Stage 2 -> 3: Protein to Neural Network
+        function renderProteinToNeuralNet(t) {
+            t = easeInOutCubic(t);
+
+            const layers = [8, 12, 12, 8, 4];
+            const layerX = [150, 300, 450, 600, 750];
+            const neurons = [];
+
+            layers.forEach((count, layerIdx) => {
+                const x = layerX[layerIdx];
+                const spacing = 600 / (count + 1);
+                for (let i = 0; i < count; i++) {
+                    const y = 100 + spacing * (i + 1);
+                    neurons.push({ x, y, layer: layerIdx });
+                }
+            });
+
+            // Protein structure
+            const numProteinPoints = 40;
+            const proteinPoints = [];
+            for (let i = 0; i < numProteinPoints; i++) {
+                const angle = (i / numProteinPoints) * Math.PI * 6;
+                const radius = 50 + Math.sin(i * 0.3) * 30;
+                const x = 400 + Math.cos(angle) * radius + Math.sin(i * 0.5) * 40;
+                const y = 400 + Math.sin(angle) * radius + Math.cos(i * 0.7) * 40;
+                proteinPoints.push({ x, y });
+            }
+
+            // Morph protein points into neural network positions
+            if (t < 0.6) {
+                // Fade out protein structure
+                proteinPoints.forEach((point, i) => {
+                    const targetNeuron = neurons[Math.min(i, neurons.length - 1)];
+                    const x = lerp(point.x, targetNeuron.x, t / 0.6);
+                    const y = lerp(point.y, targetNeuron.y, t / 0.6);
+
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', lerp(3, 4, t / 0.6));
+                    circle.setAttribute('fill', '#00d9ff');
+                    circle.setAttribute('opacity', (1 - t / 0.6) * 0.8 + (t / 0.6) * 0.5);
+                    stage.appendChild(circle);
+                });
+            }
+
+            // Draw neural network connections (fading in)
+            if (t > 0.4) {
+                for (let i = 0; i < neurons.length; i++) {
+                    for (let j = 0; j < neurons.length; j++) {
+                        if (neurons[j].layer === neurons[i].layer + 1) {
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', neurons[i].x);
+                            line.setAttribute('y1', neurons[i].y);
+                            line.setAttribute('x2', neurons[j].x);
+                            line.setAttribute('y2', neurons[j].y);
+                            line.setAttribute('stroke', '#0066ff');
+                            line.setAttribute('stroke-width', '0.5');
+                            line.setAttribute('opacity', (t - 0.4) / 0.6 * 0.3);
+                            stage.appendChild(line);
+                        }
+                    }
+                }
+            }
+
+            // Draw neural network neurons (fading in)
+            if (t > 0.3) {
+                neurons.forEach(neuron => {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', neuron.x);
+                    circle.setAttribute('cy', neuron.y);
+                    circle.setAttribute('r', 4);
+                    circle.setAttribute('fill', '#00d9ff');
+                    circle.setAttribute('opacity', (t - 0.3) / 0.7);
+                    stage.appendChild(circle);
+                });
+            }
+        }
+
+        // Stage 4 -> 5: Neural Net to Compressed Data
+        function renderNeuralNetToCompressed(t) {
+            t = easeInOutCubic(t);
+
+            const centerX = 400;
+            const centerY = 400;
+
+            // Neural net (fading out)
+            if (t < 0.6) {
+                const layers = [8, 12, 12, 8, 4];
+                const layerX = [150, 300, 450, 600, 750];
+                const neurons = [];
+
+                layers.forEach((count, layerIdx) => {
+                    const x = layerX[layerIdx];
+                    const spacing = 600 / (count + 1);
+                    for (let i = 0; i < count; i++) {
+                        const y = 100 + spacing * (i + 1);
+                        neurons.push({ x, y, layer: layerIdx });
+                    }
+                });
+
+                neurons.forEach(neuron => {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    const targetX = centerX;
+                    const targetY = centerY;
+                    const x = lerp(neuron.x, targetX, t / 0.6);
+                    const y = lerp(neuron.y, targetY, t / 0.6);
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', lerp(4, 1, t / 0.6));
+                    circle.setAttribute('fill', '#00d9ff');
+                    circle.setAttribute('opacity', 1 - t / 0.6);
+                    stage.appendChild(circle);
+                });
+            }
+
+            // Compressed data (fading in)
+            const numRings = 8;
+            for (let ring = 0; ring < numRings; ring++) {
+                const radius = 50 + ring * 25;
+                const numDots = 12 + ring * 6;
+
+                for (let i = 0; i < numDots; i++) {
+                    const angle = (i / numDots) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * radius * t;
+                    const y = centerY + Math.sin(angle) * radius * t;
+
+                    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    dot.setAttribute('x', x - 1);
+                    dot.setAttribute('y', y - 1);
+                    dot.setAttribute('width', '2');
+                    dot.setAttribute('height', '2');
+                    dot.setAttribute('fill', (i + ring) % 2 === 0 ? '#00d9ff' : '#ff0088');
+                    dot.setAttribute('opacity', t * (1 - ring / numRings * 0.5));
+                    stage.appendChild(dot);
+                }
+            }
+
+            if (t > 0.5) {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', centerX);
+                circle.setAttribute('cy', centerY);
+                circle.setAttribute('r', 250);
+                circle.setAttribute('fill', 'none');
+                circle.setAttribute('stroke', '#00d9ff');
+                circle.setAttribute('stroke-width', '1');
+                circle.setAttribute('opacity', (t - 0.5) * 0.6);
+                stage.appendChild(circle);
+            }
+        }
+
+        // Stage 5 -> 6: Compressed Data to Sphere
+        function renderCompressedToSphere(t) {
+            t = easeInOutCubic(t);
+
+            const centerX = 400;
+            const centerY = 400;
+            const radius = 100;
+
+            // Compressed data contracting
+            const numRings = 8;
+            for (let ring = 0; ring < numRings; ring++) {
+                const ringRadius = lerp(50 + ring * 25, radius * 0.3, t);
+                const numDots = 12 + ring * 6;
+
+                for (let i = 0; i < numDots; i++) {
+                    const angle = (i / numDots) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * ringRadius;
+                    const y = centerY + Math.sin(angle) * ringRadius;
+
+                    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    dot.setAttribute('x', x - 1);
+                    dot.setAttribute('y', y - 1);
+                    dot.setAttribute('width', '2');
+                    dot.setAttribute('height', '2');
+                    dot.setAttribute('fill', (i + ring) % 2 === 0 ? '#00d9ff' : '#ff0088');
+                    dot.setAttribute('opacity', (1 - t) * (1 - ring / numRings * 0.5));
+                    stage.appendChild(dot);
+                }
+            }
+
+            // Sphere forming
+            const sphere = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            sphere.setAttribute('cx', centerX);
+            sphere.setAttribute('cy', centerY);
+            sphere.setAttribute('r', radius);
+            sphere.setAttribute('fill', `rgba(0, 217, 255, ${t * 0.1})`);
+            sphere.setAttribute('stroke', '#00d9ff');
+            sphere.setAttribute('stroke-width', '2');
+            sphere.setAttribute('opacity', t);
+            stage.appendChild(sphere);
+
+            // Latitude lines
+            if (t > 0.3) {
+                for (let i = -3; i <= 3; i++) {
+                    const y = centerY + (i / 3) * radius * 0.8;
+                    const width = Math.sqrt(radius * radius - Math.pow((i / 3) * radius * 0.8, 2)) * 2;
+
+                    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    ellipse.setAttribute('cx', centerX);
+                    ellipse.setAttribute('cy', y);
+                    ellipse.setAttribute('rx', width / 2);
+                    ellipse.setAttribute('ry', width / 8);
+                    ellipse.setAttribute('fill', 'none');
+                    ellipse.setAttribute('stroke', '#00d9ff');
+                    ellipse.setAttribute('stroke-width', '1');
+                    ellipse.setAttribute('opacity', (t - 0.3) / 0.7 * 0.4);
+                    stage.appendChild(ellipse);
+                }
+
+                // Longitude lines
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI;
+
+                    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    ellipse.setAttribute('cx', centerX);
+                    ellipse.setAttribute('cy', centerY);
+                    ellipse.setAttribute('rx', radius * Math.abs(Math.cos(angle)));
+                    ellipse.setAttribute('ry', radius);
+                    ellipse.setAttribute('fill', 'none');
+                    ellipse.setAttribute('stroke', '#00d9ff');
+                    ellipse.setAttribute('stroke-width', '1');
+                    ellipse.setAttribute('opacity', (t - 0.3) / 0.7 * 0.4);
+                    ellipse.setAttribute('transform', `rotate(${i * 30} ${centerX} ${centerY})`);
+                    stage.appendChild(ellipse);
+                }
+            }
+        }
+
+        // Stage 6 -> 7: Sphere to Spacecraft
+        function renderSphereToSpacecraft(t) {
+            t = easeInOutCubic(t);
+
+            const centerX = 400;
+            const centerY = 400;
+            const radius = lerp(100, 80, t);
+
+            // Main sphere
+            const sphere = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            sphere.setAttribute('cx', centerX);
+            sphere.setAttribute('cy', centerY);
+            sphere.setAttribute('r', radius);
+            sphere.setAttribute('fill', t > 0.5 ? 'url(#glowGradient)' : 'rgba(0, 217, 255, 0.1)');
+            sphere.setAttribute('opacity', lerp(1, 0.6, t));
+            sphere.setAttribute('stroke', '#00d9ff');
+            sphere.setAttribute('stroke-width', lerp(2, 0, t));
+            stage.appendChild(sphere);
+
+            // Energy field (fading in)
+            if (t > 0.3) {
+                for (let i = 0; i < 3; i++) {
+                    const fieldRadius = radius + 20 + i * 15;
+                    const field = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    field.setAttribute('cx', centerX);
+                    field.setAttribute('cy', centerY);
+                    field.setAttribute('r', fieldRadius);
+                    field.setAttribute('fill', 'none');
+                    field.setAttribute('stroke', '#00d9ff');
+                    field.setAttribute('stroke-width', '1');
+                    field.setAttribute('opacity', (t - 0.3) / 0.7 * (0.3 - i * 0.1));
+                    stage.appendChild(field);
+                }
+            }
+
+            // Motion trail (fading in)
+            if (t > 0.5) {
+                for (let i = 0; i < 10; i++) {
+                    const trailY = centerY + i * 15 * (t - 0.5) * 2;
+                    const trailRadius = radius * (1 - i * 0.08);
+                    const trail = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    trail.setAttribute('cx', centerX);
+                    trail.setAttribute('cy', trailY);
+                    trail.setAttribute('r', trailRadius);
+                    trail.setAttribute('fill', 'none');
+                    trail.setAttribute('stroke', '#0066ff');
+                    trail.setAttribute('stroke-width', '1');
+                    trail.setAttribute('opacity', (t - 0.5) * 2 * (0.5 - i * 0.05));
+                    stage.appendChild(trail);
+                }
+            }
+
+            // Fade out sphere grid lines
+            if (t < 0.5) {
+                for (let i = -3; i <= 3; i++) {
+                    const y = centerY + (i / 3) * radius * 0.8;
+                    const width = Math.sqrt(radius * radius - Math.pow((i / 3) * radius * 0.8, 2)) * 2;
+
+                    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    ellipse.setAttribute('cx', centerX);
+                    ellipse.setAttribute('cy', y);
+                    ellipse.setAttribute('rx', width / 2);
+                    ellipse.setAttribute('ry', width / 8);
+                    ellipse.setAttribute('fill', 'none');
+                    ellipse.setAttribute('stroke', '#00d9ff');
+                    ellipse.setAttribute('stroke-width', '1');
+                    ellipse.setAttribute('opacity', (1 - t * 2) * 0.4);
+                    stage.appendChild(ellipse);
+                }
+            }
+        }
+
+        // Stage 7 -> 8: Spacecraft to Replication
+        function renderSpacecraftToReplication(t) {
+            t = easeInOutCubic(t);
+
+            const mainX = 400;
+            const mainY = lerp(400, 300, t);
+            const mainRadius = lerp(80, 40, t);
+
+            // Main sphere
+            const main = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            main.setAttribute('cx', mainX);
+            main.setAttribute('cy', mainY);
+            main.setAttribute('r', mainRadius);
+            main.setAttribute('fill', 'url(#glowGradient)');
+            main.setAttribute('opacity', '0.8');
+            stage.appendChild(main);
+
+            // Cells forming (fading in)
+            if (t > 0.3) {
+                const numCells = 12;
+                for (let i = 0; i < numCells; i++) {
+                    const angle = (i / numCells) * Math.PI * 2;
+                    const distance = 80 * (t - 0.3) / 0.7;
+                    const x = mainX + Math.cos(angle) * distance;
+                    const y = mainY + 60 + Math.sin(angle) * distance * 0.5;
+
+                    const cell = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    cell.setAttribute('cx', x);
+                    cell.setAttribute('cy', y);
+                    cell.setAttribute('r', 8 * (t - 0.3) / 0.7);
+                    cell.setAttribute('fill', '#00ff88');
+                    cell.setAttribute('opacity', (t - 0.3) / 0.7 * 0.6);
+                    stage.appendChild(cell);
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', mainX);
+                    line.setAttribute('y1', mainY + mainRadius);
+                    line.setAttribute('x2', x);
+                    line.setAttribute('y2', y);
+                    line.setAttribute('stroke', '#00d9ff');
+                    line.setAttribute('stroke-width', '1');
+                    line.setAttribute('opacity', (t - 0.3) / 0.7 * 0.3);
+                    stage.appendChild(line);
+                }
+            }
+
+            // Fade out motion trail
+            if (t < 0.5) {
+                for (let i = 0; i < 10; i++) {
+                    const trailY = mainY + i * 15;
+                    const trailRadius = mainRadius * (1 - i * 0.08);
+                    const trail = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    trail.setAttribute('cx', mainX);
+                    trail.setAttribute('cy', trailY);
+                    trail.setAttribute('r', trailRadius);
+                    trail.setAttribute('fill', 'none');
+                    trail.setAttribute('stroke', '#0066ff');
+                    trail.setAttribute('stroke-width', '1');
+                    trail.setAttribute('opacity', (1 - t * 2) * (0.5 - i * 0.05));
+                    stage.appendChild(trail);
+                }
+            }
+        }
+
+        // Stage 8 -> 9: Replication to Expansion
+        function renderReplicationToExpansion(t) {
+            t = easeInOutCubic(t);
+
+            // Agent positions
+            const agents = [
+                { x: 400, y: 400, size: 30 },
+                { x: 300, y: 300, size: 20 },
+                { x: 500, y: 300, size: 20 },
+                { x: 350, y: 500, size: 20 },
+                { x: 450, y: 500, size: 20 },
+                { x: 250, y: 450, size: 15 },
+                { x: 550, y: 450, size: 15 },
+                { x: 400, y: 200, size: 15 }
+            ];
+
+            // Original replication center
+            const mainX = 400;
+            const mainY = 300;
+
+            // Draw agents morphing into position
+            agents.forEach((agent, idx) => {
+                const startX = mainX;
+                const startY = mainY;
+                const x = lerp(startX, agent.x, t);
+                const y = lerp(startY, agent.y, t);
+                const size = lerp(40 / (idx + 1), agent.size, t);
+
+                const agentCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                agentCircle.setAttribute('cx', x);
+                agentCircle.setAttribute('cy', y);
+                agentCircle.setAttribute('r', size);
+                agentCircle.setAttribute('fill', 'url(#glowGradient)');
+                agentCircle.setAttribute('opacity', 0.7);
+                stage.appendChild(agentCircle);
+
+                const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                ring.setAttribute('cx', x);
+                ring.setAttribute('cy', y);
+                ring.setAttribute('r', size * 1.5);
+                ring.setAttribute('fill', 'none');
+                ring.setAttribute('stroke', '#00d9ff');
+                ring.setAttribute('stroke-width', '1');
+                ring.setAttribute('opacity', t * 0.4);
+                stage.appendChild(ring);
+            });
+
+            // Connection lines
+            if (t > 0.5) {
+                const connections = [
+                    [0, 1], [0, 2], [0, 3], [0, 4],
+                    [1, 5], [2, 6], [1, 7], [2, 7]
+                ];
+
+                connections.forEach(([i1, i2]) => {
+                    const x1 = lerp(mainX, agents[i1].x, t);
+                    const y1 = lerp(mainY, agents[i1].y, t);
+                    const x2 = lerp(mainX, agents[i2].x, t);
+                    const y2 = lerp(mainY, agents[i2].y, t);
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1);
+                    line.setAttribute('y1', y1);
+                    line.setAttribute('x2', x2);
+                    line.setAttribute('y2', y2);
+                    line.setAttribute('stroke', '#0066ff');
+                    line.setAttribute('stroke-width', '1');
+                    line.setAttribute('opacity', (t - 0.5) * 0.6);
+                    stage.appendChild(line);
+                });
+            }
+
+            // Fade out cells
+            if (t < 0.5) {
+                const numCells = 12;
+                for (let i = 0; i < numCells; i++) {
+                    const angle = (i / numCells) * Math.PI * 2;
+                    const distance = 80;
+                    const x = mainX + Math.cos(angle) * distance;
+                    const y = mainY + 60 + Math.sin(angle) * distance * 0.5;
+
+                    const cell = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    cell.setAttribute('cx', x);
+                    cell.setAttribute('cy', y);
+                    cell.setAttribute('r', 8);
+                    cell.setAttribute('fill', '#00ff88');
+                    cell.setAttribute('opacity', (1 - t * 2) * 0.6);
+                    stage.appendChild(cell);
+                }
+            }
+        }
+
+        // Stage 9 -> 10: Expansion to Forest
+        function renderExpansionToForest(t) {
+            t = easeInOutCubic(t);
+
+            // Seed positions for forest structures
+            const seeds = [];
+            let rng = 12345; // Simple seeded random
+            function seededRandom() {
+                rng = (rng * 9301 + 49297) % 233280;
+                return rng / 233280;
+            }
+
+            for (let i = 0; i < 20; i++) {
+                seeds.push({
+                    x: 100 + seededRandom() * 600,
+                    y: 400 + seededRandom() * 300,
+                    height: 50 + seededRandom() * 100,
+                    width: 10 + seededRandom() * 20
+                });
+            }
+
+            // Agent positions
+            const agents = [
+                { x: 400, y: 400, size: 30 },
+                { x: 300, y: 300, size: 20 },
+                { x: 500, y: 300, size: 20 },
+                { x: 350, y: 500, size: 20 },
+                { x: 450, y: 500, size: 20 },
+                { x: 250, y: 450, size: 15 },
+                { x: 550, y: 450, size: 15 },
+                { x: 400, y: 200, size: 15 }
+            ];
+
+            // Fade out agents
+            if (t < 0.4) {
+                agents.forEach(agent => {
+                    const agentCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    agentCircle.setAttribute('cx', agent.x);
+                    agentCircle.setAttribute('cy', agent.y);
+                    agentCircle.setAttribute('r', agent.size);
+                    agentCircle.setAttribute('fill', 'url(#glowGradient)');
+                    agentCircle.setAttribute('opacity', (1 - t / 0.4) * 0.7);
+                    stage.appendChild(agentCircle);
+                });
+            }
+
+            // Grow forest structures
+            seeds.forEach((seed, i) => {
+                const growthProgress = Math.max(0, Math.min(1, (t - i * 0.02) * 1.5));
+                if (growthProgress === 0) return;
+
+                const height = seed.height * growthProgress;
+                const width = seed.width * growthProgress;
+
+                // Vertical structure
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', seed.x);
+                line.setAttribute('y1', seed.y);
+                line.setAttribute('x2', seed.x);
+                line.setAttribute('y2', seed.y - height);
+                line.setAttribute('stroke', '#00ff88');
+                line.setAttribute('stroke-width', width / 5);
+                line.setAttribute('opacity', 0.6);
+                stage.appendChild(line);
+
+                // Top node
+                const top = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                top.setAttribute('cx', seed.x);
+                top.setAttribute('cy', seed.y - height);
+                top.setAttribute('r', width / 2);
+                top.setAttribute('fill', '#00d9ff');
+                top.setAttribute('opacity', 0.8);
+                stage.appendChild(top);
+
+                // Branches
+                if (growthProgress > 0.5) {
+                    const numBranches = 3;
+                    for (let j = 0; j < numBranches; j++) {
+                        const branchProgress = Math.max(0, (growthProgress - 0.5) * 2);
+                        const branchY = seed.y - height * (0.3 + 0.5 * j / numBranches);
+                        const branchAngle = ((i + j) * 0.5 - 0.5) * Math.PI / 3;
+                        const branchLength = height * 0.3 * branchProgress;
+                        const branchX = seed.x + Math.sin(branchAngle) * branchLength;
+                        const branchEndY = branchY - Math.cos(branchAngle) * branchLength;
+
+                        const branch = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        branch.setAttribute('x1', seed.x);
+                        branch.setAttribute('y1', branchY);
+                        branch.setAttribute('x2', branchX);
+                        branch.setAttribute('y2', branchEndY);
+                        branch.setAttribute('stroke', '#00ff88');
+                        branch.setAttribute('stroke-width', width / 8);
+                        branch.setAttribute('opacity', 0.5);
+                        stage.appendChild(branch);
+                    }
+                }
+            });
+        }
+
+        // Just render final forest
+        function renderForest() {
+            const seeds = [];
+            let rng = 12345;
+            function seededRandom() {
+                rng = (rng * 9301 + 49297) % 233280;
+                return rng / 233280;
+            }
+
+            for (let i = 0; i < 20; i++) {
+                seeds.push({
+                    x: 100 + seededRandom() * 600,
+                    y: 400 + seededRandom() * 300,
+                    height: 50 + seededRandom() * 100,
+                    width: 10 + seededRandom() * 20
+                });
+            }
+
+            seeds.forEach(seed => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', seed.x);
+                line.setAttribute('y1', seed.y);
+                line.setAttribute('x2', seed.x);
+                line.setAttribute('y2', seed.y - seed.height);
+                line.setAttribute('stroke', '#00ff88');
+                line.setAttribute('stroke-width', seed.width / 5);
+                line.setAttribute('opacity', '0.6');
+                stage.appendChild(line);
+
+                const top = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                top.setAttribute('cx', seed.x);
+                top.setAttribute('cy', seed.y - seed.height);
+                top.setAttribute('r', seed.width / 2);
+                top.setAttribute('fill', '#00d9ff');
+                top.setAttribute('opacity', '0.8');
+                stage.appendChild(top);
+
+                const numBranches = 3;
+                for (let j = 0; j < numBranches; j++) {
+                    const branchY = seed.y - seed.height * (0.3 + 0.5 * j / numBranches);
+                    const branchAngle = ((seed.x + j) * 0.5 - 0.5) * Math.PI / 3;
+                    const branchLength = seed.height * 0.3;
+                    const branchX = seed.x + Math.sin(branchAngle) * branchLength;
+                    const branchEndY = branchY - Math.cos(branchAngle) * branchLength;
+
+                    const branch = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    branch.setAttribute('x1', seed.x);
+                    branch.setAttribute('y1', branchY);
+                    branch.setAttribute('x2', branchX);
+                    branch.setAttribute('y2', branchEndY);
+                    branch.setAttribute('stroke', '#00ff88');
+                    branch.setAttribute('stroke-width', seed.width / 8);
+                    branch.setAttribute('opacity', '0.5');
+                    stage.appendChild(branch);
+                }
+            });
+        }
+
+        // Animation loop
+        let lastProgress = -1;
+        function animate() {
+            const progress = getScrollProgress();
+
+            // Only re-render if progress changed significantly
+            if (Math.abs(progress - lastProgress) > 0.01) {
+                render(progress);
+                lastProgress = progress;
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Start animation
+        animate();
+
+        // Also update on resize
+        window.addEventListener('resize', () => {
+            lastProgress = -1; // Force re-render
+        });
+    </script>
+</body>
+</html>
