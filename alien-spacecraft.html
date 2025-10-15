@@ -350,7 +350,7 @@
         function renderBasesToDNA(t) {
             t = easeInOutCubic(t);
             const bases = ['G', 'T', 'C', 'A'];
-            const colors = ['#00ff88', '#ff0088', '#00d9ff', '#ffaa00'];
+            const colors = ['#888888', '#666666', '#999999', '#777777'];
 
             // Rotation angle for 3D effect - spins as it forms
             const rotationOffset = t * Math.PI * 0.5;
@@ -396,9 +396,9 @@
                     line.setAttribute('y1', y1);
                     line.setAttribute('x2', x2);
                     line.setAttribute('y2', y2);
-                    line.setAttribute('stroke', '#00d9ff');
+                    line.setAttribute('stroke', '#555555');
                     line.setAttribute('stroke-width', lerp(0.5, 2, t));
-                    line.setAttribute('opacity', t * 0.4);
+                    line.setAttribute('opacity', t * 0.3);
                     stage.appendChild(line);
                 }
 
@@ -451,7 +451,7 @@
 
             // DNA helix gradually folds into protein structure
             const numPoints = 50;
-            const colors = ['#00ff88', '#ff0088', '#00d9ff', '#ffaa00'];
+            const colors = ['#888888', '#666666', '#999999', '#777777'];
 
             for (let i = 0; i < numPoints; i++) {
                 const angle = (i / 25) * Math.PI + rotationOffset;
@@ -503,9 +503,9 @@
                     line.setAttribute('y1', prevY);
                     line.setAttribute('x2', x);
                     line.setAttribute('y2', y);
-                    line.setAttribute('stroke', '#00d9ff');
+                    line.setAttribute('stroke', '#555555');
                     line.setAttribute('stroke-width', lerp(1.5, 3, t));
-                    line.setAttribute('opacity', 0.6);
+                    line.setAttribute('opacity', 0.4);
                     stage.appendChild(line);
                 }
 
@@ -531,9 +531,9 @@
                     rung.setAttribute('y1', dnaY);
                     rung.setAttribute('x2', dnaX2);
                     rung.setAttribute('y2', dnaY2);
-                    rung.setAttribute('stroke', '#00d9ff');
+                    rung.setAttribute('stroke', '#555555');
                     rung.setAttribute('stroke-width', '2');
-                    rung.setAttribute('opacity', (1 - t / 0.7) * 0.4);
+                    rung.setAttribute('opacity', (1 - t / 0.7) * 0.3);
                     stage.appendChild(rung);
                 }
             }
@@ -579,7 +579,7 @@
                     circle.setAttribute('cx', x);
                     circle.setAttribute('cy', y);
                     circle.setAttribute('r', lerp(3, 4, t / 0.6));
-                    circle.setAttribute('fill', '#00d9ff');
+                    circle.setAttribute('fill', '#888888');
                     circle.setAttribute('opacity', (1 - t / 0.6) * 0.8 + (t / 0.6) * 0.5);
                     stage.appendChild(circle);
                 });
@@ -595,9 +595,9 @@
                             line.setAttribute('y1', neurons[i].y);
                             line.setAttribute('x2', neurons[j].x);
                             line.setAttribute('y2', neurons[j].y);
-                            line.setAttribute('stroke', '#0066ff');
+                            line.setAttribute('stroke', '#444444');
                             line.setAttribute('stroke-width', '0.5');
-                            line.setAttribute('opacity', (t - 0.4) / 0.6 * 0.3);
+                            line.setAttribute('opacity', (t - 0.4) / 0.6 * 0.2);
                             stage.appendChild(line);
                         }
                     }
@@ -611,7 +611,7 @@
                     circle.setAttribute('cx', neuron.x);
                     circle.setAttribute('cy', neuron.y);
                     circle.setAttribute('r', 4);
-                    circle.setAttribute('fill', '#00d9ff');
+                    circle.setAttribute('fill', '#888888');
                     circle.setAttribute('opacity', (t - 0.3) / 0.7);
                     stage.appendChild(circle);
                 });
@@ -649,7 +649,7 @@
                     circle.setAttribute('cx', x);
                     circle.setAttribute('cy', y);
                     circle.setAttribute('r', lerp(4, 1, t / 0.6));
-                    circle.setAttribute('fill', '#00d9ff');
+                    circle.setAttribute('fill', '#888888');
                     circle.setAttribute('opacity', 1 - t / 0.6);
                     stage.appendChild(circle);
                 });
@@ -671,7 +671,7 @@
                     dot.setAttribute('y', y - 1);
                     dot.setAttribute('width', '2');
                     dot.setAttribute('height', '2');
-                    dot.setAttribute('fill', (i + ring) % 2 === 0 ? '#00d9ff' : '#ff0088');
+                    dot.setAttribute('fill', (i + ring) % 2 === 0 ? '#888888' : '#666666');
                     dot.setAttribute('opacity', t * (1 - ring / numRings * 0.5));
                     stage.appendChild(dot);
                 }
@@ -683,9 +683,9 @@
                 circle.setAttribute('cy', centerY);
                 circle.setAttribute('r', 250);
                 circle.setAttribute('fill', 'none');
-                circle.setAttribute('stroke', '#00d9ff');
+                circle.setAttribute('stroke', '#888888');
                 circle.setAttribute('stroke-width', '1');
-                circle.setAttribute('opacity', (t - 0.5) * 0.6);
+                circle.setAttribute('opacity', (t - 0.5) * 0.4);
                 stage.appendChild(circle);
             }
         }
@@ -714,7 +714,7 @@
                     dot.setAttribute('y', y - 1);
                     dot.setAttribute('width', '2');
                     dot.setAttribute('height', '2');
-                    dot.setAttribute('fill', (i + ring) % 2 === 0 ? '#00d9ff' : '#ff0088');
+                    dot.setAttribute('fill', (i + ring) % 2 === 0 ? '#888888' : '#666666');
                     dot.setAttribute('opacity', (1 - t) * (1 - ring / numRings * 0.5));
                     stage.appendChild(dot);
                 }
@@ -725,8 +725,8 @@
             sphere.setAttribute('cx', centerX);
             sphere.setAttribute('cy', centerY);
             sphere.setAttribute('r', radius);
-            sphere.setAttribute('fill', `rgba(0, 217, 255, ${t * 0.1})`);
-            sphere.setAttribute('stroke', '#00d9ff');
+            sphere.setAttribute('fill', `rgba(136, 136, 136, ${t * 0.1})`);
+            sphere.setAttribute('stroke', '#888888');
             sphere.setAttribute('stroke-width', '2');
             sphere.setAttribute('opacity', t);
             stage.appendChild(sphere);
@@ -743,9 +743,9 @@
                     ellipse.setAttribute('rx', width / 2);
                     ellipse.setAttribute('ry', width / 8);
                     ellipse.setAttribute('fill', 'none');
-                    ellipse.setAttribute('stroke', '#00d9ff');
+                    ellipse.setAttribute('stroke', '#888888');
                     ellipse.setAttribute('stroke-width', '1');
-                    ellipse.setAttribute('opacity', (t - 0.3) / 0.7 * 0.4);
+                    ellipse.setAttribute('opacity', (t - 0.3) / 0.7 * 0.3);
                     stage.appendChild(ellipse);
                 }
 
@@ -759,9 +759,9 @@
                     ellipse.setAttribute('rx', radius * Math.abs(Math.cos(angle)));
                     ellipse.setAttribute('ry', radius);
                     ellipse.setAttribute('fill', 'none');
-                    ellipse.setAttribute('stroke', '#00d9ff');
+                    ellipse.setAttribute('stroke', '#888888');
                     ellipse.setAttribute('stroke-width', '1');
-                    ellipse.setAttribute('opacity', (t - 0.3) / 0.7 * 0.4);
+                    ellipse.setAttribute('opacity', (t - 0.3) / 0.7 * 0.3);
                     ellipse.setAttribute('transform', `rotate(${i * 30} ${centerX} ${centerY})`);
                     stage.appendChild(ellipse);
                 }
@@ -781,9 +781,9 @@
             sphere.setAttribute('cx', centerX);
             sphere.setAttribute('cy', centerY);
             sphere.setAttribute('r', radius);
-            sphere.setAttribute('fill', t > 0.5 ? 'url(#glowGradient)' : 'rgba(0, 217, 255, 0.1)');
+            sphere.setAttribute('fill', t > 0.5 ? 'rgba(136, 136, 136, 0.3)' : 'rgba(136, 136, 136, 0.1)');
             sphere.setAttribute('opacity', lerp(1, 0.6, t));
-            sphere.setAttribute('stroke', '#00d9ff');
+            sphere.setAttribute('stroke', '#888888');
             sphere.setAttribute('stroke-width', lerp(2, 0, t));
             stage.appendChild(sphere);
 
@@ -796,9 +796,9 @@
                     field.setAttribute('cy', centerY);
                     field.setAttribute('r', fieldRadius);
                     field.setAttribute('fill', 'none');
-                    field.setAttribute('stroke', '#00d9ff');
+                    field.setAttribute('stroke', '#888888');
                     field.setAttribute('stroke-width', '1');
-                    field.setAttribute('opacity', (t - 0.3) / 0.7 * (0.3 - i * 0.1));
+                    field.setAttribute('opacity', (t - 0.3) / 0.7 * (0.2 - i * 0.05));
                     stage.appendChild(field);
                 }
             }
@@ -813,9 +813,9 @@
                     trail.setAttribute('cy', trailY);
                     trail.setAttribute('r', trailRadius);
                     trail.setAttribute('fill', 'none');
-                    trail.setAttribute('stroke', '#0066ff');
+                    trail.setAttribute('stroke', '#666666');
                     trail.setAttribute('stroke-width', '1');
-                    trail.setAttribute('opacity', (t - 0.5) * 2 * (0.5 - i * 0.05));
+                    trail.setAttribute('opacity', (t - 0.5) * 2 * (0.3 - i * 0.03));
                     stage.appendChild(trail);
                 }
             }
@@ -832,9 +832,9 @@
                     ellipse.setAttribute('rx', width / 2);
                     ellipse.setAttribute('ry', width / 8);
                     ellipse.setAttribute('fill', 'none');
-                    ellipse.setAttribute('stroke', '#00d9ff');
+                    ellipse.setAttribute('stroke', '#888888');
                     ellipse.setAttribute('stroke-width', '1');
-                    ellipse.setAttribute('opacity', (1 - t * 2) * 0.4);
+                    ellipse.setAttribute('opacity', (1 - t * 2) * 0.3);
                     stage.appendChild(ellipse);
                 }
             }
@@ -853,8 +853,8 @@
             main.setAttribute('cx', mainX);
             main.setAttribute('cy', mainY);
             main.setAttribute('r', mainRadius);
-            main.setAttribute('fill', 'url(#glowGradient)');
-            main.setAttribute('opacity', '0.8');
+            main.setAttribute('fill', 'rgba(136, 136, 136, 0.3)');
+            main.setAttribute('opacity', '0.6');
             stage.appendChild(main);
 
             // Cells forming (fading in)
@@ -870,8 +870,8 @@
                     cell.setAttribute('cx', x);
                     cell.setAttribute('cy', y);
                     cell.setAttribute('r', 8 * (t - 0.3) / 0.7);
-                    cell.setAttribute('fill', '#00ff88');
-                    cell.setAttribute('opacity', (t - 0.3) / 0.7 * 0.6);
+                    cell.setAttribute('fill', '#999999');
+                    cell.setAttribute('opacity', (t - 0.3) / 0.7 * 0.5);
                     stage.appendChild(cell);
 
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -879,9 +879,9 @@
                     line.setAttribute('y1', mainY + mainRadius);
                     line.setAttribute('x2', x);
                     line.setAttribute('y2', y);
-                    line.setAttribute('stroke', '#00d9ff');
+                    line.setAttribute('stroke', '#666666');
                     line.setAttribute('stroke-width', '1');
-                    line.setAttribute('opacity', (t - 0.3) / 0.7 * 0.3);
+                    line.setAttribute('opacity', (t - 0.3) / 0.7 * 0.2);
                     stage.appendChild(line);
                 }
             }
@@ -896,9 +896,9 @@
                     trail.setAttribute('cy', trailY);
                     trail.setAttribute('r', trailRadius);
                     trail.setAttribute('fill', 'none');
-                    trail.setAttribute('stroke', '#0066ff');
+                    trail.setAttribute('stroke', '#666666');
                     trail.setAttribute('stroke-width', '1');
-                    trail.setAttribute('opacity', (1 - t * 2) * (0.5 - i * 0.05));
+                    trail.setAttribute('opacity', (1 - t * 2) * (0.3 - i * 0.03));
                     stage.appendChild(trail);
                 }
             }
@@ -936,8 +936,8 @@
                 agentCircle.setAttribute('cx', x);
                 agentCircle.setAttribute('cy', y);
                 agentCircle.setAttribute('r', size);
-                agentCircle.setAttribute('fill', 'url(#glowGradient)');
-                agentCircle.setAttribute('opacity', 0.7);
+                agentCircle.setAttribute('fill', 'rgba(136, 136, 136, 0.3)');
+                agentCircle.setAttribute('opacity', 0.6);
                 stage.appendChild(agentCircle);
 
                 const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -945,9 +945,9 @@
                 ring.setAttribute('cy', y);
                 ring.setAttribute('r', size * 1.5);
                 ring.setAttribute('fill', 'none');
-                ring.setAttribute('stroke', '#00d9ff');
+                ring.setAttribute('stroke', '#888888');
                 ring.setAttribute('stroke-width', '1');
-                ring.setAttribute('opacity', t * 0.4);
+                ring.setAttribute('opacity', t * 0.3);
                 stage.appendChild(ring);
             });
 
@@ -969,9 +969,9 @@
                     line.setAttribute('y1', y1);
                     line.setAttribute('x2', x2);
                     line.setAttribute('y2', y2);
-                    line.setAttribute('stroke', '#0066ff');
+                    line.setAttribute('stroke', '#666666');
                     line.setAttribute('stroke-width', '1');
-                    line.setAttribute('opacity', (t - 0.5) * 0.6);
+                    line.setAttribute('opacity', (t - 0.5) * 0.4);
                     stage.appendChild(line);
                 });
             }
@@ -989,8 +989,8 @@
                     cell.setAttribute('cx', x);
                     cell.setAttribute('cy', y);
                     cell.setAttribute('r', 8);
-                    cell.setAttribute('fill', '#00ff88');
-                    cell.setAttribute('opacity', (1 - t * 2) * 0.6);
+                    cell.setAttribute('fill', '#999999');
+                    cell.setAttribute('opacity', (1 - t * 2) * 0.5);
                     stage.appendChild(cell);
                 }
             }
@@ -1036,8 +1036,8 @@
                     agentCircle.setAttribute('cx', agent.x);
                     agentCircle.setAttribute('cy', agent.y);
                     agentCircle.setAttribute('r', agent.size);
-                    agentCircle.setAttribute('fill', 'url(#glowGradient)');
-                    agentCircle.setAttribute('opacity', (1 - t / 0.4) * 0.7);
+                    agentCircle.setAttribute('fill', 'rgba(136, 136, 136, 0.3)');
+                    agentCircle.setAttribute('opacity', (1 - t / 0.4) * 0.6);
                     stage.appendChild(agentCircle);
                 });
             }
@@ -1056,9 +1056,9 @@
                 line.setAttribute('y1', seed.y);
                 line.setAttribute('x2', seed.x);
                 line.setAttribute('y2', seed.y - height);
-                line.setAttribute('stroke', '#00ff88');
+                line.setAttribute('stroke', '#999999');
                 line.setAttribute('stroke-width', width / 5);
-                line.setAttribute('opacity', 0.6);
+                line.setAttribute('opacity', 0.5);
                 stage.appendChild(line);
 
                 // Top node
@@ -1066,8 +1066,8 @@
                 top.setAttribute('cx', seed.x);
                 top.setAttribute('cy', seed.y - height);
                 top.setAttribute('r', width / 2);
-                top.setAttribute('fill', '#00d9ff');
-                top.setAttribute('opacity', 0.8);
+                top.setAttribute('fill', '#888888');
+                top.setAttribute('opacity', 0.6);
                 stage.appendChild(top);
 
                 // Branches
@@ -1086,9 +1086,9 @@
                         branch.setAttribute('y1', branchY);
                         branch.setAttribute('x2', branchX);
                         branch.setAttribute('y2', branchEndY);
-                        branch.setAttribute('stroke', '#00ff88');
+                        branch.setAttribute('stroke', '#999999');
                         branch.setAttribute('stroke-width', width / 8);
-                        branch.setAttribute('opacity', 0.5);
+                        branch.setAttribute('opacity', 0.4);
                         stage.appendChild(branch);
                     }
                 }
@@ -1119,17 +1119,17 @@
                 line.setAttribute('y1', seed.y);
                 line.setAttribute('x2', seed.x);
                 line.setAttribute('y2', seed.y - seed.height);
-                line.setAttribute('stroke', '#00ff88');
+                line.setAttribute('stroke', '#999999');
                 line.setAttribute('stroke-width', seed.width / 5);
-                line.setAttribute('opacity', '0.6');
+                line.setAttribute('opacity', '0.5');
                 stage.appendChild(line);
 
                 const top = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 top.setAttribute('cx', seed.x);
                 top.setAttribute('cy', seed.y - seed.height);
                 top.setAttribute('r', seed.width / 2);
-                top.setAttribute('fill', '#00d9ff');
-                top.setAttribute('opacity', '0.8');
+                top.setAttribute('fill', '#888888');
+                top.setAttribute('opacity', '0.6');
                 stage.appendChild(top);
 
                 const numBranches = 3;
@@ -1145,9 +1145,9 @@
                     branch.setAttribute('y1', branchY);
                     branch.setAttribute('x2', branchX);
                     branch.setAttribute('y2', branchEndY);
-                    branch.setAttribute('stroke', '#00ff88');
+                    branch.setAttribute('stroke', '#999999');
                     branch.setAttribute('stroke-width', seed.width / 8);
-                    branch.setAttribute('opacity', '0.5');
+                    branch.setAttribute('opacity', '0.4');
                     stage.appendChild(branch);
                 }
             });
