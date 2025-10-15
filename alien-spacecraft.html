@@ -402,16 +402,16 @@
             const windowHeight = window.innerHeight;
             const documentHeight = document.documentElement.scrollHeight;
 
-            // Get intro height to start animations after intro
-            const intro = document.querySelector('.intro');
-            const introBottom = intro.offsetTop + intro.offsetHeight;
+            // Get first section to start animations from the beginning
+            const firstSection = sections[0];
+            const firstSectionTop = firstSection.offsetTop;
 
             // Get references section to end animations before references
             const references = document.querySelector('.references');
             const referencesTop = references ? references.offsetTop : documentHeight;
 
-            // Calculate scroll range for animations
-            const animationStart = introBottom - windowHeight * 0.5;
+            // Calculate scroll range for animations - start from very top
+            const animationStart = 0;
             const animationEnd = referencesTop - windowHeight * 0.5;
             const animationRange = animationEnd - animationStart;
 
