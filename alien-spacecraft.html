@@ -464,8 +464,8 @@
             const bases = ['G', 'T', 'C', 'A'];
             const colors = ['#888888', '#666666', '#999999', '#777777'];
 
-            // Rotation angle for 3D effect - spins as it forms
-            const rotationOffset = t * Math.PI * 0.5;
+            // Rotation angle for 3D effect - spins as it forms (increased rotation)
+            const rotationOffset = t * Math.PI * 2;
 
             // Morph bases into DNA helix
             for (let i = 0; i < 50; i++) {
@@ -558,8 +558,8 @@
         function renderDNAToProtein(t) {
             t = easeInOutCubic(t);
 
-            // Continue rotation from previous stage plus additional rotation
-            const rotationOffset = Math.PI * 0.5 + t * Math.PI * 2;
+            // Continue rotation from previous stage plus additional rotation (increased)
+            const rotationOffset = Math.PI * 2 + t * Math.PI * 4;
 
             // DNA helix gradually folds into protein structure
             const numPoints = 50;
