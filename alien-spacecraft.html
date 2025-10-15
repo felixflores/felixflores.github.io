@@ -668,14 +668,14 @@
                 }
             });
 
-            // Protein structure
-            const numProteinPoints = 40;
+            // Protein structure - MUST match the end state of renderDNAToProtein
+            const numProteinPoints = 50;
             const proteinPoints = [];
             for (let i = 0; i < numProteinPoints; i++) {
-                const angle = (i / numProteinPoints) * Math.PI * 6;
-                const radius = 50 + Math.sin(i * 0.3) * 30;
-                const x = 400 + Math.cos(angle) * radius + Math.sin(i * 0.5) * 40;
-                const y = 400 + Math.sin(angle) * radius + Math.cos(i * 0.7) * 40;
+                const proteinAngle = (i / numProteinPoints) * Math.PI * 6;
+                const proteinRadius = 50 + Math.sin(i * 0.3) * 30;
+                const x = 400 + Math.cos(proteinAngle) * proteinRadius + Math.sin(i * 0.5) * 40;
+                const y = 400 + Math.sin(proteinAngle) * proteinRadius + Math.cos(i * 0.7) * 40;
                 proteinPoints.push({ x, y });
             }
 
