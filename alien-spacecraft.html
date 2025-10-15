@@ -128,6 +128,64 @@
             scroll-margin-top: 2rem;
         }
 
+        .scroll-nav {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 1000;
+        }
+
+        .scroll-nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #444;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .scroll-nav-dot:hover {
+            background: #888;
+            transform: scale(1.5);
+        }
+
+        .scroll-nav-dot.active {
+            background: #888;
+            transform: scale(1.3);
+        }
+
+        .scroll-nav-tooltip {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(40, 40, 40, 0.95);
+            color: #e0e0e0;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            font-size: 0.9rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            border: 1px solid #555;
+        }
+
+        .scroll-nav-dot:hover .scroll-nav-tooltip {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .scroll-nav {
+                display: none;
+            }
+        }
+
         .video-container {
             position: relative;
             padding-bottom: 56.25%; /* 16:9 aspect ratio */
@@ -180,6 +238,8 @@
 </head>
 <body>
     <div class="container">
+        <nav class="scroll-nav" id="scrollNav"></nav>
+
         <div class="visual-panel">
             <svg id="canvas" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -285,6 +345,43 @@
     <script>
         const stage = document.getElementById('stage');
         const sections = document.querySelectorAll('.section');
+        const scrollNav = document.getElementById('scrollNav');
+
+        // Create scroll navigation dots
+        const sectionTitles = [
+            'Four Letters, Infinite Complexity',
+            'The Storage Medium',
+            'From Storage to Execution',
+            'Encoding Intelligence',
+            'The Complete Package',
+            'Minimal Physical Form',
+            'The Seed Architecture',
+            'Morphological Freedom',
+            'Exponential Unfolding',
+            'We Are the Proof'
+        ];
+
+        sectionTitles.forEach((title, index) => {
+            const dot = document.createElement('div');
+            dot.className = 'scroll-nav-dot';
+            dot.dataset.index = index;
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'scroll-nav-tooltip';
+            tooltip.textContent = title;
+            dot.appendChild(tooltip);
+
+            dot.addEventListener('click', () => {
+                const section = sections[index];
+                const yOffset = -window.innerHeight * 0.3;
+                const y = section.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+            });
+
+            scrollNav.appendChild(dot);
+        });
+
+        const navDots = document.querySelectorAll('.scroll-nav-dot');
 
         // Utility functions
         function lerp(a, b, t) {
@@ -1168,6 +1265,32 @@
             });
         }
 
+        // Update active nav dot based on scroll position
+        function updateActiveNavDot() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+
+            let activeIndex = -1;
+            sections.forEach((section, index) => {
+                const rect = section.getBoundingClientRect();
+                const sectionTop = rect.top + scrollTop;
+                const sectionMiddle = sectionTop + rect.height / 2;
+
+                if (scrollTop + windowHeight / 2 >= sectionTop &&
+                    scrollTop + windowHeight / 2 < sectionTop + rect.height) {
+                    activeIndex = index;
+                }
+            });
+
+            navDots.forEach((dot, index) => {
+                if (index === activeIndex) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+
         // Animation loop
         let lastProgress = -1;
         function animate() {
@@ -1178,6 +1301,8 @@
                 render(progress);
                 lastProgress = progress;
             }
+
+            updateActiveNavDot();
 
             requestAnimationFrame(animate);
         }
