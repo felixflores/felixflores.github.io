@@ -537,10 +537,12 @@
     }
 
     @keyframes pulse {
+
       0%,
       100% {
         opacity: 1;
       }
+
       50% {
         opacity: 0.5;
       }
@@ -652,6 +654,8 @@
       }
     }
   </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2334494582263094"
+    crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -722,15 +726,10 @@
     <div class="info-box" style="margin-top: 32px;">
       <strong>Inspired by:</strong> This tool was created based on the therapeutic approach demonstrated in this video:
       <div style="margin-top: 16px; text-align: center;">
-        <iframe
-          width="560"
-          height="315"
-          src="https://www.youtube.com/embed/y4zuVk5STuM"
-          title="YouTube video player"
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/y4zuVk5STuM" title="YouTube video player"
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen
-          style="max-width: 100%; border-radius: 8px;">
+          allowfullscreen style="max-width: 100%; border-radius: 8px;">
         </iframe>
       </div>
     </div>
@@ -926,17 +925,17 @@
 
         // Stop noise sources
         if (this.whiteNoiseSource) {
-          try { this.whiteNoiseSource.stop(); } catch (e) {}
+          try { this.whiteNoiseSource.stop(); } catch (e) { }
           this.whiteNoiseSource = null;
           this.whiteNoiseGain = null;
         }
         if (this.pinkNoiseSource) {
-          try { this.pinkNoiseSource.stop(); } catch (e) {}
+          try { this.pinkNoiseSource.stop(); } catch (e) { }
           this.pinkNoiseSource = null;
           this.pinkNoiseGain = null;
         }
         if (this.brownNoiseSource) {
-          try { this.brownNoiseSource.stop(); } catch (e) {}
+          try { this.brownNoiseSource.stop(); } catch (e) { }
           this.brownNoiseSource = null;
           this.brownNoiseGain = null;
         }
