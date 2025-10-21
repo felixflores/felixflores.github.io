@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Philosopher Chat - Tree of Thought Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00d9ff;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .status {
+            text-align: center;
+            color: #999;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .controls label {
+            color: #999;
+        }
+
+        .controls select {
+            padding: 0.5rem 1rem;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+        }
+
+        .key-teachings {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .key-teachings h4 {
+            color: #00d9ff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .key-teachings ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .key-teachings li {
+            color: #999;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            padding: 0.4rem 0;
+            padding-left: 1.2rem;
+            position: relative;
+        }
+
+        .key-teachings li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #666;
+        }
+
+        .key-teachings.loading li {
+            opacity: 0.5;
+            animation: pulse-text 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-text {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+        }
+
+        .thinking-tree {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            display: none;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .thinking-tree.active {
+            display: block;
+        }
+
+        .thinking-tree.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            border-radius: 0;
+            z-index: 9999;
+            padding: 2rem;
+        }
+
+        .thinking-tree.fullscreen .tree-content {
+            max-height: calc(100vh - 100px);
+        }
+
+        .thinking-tree.fullscreen .tree-canvas {
+            height: calc(100vh - 150px);
+        }
+
+        .thinking-tree.collapsed .tree-content {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            margin-top: 0;
+            pointer-events: none;
+            transition: max-height 0.3s ease, opacity 0.2s ease, margin-top 0.3s ease;
+        }
+
+        .tree-content {
+            max-height: 600px;
+            overflow: visible;
+            opacity: 1;
+            margin-top: 1rem;
+            pointer-events: auto;
+            transition: max-height 0.3s ease, opacity 0.2s ease, margin-top 0.3s ease;
+        }
+
+        .thinking-tree.collapsed {
+            padding: 1rem 1.5rem;
+        }
+
+        .thinking-tree h4 {
+            color: #00d9ff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            user-select: none;
+        }
+
+        .thinking-tree.active:not(.collapsed) h4 {
+            margin-bottom: 1rem;
+        }
+
+        .thinking-tree h4:hover {
+            color: #00f0ff;
+        }
+
+        .thinking-tree h4::before {
+            content: '▼';
+            font-size: 0.7rem;
+            transition: transform 0.3s ease;
+        }
+
+        .thinking-tree.collapsed h4::before {
+            transform: rotate(-90deg);
+        }
+
+        .tree-canvas {
+            width: 100%;
+            height: 500px;
+            background: #050505;
+            border-radius: 6px;
+            border: 1px solid #222;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            pointer-events: auto;
+            display: flex;
+        }
+
+        .tree-canvas.panning {
+            cursor: grabbing;
+        }
+
+        .tree-canvas svg {
+            flex: 1;
+            transition: width 0.3s ease;
+        }
+
+        .tree-canvas:has(.mermaid-sidebar.open) svg {
+            width: calc(100% - 400px);
+        }
+
+
+        .tree-svg {
+            transition: transform 0.1s ease;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 10;
+        }
+
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: #2a2a2a;
+            border-color: #00d9ff;
+        }
+
+        .mermaid-sidebar {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 0;
+            height: 100%;
+            background: #0a0a0a;
+            border-left: 1px solid #333;
+            transition: width 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .mermaid-sidebar.open {
+            width: 400px;
+            padding: 1rem;
+        }
+
+        .tree-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 10;
+        }
+
+        .tree-control-btn {
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .tree-control-btn:hover {
+            background: #2a2a2a;
+            border-color: #00d9ff;
+        }
+
+        .mermaid-sidebar h3 {
+            color: #00d9ff;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .mermaid-code {
+            flex: 1;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #e0e0e0;
+            overflow-y: auto;
+            white-space: pre;
+            margin-bottom: 1rem;
+        }
+
+        .mermaid-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .mermaid-actions button {
+            flex: 1;
+            padding: 0.75rem;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mermaid-actions button:hover {
+            background: #2a2a2a;
+            border-color: #00d9ff;
+        }
+
+        .mermaid-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: transparent;
+            color: #999;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+        }
+
+        .mermaid-close:hover {
+            color: #00d9ff;
+        }
+
+        .thought-node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .thought-node:hover circle {
+            r: 14;
+            opacity: 1;
+            stroke-opacity: 0.8;
+        }
+
+        .thought-text {
+            font-size: 11px;
+            fill: #aaa;
+            font-family: 'Courier New', monospace;
+            pointer-events: none;
+        }
+
+        .thought-text.active {
+            fill: #00d9ff;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .thought-label-bg {
+            fill: #0a0a0a;
+            opacity: 0.9;
+            rx: 4;
+        }
+
+        .thought-node.summarizing circle {
+            animation: pulse-node 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-node {
+            0%, 100% {
+                fill: #00d9ff;
+                stroke-width: 2;
+                filter: drop-shadow(0 0 4px #00d9ff);
+            }
+            50% {
+                fill: #00f0ff;
+                stroke-width: 3;
+                filter: drop-shadow(0 0 8px #00f0ff);
+            }
+        }
+
+        .thought-node.collapsed circle {
+            fill: #00ff88;
+            stroke: #00ff88;
+        }
+
+        .chat-container {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .chat-message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+        }
+
+        .chat-message.user {
+            background: #1a1a1a;
+            border-left: 3px solid #00d9ff;
+        }
+
+        .chat-message.assistant {
+            background: #0f0f0f;
+            border-left: 3px solid #666;
+        }
+
+        .chat-message-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .chat-message.streaming {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .chat-input-container input {
+            flex: 1;
+            padding: 0.75rem;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .chat-input-container input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .chat-input-container button {
+            padding: 0.75rem 2rem;
+            background: #00d9ff;
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .chat-input-container button:hover {
+            background: #00b8dd;
+            transform: scale(1.05);
+        }
+
+        .chat-input-container button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+
+        /* Summary Tooltip */
+        .summary-tooltip {
+            position: fixed;
+            background: #1a3a2a;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            padding: 1.5rem;
+            max-width: 500px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 10000;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+            display: none;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #e0e0e0;
+        }
+
+        .summary-tooltip.visible {
+            display: block;
+            animation: tooltipFadeIn 0.2s ease;
+        }
+
+        @keyframes tooltipFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .summary-tooltip-header {
+            color: #00ff88;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .summary-tooltip-close {
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            color: #999;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .summary-tooltip-close:hover {
+            color: #00ff88;
+        }
+
+        .summary-tooltip-content {
+            color: #e0e0e0;
+        }
+
+        .summary-tooltip-content p {
+            margin: 0.75em 0;
+        }
+
+        .summary-tooltip::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .summary-tooltip::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        .summary-tooltip::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 4px;
+        }
+
+        .summary-tooltip::-webkit-scrollbar-thumb:hover {
+            background: #00ffaa;
+        }
+
+        /* Node summary indicator */
+        .thought-node.has-summary circle {
+            stroke: #00ff88 !important;
+            stroke-width: 2.5 !important;
+            filter: drop-shadow(0 0 4px #00ff88);
+        }
+
+        .thought-node.has-summary:hover circle {
+            filter: drop-shadow(0 0 8px #00ff88);
+            stroke-width: 3 !important;
+        }
+
+        .loading-animation {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 2rem;
+        }
+
+        .loading-text {
+            color: #00d9ff;
+            font-size: 1rem;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00d9ff;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <a href="alien-spacecraft.html" class="back-link">← Back to Main</a>
+
+    <div class="container">
+        <h1>🌳 Philosophical Council - Multi-Perspective Reasoning</h1>
+
+        <div class="status" id="modelStatus">Loading model...</div>
+
+        <div class="key-teachings" id="keyTeachings" style="display: block;">
+            <h4>Active Philosophers</h4>
+            <ul id="teachingsList">
+                <li>Each question is explored through multiple philosophical perspectives</li>
+                <li>Socrates questions assumptions • Plato seeks eternal Forms • Aristotle observes purpose</li>
+                <li>Nietzsche unmasks values • Confucius cultivates harmony</li>
+            </ul>
+        </div>
+
+        <div class="thinking-tree" id="thinkingTree">
+            <h4 id="thinkingTreeHeader">
+                <span>🌳 Reasoning Tree</span>
+                <span style="color: #666; font-size: 0.7rem; font-weight: normal; margin-left: auto;">(click green nodes to view summaries)</span>
+            </h4>
+            <div class="tree-content">
+                <div class="tree-canvas" id="treeCanvas">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="zoomIn" title="Zoom In">+</button>
+                        <button class="zoom-btn" id="zoomOut" title="Zoom Out">−</button>
+                        <button class="zoom-btn" id="zoomReset" title="Reset View">⊙</button>
+                    </div>
+                    <div class="tree-controls">
+                        <button class="tree-control-btn" id="fullscreenBtn">⛶ Fullscreen</button>
+                        <button class="tree-control-btn" id="exportBtn">📊 Export</button>
+                    </div>
+                    <svg id="treeSvg" class="tree-svg" viewBox="0 0 1200 800" style="width: 100%; height: 100%;"></svg>
+
+                    <!-- Mermaid Sidebar -->
+                    <div class="mermaid-sidebar" id="mermaidSidebar">
+                        <button class="mermaid-close" id="mermaidClose">&times;</button>
+                        <h3>📊 Mermaid Export</h3>
+                        <div class="mermaid-code" id="mermaidCode">No tree generated yet...</div>
+                        <div class="mermaid-actions">
+                            <button id="copyMermaidBtn">Copy Code</button>
+                            <button id="downloadMermaidBtn">Download .md</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-message assistant">
+                <div class="chat-message-label">Philosophical Council</div>
+                <div>Ask any question to explore it through multiple philosophical perspectives.</div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <input type="text" id="chatInput" placeholder="Ask a philosophical question..." disabled />
+            <button id="sendBtn" disabled>Send</button>
+        </div>
+    </div>
+
+    <!-- Summary Tooltip -->
+    <div class="summary-tooltip" id="summaryTooltip">
+        <div class="summary-tooltip-header">
+            <span id="summaryTooltipTitle">Summary</span>
+            <button class="summary-tooltip-close" id="summaryTooltipClose">&times;</button>
+        </div>
+        <div class="summary-tooltip-content" id="summaryTooltipContent"></div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script type="module" src="philosopher-chat.js"></script>
+</body>
+</html>

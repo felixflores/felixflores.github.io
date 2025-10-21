@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tinnitus Sound Therapy - Felix Flores</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 920px;
+      width: 100%;
+      background: #1a1a1a;
+      border-radius: 16px;
+      padding: 56px;
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+      border: 1px solid #2a2a2a;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 42px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 12px;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 17px;
+      color: #888888;
+      text-align: center;
+      margin-bottom: 48px;
+      font-weight: 400;
+    }
+
+    .info-box {
+      background: #252525;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 48px;
+      font-size: 14.5px;
+      line-height: 1.7;
+      color: #a0a0a0;
+      border: 1px solid #333333;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .info-box strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .section-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #e5e5e5;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      letter-spacing: -0.3px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: #404040;
+      color: white;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 1px solid #505050;
+    }
+
+    .add-layer-btn {
+      padding: 10px 20px;
+      background: #404040;
+      color: white;
+      border: 1px solid #505050;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.2px;
+    }
+
+    .add-layer-btn:hover {
+      background: #505050;
+      transform: translateY(-1px);
+    }
+
+    .add-layer-btn:active {
+      transform: translateY(0);
+    }
+
+    .sound-layers {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sound-layer {
+      background: #252525;
+      border-radius: 12px;
+      padding: 28px;
+      position: relative;
+      border: 1px solid #333333;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .sound-layer:hover {
+      border-color: #404040;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .sound-layer.active {
+      border-color: #505050;
+      background: #2a2a2a;
+      box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .layer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .layer-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e5e5e5;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.2px;
+    }
+
+    .layer-title span {
+      color: #e5e5e5;
+    }
+
+    .layer-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: #404040;
+      color: #ffffff;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid #505050;
+    }
+
+    .layer-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .layer-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.2px;
+    }
+
+    .layer-btn.play {
+      background: #2a8a5e;
+      color: white;
+      border: 1px solid #35a670;
+    }
+
+    .layer-btn.play:hover {
+      background: #35a670;
+      transform: translateY(-1px);
+    }
+
+    .layer-btn.play:active {
+      transform: translateY(0);
+    }
+
+    .layer-btn.playing {
+      background: #c44242;
+      color: white;
+      border: 1px solid #d55050;
+    }
+
+    .layer-btn.playing:hover {
+      background: #d55050;
+      transform: translateY(-1px);
+    }
+
+    .layer-btn.remove {
+      background: #2a2a2a;
+      color: #999999;
+      border: 1px solid #404040;
+    }
+
+    .layer-btn.remove:hover {
+      background: #3a3a3a;
+      color: #ffffff;
+      border-color: #505050;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #a0a0a0;
+      margin-bottom: 10px;
+      letter-spacing: 0.1px;
+    }
+
+    .value-display {
+      color: #ffffff;
+      font-weight: 700;
+      margin-left: 6px;
+      font-feature-settings: 'tnum';
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #404040;
+      outline: none;
+      -webkit-appearance: none;
+      border: 1px solid #333333;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      border: 2px solid #505050;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      border-color: #606060;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.0);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      border: 2px solid #505050;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    input[type="range"]::-moz-range-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      border-color: #606060;
+    }
+
+    select {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #404040;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #2a2a2a;
+      cursor: pointer;
+      font-weight: 400;
+      color: #e5e5e5;
+      height: auto;
+    }
+
+    select:focus {
+      outline: none;
+    }
+
+    select option {
+      background: #2a2a2a;
+      color: #e5e5e5;
+      padding: 12px;
+    }
+
+    select optgroup {
+      background: #1a1a1a;
+      color: #888888;
+      font-weight: 600;
+    }
+
+    .frequency-scale {
+      position: relative;
+    }
+
+    .frequency-scale input[type="range"] {
+      margin-bottom: 8px;
+    }
+
+    .scale-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 11.5px;
+      color: #666666;
+      font-weight: 600;
+      font-feature-settings: 'tnum';
+    }
+
+    .scale-markers {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 8px;
+      position: relative;
+      margin-bottom: 6px;
+    }
+
+    .scale-markers::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #404040;
+      transform: translateY(-50%);
+    }
+
+    .marker {
+      width: 1px;
+      height: 8px;
+      background: #666666;
+      position: relative;
+      z-index: 1;
+    }
+
+    .master-controls {
+      background: #252525;
+      border-radius: 12px;
+      padding: 32px;
+      color: white;
+      margin-bottom: 48px;
+      border: 1px solid #333333;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .master-controls .section-title {
+      color: #e5e5e5;
+    }
+
+    .master-controls label {
+      color: #a0a0a0;
+    }
+
+    .master-controls .value-display {
+      color: #ffffff;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    button.btn-primary {
+      flex: 1;
+      padding: 18px 28px;
+      border: 1px solid #505050;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      background: #404040;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+    }
+
+    button.btn-primary:hover {
+      background: #505050;
+      transform: translateY(-1px);
+    }
+
+    button.btn-primary:active {
+      transform: translateY(0);
+    }
+
+    button.btn-primary.playing {
+      background: #c44242;
+      border-color: #d55050;
+      color: white;
+    }
+
+    button.btn-primary.playing:hover {
+      background: #d55050;
+    }
+
+    button.btn-secondary {
+      flex: 1;
+      padding: 18px 28px;
+      border: 1px solid #404040;
+      background: #2a2a2a;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #a0a0a0;
+      letter-spacing: 0.3px;
+    }
+
+    button.btn-secondary:hover {
+      background: #303030;
+      border-color: #505050;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    button.btn-secondary:active {
+      transform: translateY(0);
+    }
+
+    .visualizer {
+      width: 100%;
+      height: 160px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      margin-top: 20px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #2a2a2a;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      background: #2a2a2a;
+      border: 1px solid #404040;
+      border-radius: 20px;
+      font-size: 14px;
+      margin-top: 20px;
+      color: #a0a0a0;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #505050;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.active {
+      background: #2a8a5e;
+      box-shadow: 0 0 8px rgba(42, 138, 94, 0.5);
+    }
+
+    @keyframes pulse {
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .warning {
+      background: #2a2520;
+      border-left: 4px solid #d4a247;
+      padding: 16px 20px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      margin-top: 48px;
+      color: #d4a247;
+      line-height: 1.6;
+      border: 1px solid #3a3530;
+      border-left-width: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666666;
+    }
+
+    .empty-state-icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    .empty-state p {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 20px;
+      }
+
+      .container {
+        padding: 32px 24px;
+        border-radius: 24px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+
+      .subtitle {
+        font-size: 15px;
+      }
+
+      .master-controls {
+        padding: 24px;
+      }
+
+      .sound-layer {
+        padding: 20px;
+      }
+
+      .control-row {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: linear-gradient(135deg, #434343 0%, #000000 100%);
+      }
+
+      .container {
+        background: #1d1d1f;
+        color: #f5f5f7;
+      }
+
+      .info-box,
+      .sound-layer {
+        background: #2c2c2e;
+        color: #f5f5f7;
+      }
+
+      .section-title,
+      .layer-title,
+      label {
+        color: #f5f5f7;
+      }
+
+      select {
+        background: #2c2c2e;
+        color: #f5f5f7;
+        border-color: #48484a;
+      }
+
+      .scale-markers::before {
+        background: #48484a;
+      }
+
+      .marker {
+        background: #86868b;
+      }
+
+      .scale-labels {
+        color: #86868b;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Tinnitus Sound Therapy</h1>
+    <p class="subtitle">Layer multiple frequencies and sounds to match your unique tinnitus profile</p>
+
+    <div class="info-box">
+      <strong>How to use:</strong> Add sound layers to match each component of your tinnitus. You can combine different
+      frequencies, waveforms, and noise types. Adjust each layer's volume independently, then use the master controls
+      to start therapy. Use headphones for best results.
+    </div>
+
+    <!-- Master Controls -->
+    <div class="master-controls">
+      <div class="section-title">
+        <div class="section-header">
+          <span>Master Controls</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>
+          Master Volume: <span class="value-display" id="masterVolumeValue">70%</span>
+        </label>
+        <input type="range" id="masterVolumeSlider" min="0" max="100" value="70" step="1" />
+      </div>
+
+      <div class="button-group">
+        <button class="btn-primary" id="playAllButton">Play All Layers</button>
+        <button class="btn-secondary" id="stopAllButton">Stop All</button>
+      </div>
+
+      <div class="status-indicator">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Ready to start</span>
+      </div>
+
+      <div class="visualizer">
+        <canvas id="visualizer"></canvas>
+      </div>
+    </div>
+
+    <!-- Sound Layers -->
+    <div class="section">
+      <div class="section-title">
+        <div class="section-header">
+          <span class="section-number">1</span>
+          Sound Layers
+        </div>
+        <button class="add-layer-btn" id="addLayerBtn">+ Add Layer</button>
+      </div>
+
+      <div class="sound-layers" id="soundLayers">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-state-icon">🎵</div>
+          <p>No sound layers yet. Click "Add Layer" to create your first sound.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="warning">
+      <strong>⚠️ Important:</strong> Start with low volume and gradually increase. This tool is for therapeutic
+      purposes and does not replace professional medical advice. Consult with an audiologist or healthcare provider
+      for proper tinnitus treatment.
+    </div>
+
+    <div class="info-box" style="margin-top: 32px;">
+      <strong>Inspired by:</strong> This tool was created based on the therapeutic approach demonstrated in this video:
+      <div style="margin-top: 16px; text-align: center;">
+        <iframe
+          width="560"
+          height="315"
+          src="https://www.youtube.com/embed/y4zuVk5STuM"
+          title="YouTube video player"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+          style="max-width: 100%; border-radius: 8px;">
+        </iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Audio Context Setup
+    let audioContext = null;
+    let masterGainNode = null;
+    let analyser = null;
+    let soundLayers = [];
+    let layerIdCounter = 0;
+    let isGlobalPlaying = false;
+
+    // DOM Elements
+    const elements = {
+      masterVolumeSlider: document.getElementById('masterVolumeSlider'),
+      masterVolumeValue: document.getElementById('masterVolumeValue'),
+      playAllButton: document.getElementById('playAllButton'),
+      stopAllButton: document.getElementById('stopAllButton'),
+      statusDot: document.getElementById('statusDot'),
+      statusText: document.getElementById('statusText'),
+      canvas: document.getElementById('visualizer'),
+      soundLayersContainer: document.getElementById('soundLayers'),
+      addLayerBtn: document.getElementById('addLayerBtn'),
+      emptyState: document.getElementById('emptyState')
+    };
+
+    // Sound Layer Class
+    class SoundLayer {
+      constructor(id) {
+        this.id = id;
+        this.type = 'sine';
+        this.frequency = 4000;
+        this.volume = 50;
+        this.whiteNoiseVolume = 0;
+        this.pinkNoiseVolume = 0;
+        this.brownNoiseVolume = 0;
+        this.isPlaying = false;
+        this.source = null;
+        this.gainNode = null;
+        this.filter = null;
+        this.whiteNoiseSource = null;
+        this.whiteNoiseGain = null;
+        this.pinkNoiseSource = null;
+        this.pinkNoiseGain = null;
+        this.brownNoiseSource = null;
+        this.brownNoiseGain = null;
+      }
+
+      createAudioNodes() {
+        if (!audioContext) initAudioContext();
+
+        this.gainNode = audioContext.createGain();
+        this.gainNode.gain.setValueAtTime((this.volume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
+        this.gainNode.connect(analyser);
+
+        switch (this.type) {
+          case 'sine':
+          case 'square':
+          case 'sawtooth':
+          case 'triangle':
+            this.source = audioContext.createOscillator();
+            this.source.type = this.type;
+            this.source.frequency.setValueAtTime(this.frequency, audioContext.currentTime);
+            this.source.connect(this.gainNode);
+            break;
+
+          case 'white':
+            this.source = this.createWhiteNoise();
+            this.source.connect(this.gainNode);
+            break;
+
+          case 'pink':
+            this.source = this.createPinkNoise();
+            this.source.connect(this.gainNode);
+            break;
+
+          case 'brown':
+            this.source = this.createBrownNoise();
+            this.source.connect(this.gainNode);
+            break;
+
+          case 'notch':
+            this.source = this.createWhiteNoise();
+            this.filter = audioContext.createBiquadFilter();
+            this.filter.type = 'notch';
+            this.filter.frequency.setValueAtTime(this.frequency, audioContext.currentTime);
+            this.filter.Q.setValueAtTime(10, audioContext.currentTime);
+            this.source.connect(this.filter);
+            this.filter.connect(this.gainNode);
+            break;
+        }
+      }
+
+      createWhiteNoise() {
+        const bufferSize = 2 * audioContext.sampleRate;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        const whiteNoise = audioContext.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        whiteNoise.loop = true;
+        return whiteNoise;
+      }
+
+      createPinkNoise() {
+        const bufferSize = 2 * audioContext.sampleRate;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+          output[i] *= 0.11;
+          b6 = white * 0.115926;
+        }
+        const pinkNoise = audioContext.createBufferSource();
+        pinkNoise.buffer = noiseBuffer;
+        pinkNoise.loop = true;
+        return pinkNoise;
+      }
+
+      createBrownNoise() {
+        const bufferSize = 2 * audioContext.sampleRate;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        let lastOut = 0.0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          output[i] = (lastOut + (0.02 * white)) / 1.02;
+          lastOut = output[i];
+          output[i] *= 3.5;
+        }
+        const brownNoise = audioContext.createBufferSource();
+        brownNoise.buffer = noiseBuffer;
+        brownNoise.loop = true;
+        return brownNoise;
+      }
+
+      play() {
+        this.stop();
+        this.createAudioNodes();
+        this.source.start();
+
+        // Start noise sources if they have volume
+        if (this.whiteNoiseVolume > 0) {
+          this.whiteNoiseSource = this.createWhiteNoise();
+          this.whiteNoiseGain = audioContext.createGain();
+          this.whiteNoiseGain.gain.setValueAtTime((this.whiteNoiseVolume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
+          this.whiteNoiseSource.connect(this.whiteNoiseGain);
+          this.whiteNoiseGain.connect(analyser);
+          this.whiteNoiseSource.start();
+        }
+
+        if (this.pinkNoiseVolume > 0) {
+          this.pinkNoiseSource = this.createPinkNoise();
+          this.pinkNoiseGain = audioContext.createGain();
+          this.pinkNoiseGain.gain.setValueAtTime((this.pinkNoiseVolume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
+          this.pinkNoiseSource.connect(this.pinkNoiseGain);
+          this.pinkNoiseGain.connect(analyser);
+          this.pinkNoiseSource.start();
+        }
+
+        if (this.brownNoiseVolume > 0) {
+          this.brownNoiseSource = this.createBrownNoise();
+          this.brownNoiseGain = audioContext.createGain();
+          this.brownNoiseGain.gain.setValueAtTime((this.brownNoiseVolume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
+          this.brownNoiseSource.connect(this.brownNoiseGain);
+          this.brownNoiseGain.connect(analyser);
+          this.brownNoiseSource.start();
+        }
+
+        this.isPlaying = true;
+      }
+
+      stop() {
+        if (this.source && this.isPlaying) {
+          try {
+            this.source.stop();
+          } catch (e) {
+            // Ignore if already stopped
+          }
+        }
+
+        // Stop noise sources
+        if (this.whiteNoiseSource) {
+          try { this.whiteNoiseSource.stop(); } catch (e) {}
+          this.whiteNoiseSource = null;
+          this.whiteNoiseGain = null;
+        }
+        if (this.pinkNoiseSource) {
+          try { this.pinkNoiseSource.stop(); } catch (e) {}
+          this.pinkNoiseSource = null;
+          this.pinkNoiseGain = null;
+        }
+        if (this.brownNoiseSource) {
+          try { this.brownNoiseSource.stop(); } catch (e) {}
+          this.brownNoiseSource = null;
+          this.brownNoiseGain = null;
+        }
+
+        this.source = null;
+        this.gainNode = null;
+        this.filter = null;
+        this.isPlaying = false;
+      }
+
+      updateVolume() {
+        if (this.gainNode) {
+          const masterVolume = parseInt(elements.masterVolumeSlider.value) / 100;
+          this.gainNode.gain.setValueAtTime((this.volume / 100) * masterVolume, audioContext.currentTime);
+        }
+      }
+
+      updateNoiseVolume(type) {
+        const masterVolume = parseInt(elements.masterVolumeSlider.value) / 100;
+
+        if (type === 'white' && this.whiteNoiseGain) {
+          this.whiteNoiseGain.gain.setValueAtTime((this.whiteNoiseVolume / 100) * masterVolume, audioContext.currentTime);
+        }
+        if (type === 'pink' && this.pinkNoiseGain) {
+          this.pinkNoiseGain.gain.setValueAtTime((this.pinkNoiseVolume / 100) * masterVolume, audioContext.currentTime);
+        }
+        if (type === 'brown' && this.brownNoiseGain) {
+          this.brownNoiseGain.gain.setValueAtTime((this.brownNoiseVolume / 100) * masterVolume, audioContext.currentTime);
+        }
+      }
+
+      updateFrequency() {
+        if (this.source && this.source.frequency) {
+          this.source.frequency.setValueAtTime(this.frequency, audioContext.currentTime);
+        }
+        if (this.filter && this.filter.frequency) {
+          this.filter.frequency.setValueAtTime(this.frequency, audioContext.currentTime);
+        }
+      }
+
+      updateType() {
+        const wasPlaying = this.isPlaying;
+        if (wasPlaying) {
+          this.stop();
+          this.play();
+        }
+      }
+    }
+
+    // Initialize Audio Context
+    function initAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        masterGainNode = audioContext.createGain();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+
+        masterGainNode.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        // Reconnect all existing layers to new master
+        soundLayers.forEach(layer => {
+          if (layer.gainNode) {
+            layer.gainNode.disconnect();
+            layer.gainNode.connect(analyser);
+          }
+        });
+      }
+    }
+
+    // Add Layer
+    function addLayer() {
+      const layer = new SoundLayer(layerIdCounter++);
+      soundLayers.push(layer);
+      renderLayer(layer);
+      updateEmptyState();
+      updateStatus();
+    }
+
+    // Remove Layer
+    function removeLayer(id) {
+      const layer = soundLayers.find(l => l.id === id);
+      if (layer) {
+        layer.stop();
+        soundLayers = soundLayers.filter(l => l.id !== id);
+        document.getElementById(`layer-${id}`).remove();
+        updateEmptyState();
+        updateStatus();
+      }
+    }
+
+    // Render Layer
+    function renderLayer(layer) {
+      const layerEl = document.createElement('div');
+      layerEl.className = 'sound-layer';
+      layerEl.id = `layer-${layer.id}`;
+
+      layerEl.innerHTML = `
+        <div class="layer-header">
+          <div class="layer-title">
+            <span class="layer-number">${soundLayers.indexOf(layer) + 1}</span>
+            <span>Sound Layer</span>
+          </div>
+          <div class="layer-controls">
+            <button class="layer-btn play" data-id="${layer.id}">Play</button>
+            <button class="layer-btn remove" data-id="${layer.id}">Remove</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Sound Type</label>
+          <select class="layer-type" data-id="${layer.id}">
+            <optgroup label="Tones">
+              <option value="sine" selected>Sine Wave (Pure Tone)</option>
+              <option value="square">Square Wave</option>
+              <option value="sawtooth">Sawtooth Wave</option>
+              <option value="triangle">Triangle Wave</option>
+            </optgroup>
+            <optgroup label="Noise">
+              <option value="white">White Noise</option>
+              <option value="pink">Pink Noise</option>
+              <option value="brown">Brown Noise</option>
+              <option value="notch">Notch Therapy</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="control-group frequency-control" data-id="${layer.id}">
+          <label>
+            Frequency: <span class="value-display layer-freq-value" data-id="${layer.id}">${layer.frequency} Hz</span>
+          </label>
+          <div class="frequency-scale">
+            <input type="range" class="layer-freq" data-id="${layer.id}" min="20" max="20000" value="${layer.frequency}" step="10" />
+            <div class="scale-labels">
+              <span>20 Hz</span>
+              <span>100 Hz</span>
+              <span>1 kHz</span>
+              <span>5 kHz</span>
+              <span>10 kHz</span>
+              <span>15 kHz</span>
+              <span>20 kHz</span>
+            </div>
+            <div class="scale-markers">
+              <span class="marker"></span>
+              <span class="marker"></span>
+              <span class="marker"></span>
+              <span class="marker"></span>
+              <span class="marker"></span>
+              <span class="marker"></span>
+              <span class="marker"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>
+            Tone Volume: <span class="value-display layer-vol-value" data-id="${layer.id}">${layer.volume}%</span>
+          </label>
+          <input type="range" class="layer-vol" data-id="${layer.id}" min="0" max="100" value="${layer.volume}" step="1" />
+        </div>
+
+        <div class="control-group">
+          <label>
+            White Noise: <span class="value-display layer-white-value" data-id="${layer.id}">0%</span>
+          </label>
+          <input type="range" class="layer-white" data-id="${layer.id}" min="0" max="100" value="0" step="1" />
+        </div>
+
+        <div class="control-group">
+          <label>
+            Pink Noise: <span class="value-display layer-pink-value" data-id="${layer.id}">0%</span>
+          </label>
+          <input type="range" class="layer-pink" data-id="${layer.id}" min="0" max="100" value="0" step="1" />
+        </div>
+
+        <div class="control-group">
+          <label>
+            Brown Noise: <span class="value-display layer-brown-value" data-id="${layer.id}">0%</span>
+          </label>
+          <input type="range" class="layer-brown" data-id="${layer.id}" min="0" max="100" value="0" step="1" />
+        </div>
+      `;
+
+      elements.soundLayersContainer.appendChild(layerEl);
+      attachLayerEventListeners(layer);
+    }
+
+    // Attach Event Listeners to Layer
+    function attachLayerEventListeners(layer) {
+      const layerEl = document.getElementById(`layer-${layer.id}`);
+
+      // Play/Stop button
+      const playBtn = layerEl.querySelector('.layer-btn.play');
+      playBtn.addEventListener('click', () => {
+        if (layer.isPlaying) {
+          layer.stop();
+          playBtn.textContent = 'Play';
+          playBtn.classList.remove('playing');
+          layerEl.classList.remove('active');
+        } else {
+          layer.play();
+          playBtn.textContent = 'Stop';
+          playBtn.classList.add('playing');
+          layerEl.classList.add('active');
+          startVisualization();
+        }
+        updateStatus();
+      });
+
+      // Remove button
+      layerEl.querySelector('.layer-btn.remove').addEventListener('click', () => {
+        removeLayer(layer.id);
+      });
+
+      // Type selector
+      layerEl.querySelector('.layer-type').addEventListener('change', (e) => {
+        layer.type = e.target.value;
+        layer.updateType();
+
+        // Hide/show frequency control based on sound type
+        const frequencyControl = layerEl.querySelector('.frequency-control');
+        const isNoiseType = ['white', 'pink', 'brown'].includes(layer.type);
+        frequencyControl.style.display = isNoiseType ? 'none' : 'block';
+      });
+
+      // Frequency slider
+      layerEl.querySelector('.layer-freq').addEventListener('input', (e) => {
+        layer.frequency = parseInt(e.target.value);
+        layerEl.querySelector('.layer-freq-value').textContent = `${layer.frequency} Hz`;
+        layer.updateFrequency();
+      });
+
+      // Volume slider
+      layerEl.querySelector('.layer-vol').addEventListener('input', (e) => {
+        layer.volume = parseInt(e.target.value);
+        layerEl.querySelector('.layer-vol-value').textContent = `${layer.volume}%`;
+        layer.updateVolume();
+      });
+
+      // White noise slider
+      layerEl.querySelector('.layer-white').addEventListener('input', (e) => {
+        layer.whiteNoiseVolume = parseInt(e.target.value);
+        layerEl.querySelector('.layer-white-value').textContent = `${layer.whiteNoiseVolume}%`;
+        layer.updateNoiseVolume('white');
+
+        // Restart layer if playing to apply changes
+        if (layer.isPlaying) {
+          layer.stop();
+          layer.play();
+        }
+      });
+
+      // Pink noise slider
+      layerEl.querySelector('.layer-pink').addEventListener('input', (e) => {
+        layer.pinkNoiseVolume = parseInt(e.target.value);
+        layerEl.querySelector('.layer-pink-value').textContent = `${layer.pinkNoiseVolume}%`;
+        layer.updateNoiseVolume('pink');
+
+        // Restart layer if playing to apply changes
+        if (layer.isPlaying) {
+          layer.stop();
+          layer.play();
+        }
+      });
+
+      // Brown noise slider
+      layerEl.querySelector('.layer-brown').addEventListener('input', (e) => {
+        layer.brownNoiseVolume = parseInt(e.target.value);
+        layerEl.querySelector('.layer-brown-value').textContent = `${layer.brownNoiseVolume}%`;
+        layer.updateNoiseVolume('brown');
+
+        // Restart layer if playing to apply changes
+        if (layer.isPlaying) {
+          layer.stop();
+          layer.play();
+        }
+      });
+
+    }
+
+    // Update Empty State
+    function updateEmptyState() {
+      elements.emptyState.style.display = soundLayers.length === 0 ? 'block' : 'none';
+    }
+
+    // Update Status
+    function updateStatus() {
+      const playingLayers = soundLayers.filter(l => l.isPlaying).length;
+      const totalLayers = soundLayers.length;
+
+      if (playingLayers > 0) {
+        elements.statusDot.classList.add('active');
+        elements.statusText.textContent = `Playing ${playingLayers} of ${totalLayers} layers`;
+        isGlobalPlaying = true;
+        elements.playAllButton.textContent = 'Stop All';
+        elements.playAllButton.classList.add('playing');
+      } else {
+        elements.statusDot.classList.remove('active');
+        elements.statusText.textContent = totalLayers > 0 ? 'Ready to start' : 'Add a layer to begin';
+        isGlobalPlaying = false;
+        elements.playAllButton.textContent = 'Play All Layers';
+        elements.playAllButton.classList.remove('playing');
+      }
+    }
+
+    // Play All Layers
+    function playAllLayers() {
+      soundLayers.forEach(layer => {
+        if (!layer.isPlaying) {
+          layer.play();
+          const playBtn = document.querySelector(`#layer-${layer.id} .layer-btn.play`);
+          if (playBtn) {
+            playBtn.textContent = 'Stop';
+            playBtn.classList.add('playing');
+            document.getElementById(`layer-${layer.id}`).classList.add('active');
+          }
+        }
+      });
+      updateStatus();
+      startVisualization();
+    }
+
+    // Stop All Layers
+    function stopAllLayers() {
+      soundLayers.forEach(layer => {
+        if (layer.isPlaying) {
+          layer.stop();
+          const playBtn = document.querySelector(`#layer-${layer.id} .layer-btn.play`);
+          if (playBtn) {
+            playBtn.textContent = 'Play';
+            playBtn.classList.remove('playing');
+            document.getElementById(`layer-${layer.id}`).classList.remove('active');
+          }
+        }
+      });
+      updateStatus();
+    }
+
+    // Update Master Volume
+    function updateMasterVolume(value) {
+      const vol = parseInt(value);
+      elements.masterVolumeValue.textContent = `${vol}%`;
+      soundLayers.forEach(layer => layer.updateVolume());
+    }
+
+    // Visualization
+    function startVisualization() {
+      const canvas = elements.canvas;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+
+      if (!analyser) return;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        const isAnyPlaying = soundLayers.some(l => l.isPlaying);
+        if (!isAnyPlaying) return;
+
+        requestAnimationFrame(draw);
+
+        analyser.getByteTimeDomainData(dataArray);
+
+        ctx.fillStyle = '#1d1d1f';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#667eea';
+        ctx.beginPath();
+
+        const sliceWidth = canvas.width / bufferLength;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const v = dataArray[i] / 128.0;
+          const y = v * canvas.height / 2;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          x += sliceWidth;
+        }
+
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+      }
+
+      draw();
+    }
+
+    // Event Listeners
+    elements.addLayerBtn.addEventListener('click', addLayer);
+
+    elements.masterVolumeSlider.addEventListener('input', (e) => {
+      updateMasterVolume(e.target.value);
+    });
+
+    elements.playAllButton.addEventListener('click', () => {
+      if (isGlobalPlaying) {
+        stopAllLayers();
+      } else {
+        playAllLayers();
+      }
+    });
+
+    elements.stopAllButton.addEventListener('click', stopAllLayers);
+
+    // Initialize
+    updateMasterVolume(70);
+    updateEmptyState();
+  </script>
+</body>
+
+</html>
