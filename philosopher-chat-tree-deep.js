@@ -45,6 +45,52 @@ const THINKING_MODES = {
     }
 };
 
+// Analyze the user's question to determine best initial thinking modes
+async function selectInitialModes(engine, persona, userMessage) {
+    const prompt = `You are analyzing a philosophical question to determine the best initial approaches for exploring it deeply.
+
+Question: "${userMessage}"
+
+Available thinking modes:
+- introspect: Reflect on internal logic and assumptions
+- counter: Challenge the thinking with objections
+- define: Clarify key terms and definitions
+- analogize: Use metaphors and parallels
+- synthesize: Connect different ideas
+- question: Raise new questions to explore
+- example: Use concrete examples
+- extend: Push the logic further
+
+Select 2-3 thinking modes that would be most valuable for exploring this question initially. Consider what the question is really asking and what approaches would yield the deepest insights.
+
+Respond with ONLY a comma-separated list of mode names (e.g., "introspect,define,question")`;
+
+    try {
+        const completion = await engine.chat.completions.create({
+            messages: [
+                { role: "system", content: persona.systemPrompt },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 50,
+            stream: false,
+        });
+
+        const response = completion.choices[0]?.message?.content.trim() || '';
+        const modes = response.split(',').map(m => m.trim()).filter(m => THINKING_MODES[m]);
+
+        // Fallback to defaults if parsing fails
+        if (modes.length === 0) {
+            return ['introspect', 'question', 'define'];
+        }
+
+        return modes.slice(0, 3); // Max 3 modes
+    } catch (error) {
+        console.error('Error selecting initial modes:', error);
+        return ['introspect', 'question', 'define']; // Fallback
+    }
+}
+
 // Generate a deep thought (paragraph-form) using a specific thinking mode
 async function generateDeepThought(engine, persona, userMessage, thinkingMode, previousThoughts = [], temperature = 0.8) {
     const mode = THINKING_MODES[thinkingMode];
@@ -249,6 +295,82 @@ async function exploreThoughtBranch(
     return node;
 }
 
+// Summarize a branch of thought by collapsing leaf nodes upward
+async function summarizeBranch(engine, persona, userMessage, node) {
+    if (!node) return '';
+
+    // If leaf node, return its thought as the summary
+    if (node.children.length === 0) {
+        return node.text;
+    }
+
+    // Recursively get summaries from children first (bottom-up)
+    const childSummaries = await Promise.all(
+        node.children.map(child => summarizeBranch(engine, persona, userMessage, child))
+    );
+
+    // Synthesize this node's thought with its children's summaries
+    const mode = THINKING_MODES[node.mode];
+    const prompt = `You are ${persona.name}. ${persona.systemPrompt}
+
+Original question: "${userMessage}"
+
+Current thought [${mode.name}]:
+${node.text}
+
+Insights from exploring this branch further:
+${childSummaries.map((summary, i) => `${i + 1}. ${summary}`).join('\n\n')}
+
+Synthesize these insights into a single concise summary (2-3 sentences) that captures the essence of this reasoning path.`;
+
+    try {
+        const completion = await engine.chat.completions.create({
+            messages: [
+                { role: "system", content: persona.systemPrompt },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 150,
+            stream: false,
+        });
+
+        return completion.choices[0]?.message?.content.trim() || node.text;
+    } catch (error) {
+        console.error('Error summarizing branch:', error);
+        return node.text; // Fallback to original thought
+    }
+}
+
+// Generate final answer from all branch summaries
+async function generateFinalAnswer(engine, persona, userMessage, branchSummaries) {
+    const prompt = `You are ${persona.name}. ${persona.systemPrompt}
+
+Question: "${userMessage}"
+
+After deep exploration through different reasoning paths, here are the key insights:
+
+${branchSummaries.map((summary, i) => `Path ${i + 1}:\n${summary}`).join('\n\n')}
+
+Based on this thorough exploration, provide a clear, synthesized answer to the original question. Draw from the insights above but present a coherent, well-reasoned response (3-4 sentences).`;
+
+    try {
+        const completion = await engine.chat.completions.create({
+            messages: [
+                { role: "system", content: persona.systemPrompt },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 300,
+            stream: false,
+        });
+
+        return completion.choices[0]?.message?.content.trim() || '';
+    } catch (error) {
+        console.error('Error generating final answer:', error);
+        return 'Unable to generate final answer.';
+    }
+}
+
 // Find the best leaf node (deepest, highest promise path)
 function findBestLeaf(tree) {
     function findLeaves(node, path = []) {
@@ -279,18 +401,21 @@ function findBestLeaf(tree) {
 }
 
 // Main entry point: Generate complete thought tree with DEPTH-FIRST exploration
-async function generateThoughtTree(engine, persona, userMessage, maxDepth = 5, onNodeCreated = null) {
+async function generateThoughtTree(engine, persona, userMessage, maxDepth = 5, onNodeCreated = null, onSummarizing = null) {
     console.log('🌳 Starting deep tree-of-thought exploration (depth-first, up to 3 branches per node)...');
     console.log(`📊 Max depth: ${maxDepth} layers`);
 
-    // Start with 2-3 different initial modes (explore each fully before starting the next)
-    const initialModes = ['introspect', 'question', 'define'];
+    // Step 1: Analyze question to determine best initial thinking modes
+    console.log('\n🔍 Analyzing question to select initial thinking modes...');
+    const initialModes = await selectInitialModes(engine, persona, userMessage);
+    console.log(`Selected modes: ${initialModes.join(', ')}`);
 
     const rootBranches = [];
 
-    // SEQUENTIAL exploration - complete each root branch before starting the next
-    for (const mode of initialModes) {
-        console.log(`\n🌱 Starting root branch: ${mode}`);
+    // Step 2: SEQUENTIAL exploration - complete each root branch before starting the next
+    for (let i = 0; i < initialModes.length; i++) {
+        const mode = initialModes[i];
+        console.log(`\n🌱 Starting root branch ${i + 1}/${initialModes.length}: ${mode}`);
         console.log('━'.repeat(50));
 
         const branch = await exploreThoughtBranch(
@@ -301,7 +426,9 @@ async function generateThoughtTree(engine, persona, userMessage, maxDepth = 5, o
             [],
             0,
             maxDepth,
-            onNodeCreated
+            onNodeCreated,
+            null,      // No parent for root branches
+            i          // Sibling index for root branches
         );
 
         if (branch) {
@@ -324,7 +451,6 @@ async function generateThoughtTree(engine, persona, userMessage, maxDepth = 5, o
     // Find best reasoning path
     const bestPaths = rootBranches.map(branch => findBestLeaf(branch));
     bestPaths.sort((a, b) => b.quality - a.quality);
-
     const bestPath = bestPaths[0];
 
     console.log('\n🎯 Best reasoning path found:');
@@ -334,10 +460,24 @@ async function generateThoughtTree(engine, persona, userMessage, maxDepth = 5, o
     console.log(`   Thinking modes: ${bestPath.path.map(n => n.mode).join(' → ')}`);
     console.log(`   Total nodes explored: ${tree.totalNodes}`);
 
+    // Step 3: Backward pass - summarize each branch
+    console.log('\n📝 Summarizing reasoning paths...');
+    if (onSummarizing) await onSummarizing();
+
+    const branchSummaries = await Promise.all(
+        rootBranches.map(branch => summarizeBranch(engine, persona, userMessage, branch))
+    );
+
+    // Step 4: Generate final answer from summaries
+    console.log('\n💡 Generating final answer...');
+    const finalAnswer = await generateFinalAnswer(engine, persona, userMessage, branchSummaries);
+
     return {
         tree,
         bestPath: bestPath.path,
-        bestLeaf: bestPath.node
+        bestLeaf: bestPath.node,
+        branchSummaries,
+        finalAnswer
     };
 }
 
@@ -353,7 +493,10 @@ if (typeof module !== 'undefined' && module.exports) {
         THINKING_MODES,
         generateThoughtTree,
         findBestLeaf,
-        countNodes
+        countNodes,
+        selectInitialModes,
+        summarizeBranch,
+        generateFinalAnswer
     };
 }
 
@@ -363,4 +506,7 @@ if (typeof window !== 'undefined') {
     window.generateThoughtTree = generateThoughtTree;
     window.findBestLeaf = findBestLeaf;
     window.countNodes = countNodes;
+    window.selectInitialModes = selectInitialModes;
+    window.summarizeBranch = summarizeBranch;
+    window.generateFinalAnswer = generateFinalAnswer;
 }

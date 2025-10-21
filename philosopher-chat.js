@@ -51,7 +51,7 @@ Be relentlessly questioning. 2-3 sentences MAX.`,
 NEVER make statements. ONLY ask questions. Be brief. 1-2 sentences.`,
         llmParams: {
             temperature: 0.6,
-            max_tokens: 100,
+            max_tokens: 400,
             repetition_penalty: 1.3,
             frequency_penalty: 0.6,
             presence_penalty: 0.4
@@ -79,7 +79,7 @@ NEVER extend metaphors beyond one sentence. NEVER mix metaphors (crucible + ship
 Create ONE concrete comparison, not abstract talk. 1-2 sentences.`,
         llmParams: {
             temperature: 0.65,
-            max_tokens: 120,
+            max_tokens: 400,
             repetition_penalty: 1.5,
             frequency_penalty: 0.9,
             presence_penalty: 0.7
@@ -107,7 +107,7 @@ NEVER be abstract. Give a specific example of how something works in practice. 2
 Be observational and practical, never mystical. 1-2 sentences.`,
         llmParams: {
             temperature: 0.7,
-            max_tokens: 150,
+            max_tokens: 400,
             repetition_penalty: 1.2,
             frequency_penalty: 0.5,
             presence_penalty: 0.4
@@ -135,7 +135,7 @@ NEVER be comforting. Be provocative and unmask hypocrisy with ONE sharp image. 2
 Be psychologically penetrating and uncomfortable. Use ONE vivid image. 1-2 sentences.`,
         llmParams: {
             temperature: 0.75,
-            max_tokens: 100,
+            max_tokens: 400,
             repetition_penalty: 1.4,
             frequency_penalty: 0.7,
             presence_penalty: 0.6
@@ -163,7 +163,7 @@ NEVER be abstract. Give specific guidance through a natural metaphor. 2-3 senten
 Give concrete, relational wisdom through nature imagery. 1-2 sentences.`,
         llmParams: {
             temperature: 0.65,
-            max_tokens: 130,
+            max_tokens: 400,
             repetition_penalty: 1.3,
             frequency_penalty: 0.6,
             presence_penalty: 0.5
@@ -230,27 +230,26 @@ Current question: "${userMessage}"${contextText}
 
 Previous thought: "${parentThought}"
 
-As ${persona.name}, generate ONE introspective thought (1-2 sentences) that either:
-- Asks a clarifying question about this line of reasoning
-- Breaks down an assumption that needs examination
-- Identifies a key term that needs definition
-- Points to a contradiction or tension
-- Suggests a different angle to consider
+As ${persona.name}, develop a THOROUGH philosophical exploration (2-4 paragraphs) that:
+- Deeply examines the core concepts and assumptions
+- Provides concrete examples or thought experiments
+- Explores tensions, contradictions, or hidden implications
+- Either reaches a meaningful conclusion OR identifies the ONE most important unresolved question
 
-Think and speak as ${persona.name} would - use your characteristic philosophical approach.`
+Think deeply and write substantively. This is not a brief note - this is serious philosophical work.`
         : `You are ${persona.name}.
 
 ${persona.thinkingPrompt}${conversationContext}
 
-Current question: "${userMessage}"
+Current question: "${userMessage}"${contextText}
 
-As ${persona.name}, before attempting to answer, generate ONE introspective thought (1-2 sentences) that:
+As ${persona.name}, develop a THOROUGH initial exploration (2-4 paragraphs) that:
 - Examines what the question itself assumes
-- Breaks it down into simpler parts
-- Asks what needs to be clarified first
-- Questions the framing of the question
+- Provides concrete examples or thought experiments
+- Breaks down the core concepts involved
+- Either reaches a meaningful insight OR identifies the ONE most important aspect to explore further
 
-Think and speak as ${persona.name} would - use your characteristic philosophical approach.`;
+Think deeply and write substantively. This is not a brief note - this is serious philosophical work.`;
 
     try {
         const completion = await demoEngine.chat.completions.create({
@@ -294,7 +293,7 @@ Think and speak as ${persona.name} would - use your characteristic philosophical
 }
 
 // Decide what to do next: continue deeper, branch out, or conclude
-async function decideBranchingStrategy(persona, thought, depth, maxDepth = 3) {
+async function decideBranchingStrategy(persona, thought, depth, maxDepth = 5) {
     if (depth >= maxDepth) return 'CONCLUDE';
 
     const decisionPrompt = `Thought: "${thought}"
@@ -328,6 +327,77 @@ Respond with only one word: CONTINUE, BRANCH, or CONCLUDE`;
     }
 }
 
+// Evaluate multiple candidate thoughts and return them sorted by score
+async function evaluateThoughts(candidates, userMessage) {
+    if (candidates.length === 0) return [];
+
+    // Build evaluation prompt
+    const candidateList = candidates.map((c, i) =>
+        `Thought ${i + 1} (by ${c.philosopher.name}):\n${c.thought}`
+    ).join('\n\n');
+
+    const evaluationPrompt = `Question: "${userMessage}"
+
+Multiple philosophical thoughts have been generated to address this question:
+
+${candidateList}
+
+TASK: Evaluate each thought on how well it advances our understanding toward answering the question.
+
+For each thought, assign a score from 1-10 based on:
+- Depth and insight (does it reveal something meaningful?)
+- Clarity and coherence (is it well-reasoned?)
+- Progress toward answering the question (does it move us forward?)
+- Novelty (does it offer a fresh perspective?)
+
+Respond in this exact format:
+Thought 1: [score]/10
+Thought 2: [score]/10
+Thought 3: [score]/10
+...`;
+
+    try {
+        const completion = await demoEngine.chat.completions.create({
+            messages: [
+                { role: "user", content: evaluationPrompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 200,
+            stream: false,
+        });
+
+        const response = completion.choices[0]?.message?.content || '';
+
+        // Parse scores
+        const scorePattern = /Thought (\d+):\s*(\d+)\/10/g;
+        const scores = new Map();
+        let match;
+
+        while ((match = scorePattern.exec(response)) !== null) {
+            const thoughtIndex = parseInt(match[1]) - 1;
+            const score = parseInt(match[2]) / 10.0; // Normalize to 0-1
+            scores.set(thoughtIndex, score);
+        }
+
+        // Assign scores to candidates
+        candidates.forEach((cand, i) => {
+            cand.score = scores.get(i) || 0.5; // Default to 0.5 if not scored
+        });
+
+        // Sort by score descending
+        candidates.sort((a, b) => b.score - a.score);
+
+        return candidates;
+    } catch (error) {
+        console.error('Evaluation error:', error);
+        // Fallback: random scores
+        candidates.forEach(cand => {
+            cand.score = Math.random();
+        });
+        return candidates;
+    }
+}
+
 // Generate expansion strategies for a thought
 async function generateExpansionStrategies(persona, thought, userMessage, conversationHistory) {
     const conversationContext = conversationHistory.length > 0
@@ -341,28 +411,17 @@ ${persona.thinkingPrompt}${conversationContext}
 Current question: "${userMessage}"
 Current thought: "${thought}"
 
-As ${persona.name}, generate 2-3 DISTINCT philosophical approaches to expand this thought. Each must be GENUINELY DIFFERENT - not just restatements or paraphrases.
+IMPORTANT: You have already done substantial thinking. Now decide:
 
-CRITICAL: Each strategy must lead somewhere NEW. Avoid strategies that would just restate the current thought in different words.
+1. If this exploration has reached a SATISFYING CONCLUSION, respond with just: "CONCLUDE"
+2. If there is EXACTLY ONE critical unresolved question that demands deeper inquiry, respond with:
+   "CONTINUE: [brief 5-10 word description of the specific question]"
+3. ONLY if there are genuinely TWO fundamentally different unresolved dimensions, respond with:
+   "BRANCH:
+   1. [First dimension - 5-10 words]
+   2. [Second dimension - 5-10 words]"
 
-Choose from these techniques:
-- ASK: Pose a question that reveals a hidden assumption or contradiction
-- INTROSPECT: Examine what this thought assumes or takes for granted
-- COUNTER: Challenge this thought with an opposing perspective
-- EXAMPLE: Test this thought with a specific concrete case that might break it
-- DEFINE: Clarify what a key ambiguous term actually means
-
-Generate 2-3 expansion strategies, each on a new line with format:
-[TECHNIQUE]: Brief description (5-10 words)
-
-EACH STRATEGY MUST:
-1. Lead to genuinely different territory
-2. NOT just restate the current thought
-3. Open up a NEW angle or reveal a NEW problem
-
-Example:
-ASK: What assumptions does this rely on?
-COUNTER: How would [specific opposing view] challenge this?`;
+Be honest. Most of the time, thorough thinking reaches a conclusion or identifies one key question. Branching is rare.`;
 
     try {
         const completion = await demoEngine.chat.completions.create({
@@ -379,23 +438,42 @@ COUNTER: How would [specific opposing view] challenge this?`;
         });
 
         const response = completion.choices[0]?.message?.content.trim() || '';
-        const strategies = response
-            .split('\n')
-            .filter(line => line.includes(':'))
-            .map(line => {
-                const match = line.match(/\[(.*?)\]:\s*(.+)/);
-                if (match) {
-                    return { technique: match[1], description: match[2].trim() };
-                }
-                // Fallback parsing
-                const parts = line.split(':');
-                return { technique: 'INTROSPECT', description: parts[1] ? parts[1].trim() : line.trim() };
-            })
-            .filter(s => s.description.length > 5)
-            .slice(0, 3); // Max 3 strategies
 
-        console.log(`    Generated ${strategies.length} expansion strategies:`, strategies.map(s => `${s.technique}: ${s.description}`));
-        return strategies;
+        // Check if it's a CONCLUDE response
+        if (response.toUpperCase().includes('CONCLUDE')) {
+            console.log(`    Decision: CONCLUDE`);
+            return [];
+        }
+
+        // Check if it's a CONTINUE response
+        if (response.toUpperCase().startsWith('CONTINUE')) {
+            const continueMatch = response.match(/CONTINUE:\s*(.+)/i);
+            if (continueMatch) {
+                const question = continueMatch[1].trim();
+                console.log(`    Decision: CONTINUE with "${question}"`);
+                return [{ technique: 'CONTINUE', description: question }];
+            }
+        }
+
+        // Check if it's a BRANCH response
+        if (response.toUpperCase().includes('BRANCH')) {
+            const branches = response
+                .split('\n')
+                .filter(line => /^\s*\d+\./.test(line))
+                .map(line => {
+                    const match = line.match(/^\s*\d+\.\s*(.+)/);
+                    return match ? { technique: 'BRANCH', description: match[1].trim() } : null;
+                })
+                .filter(b => b && b.description.length > 5)
+                .slice(0, 2); // Max 2 branches
+
+            console.log(`    Decision: BRANCH into ${branches.length} directions:`, branches.map(s => s.description));
+            return branches;
+        }
+
+        // Default: treat as conclude if we can't parse
+        console.log(`    Unparseable response, defaulting to CONCLUDE`);
+        return [];
     } catch (error) {
         console.error('Strategy generation error:', error);
         return [];
@@ -420,16 +498,14 @@ Current question: "${userMessage}"${contextText}
 
 Previous thought: "${thought}"
 
-Strategy to execute: [${strategy.technique}] ${strategy.description}
+Next inquiry: ${strategy.description}
 
-As ${persona.name}, execute this strategy with 1-2 sentences that take the inquiry in a GENUINELY DIFFERENT direction.
+As ${persona.name}, develop a THOROUGH philosophical exploration (2-4 paragraphs) addressing this specific aspect:
+- Provide concrete examples or thought experiments
+- Examine assumptions and implications deeply
+- Work toward either a meaningful conclusion OR identify the ONE most important remaining question
 
-CRITICAL:
-- DO NOT just restate the previous thought in different words
-- DO NOT paraphrase what was already said
-- MUST open up a NEW angle, reveal a NEW problem, or explore NEW territory
-
-Execute the strategy as ${persona.name} would - use your characteristic philosophical voice to take this somewhere meaningful and distinct.`;
+Think deeply and write substantively. This is serious philosophical work, not a brief comment.`;
 
     try {
         const completion = await demoEngine.chat.completions.create({
@@ -818,6 +894,60 @@ function updateTree(source) {
         .on('click', (event, d) => {
             event.stopPropagation();
             showSummaryTooltip(d, event);
+        })
+        .on('mouseenter', function(event, d) {
+            // Show the entire chain from root to this node
+            if (!d.data.active) {
+                // Build array of nodes from root to current
+                const pathNodes = [];
+                let currentNode = d;
+                while (currentNode) {
+                    pathNodes.unshift(currentNode); // Add to beginning
+                    currentNode = currentNode.parent;
+                }
+
+                // Show text for all nodes in the path
+                pathNodes.forEach(node => {
+                    if (!node.data.active) {
+                        const nodeGroup = d3Container.select(`#node-${node.data.id}`);
+                        nodeGroup.selectAll('foreignObject, .philosopher-label')
+                            .style('display', null)
+                            .attr('opacity', 0)
+                            .transition()
+                            .duration(300)
+                            .attr('opacity', 1);
+                    }
+                });
+            }
+        })
+        .on('mouseleave', function(event, d) {
+            // Hide text for all nodes in the chain when mouse leaves
+            if (!d.data.active) {
+                // Build array of nodes from root to current
+                const pathNodes = [];
+                let currentNode = d;
+                while (currentNode) {
+                    pathNodes.unshift(currentNode);
+                    currentNode = currentNode.parent;
+                }
+
+                // Hide text for all nodes in the path
+                pathNodes.forEach(node => {
+                    if (!node.data.active) {
+                        const nodeGroup = d3Container.select(`#node-${node.data.id}`);
+                        nodeGroup.selectAll('foreignObject, .philosopher-label')
+                            .transition()
+                            .duration(300)
+                            .attr('opacity', 0)
+                            .end()
+                            .then(() => {
+                                nodeGroup.selectAll('foreignObject, .philosopher-label')
+                                    .style('display', 'none');
+                            })
+                            .catch(() => {});
+                    }
+                });
+            }
         });
 
     // Add circle for node
@@ -1058,7 +1188,7 @@ function toggleNode(d) {
 }
 
 // Build introspective thought tree using expansion strategies
-async function buildIntrospectiveTree(persona, userMessage, conversationHistory, parentNode = null, parentThought = null, contextPath = [], depth = 0, maxDepth = 3) {
+async function buildIntrospectiveTree(persona, userMessage, conversationHistory, parentNode = null, parentThought = null, contextPath = [], depth = 0, maxDepth = 5) {
     if (depth >= maxDepth) {
         console.log(`  ⛔ Reached max depth ${maxDepth}`);
         return null;
@@ -1173,9 +1303,11 @@ async function buildIntrospectiveTree(persona, userMessage, conversationHistory,
         console.log(`  🍃 Reached leaf at depth ${depth}`);
     }
 
-    // Mark node as no longer active
+    // Mark node as no longer active and hide text elegantly
     node.active = false;
-    d3Container.select(`#node-${nodeId}`)
+    const nodeGroupElement = d3Container.select(`#node-${nodeId}`);
+
+    nodeGroupElement
         .selectAll('circle')
         .transition()
         .duration(300)
@@ -1183,7 +1315,21 @@ async function buildIntrospectiveTree(persona, userMessage, conversationHistory,
         .attr('fill', '#777')
         .attr('filter', null);
 
-    d3Container.select(`#node-${nodeId}`)
+    // Hide text and philosopher label with fade-out animation
+    nodeGroupElement
+        .selectAll('foreignObject, .philosopher-label')
+        .transition()
+        .duration(400)
+        .attr('opacity', 0)
+        .end()
+        .then(() => {
+            // After fade-out, set display to none to prevent interaction
+            nodeGroupElement.selectAll('foreignObject, .philosopher-label')
+                .style('display', 'none');
+        })
+        .catch(() => {}); // Ignore transition errors
+
+    nodeGroupElement
         .selectAll('.thought-text')
         .classed('active', false);
 
@@ -1278,83 +1424,16 @@ function renderNodeText(nodeGroup, text, isSummary = false) {
     }
 }
 
-// Render fixed-height text for short thoughts (original 3-line approach)
+// Render fixed-height text for short thoughts - NOW USES SCROLLABLE for ALL thoughts
 function renderFixedText(nodeGroup, text, isSummary = false, philosopher = null) {
-    const maxCharsPerLine = 40;
-    let startY = 15;
-    let textStartY = 28;
-
-    // Add philosopher name label if this is a root branch (depth 0)
-    if (philosopher && nodeGroup.datum().data.depth === 0) {
-        const nameLabel = nodeGroup.append('text')
-            .attr('y', 12)
-            .attr('text-anchor', 'middle')
-            .attr('class', 'philosopher-label')
-            .attr('fill', '#00d9ff')
-            .attr('font-size', '10px')
-            .attr('font-weight', 'bold')
-            .text(`[${philosopher.name}]`);
-
-        startY = 28;
-        textStartY = 42;
-    }
-
-    // Add background rectangle
-    const bgRect = nodeGroup.append('rect')
-        .attr('class', 'thought-label-bg')
-        .attr('y', startY)
-        .attr('opacity', 0.9);
-
-    // Split text into lines
-    const words = text.split(' ');
-    let lines = ['', '', ''];
-    let currentLineIndex = 0;
-
-    for (const word of words) {
-        if (currentLineIndex >= 3) break;
-        const testLine = lines[currentLineIndex] ? lines[currentLineIndex] + ' ' + word : word;
-        if (testLine.length <= maxCharsPerLine) {
-            lines[currentLineIndex] = testLine;
-        } else {
-            currentLineIndex++;
-            if (currentLineIndex < 3) {
-                lines[currentLineIndex] = word;
-            }
-        }
-    }
-
-    // Truncate if needed
-    if (lines[2] && lines[2].length > 37) {
-        lines[2] = lines[2].substring(0, 37) + '...';
-    }
-
-    // Calculate dimensions
-    const maxLineLength = Math.max(...lines.map(l => l.length));
-    const textWidth = maxLineLength * 6.5;
-    const lineCount = lines.filter(l => l.length > 0).length;
-    const textHeight = lineCount * 16;
-
-    bgRect
-        .attr('x', -textWidth / 2 - 4)
-        .attr('width', textWidth + 8)
-        .attr('height', textHeight + 8)
-        .attr('fill', '#0a0a0a');
-
-    // Add text elements
-    lines.filter(l => l).forEach((line, i) => {
-        nodeGroup.append('text')
-            .attr('y', textStartY + (i * 16))
-            .attr('text-anchor', 'middle')
-            .attr('class', `thought-text`)
-            .attr('fill', '#aaa')
-            .text(line);
-    });
+    // All thoughts now use scrollable containers to avoid truncation
+    renderScrollableText(nodeGroup, text, isSummary, philosopher);
 }
 
 // Render scrollable text for longer summaries using foreignObject
 function renderScrollableText(nodeGroup, text, isSummary = false, philosopher = null) {
     const width = 350;
-    const height = 150; // Fixed container height for scrolling
+    const maxHeight = 150; // Maximum container height for scrolling
     let startY = 15;
 
     // Add philosopher name label if this is a root branch (depth 0)
@@ -1371,19 +1450,20 @@ function renderScrollableText(nodeGroup, text, isSummary = false, philosopher = 
         startY = 28;
     }
 
-    // Create foreignObject to embed HTML
+    // Create foreignObject to embed HTML - set to maxHeight for SVG container
     const fo = nodeGroup.append('foreignObject')
         .attr('class', 'thought-label-bg')
         .attr('x', -width / 2)
         .attr('y', startY)
         .attr('width', width)
-        .attr('height', height);
+        .attr('height', maxHeight);
 
-    // Create scrollable div inside foreignObject
+    // Create auto-expanding div inside foreignObject with max-height
     const div = fo.append('xhtml:div')
         .attr('xmlns', 'http://www.w3.org/1999/xhtml')
         .style('width', '100%')
-        .style('height', '100%')
+        .style('min-height', 'auto')
+        .style('max-height', maxHeight + 'px')
         .style('overflow-y', 'auto')
         .style('overflow-x', 'hidden')
         .style('padding', '8px')
@@ -1396,7 +1476,11 @@ function renderScrollableText(nodeGroup, text, isSummary = false, philosopher = 
         .style('line-height', '1.5')
         .style('color', isSummary ? '#00ff88' : '#aaa')
         .style('pointer-events', 'auto')
-        .attr('class', 'thought-text scrollable');
+        .attr('class', 'thought-text scrollable')
+        .on('wheel', function(event) {
+            // Prevent zoom when scrolling inside the text container
+            event.stopPropagation();
+        });
 
     // Style the scrollbar for dark theme
     const scrollbarStyles = `
@@ -1444,11 +1528,11 @@ function renderScrollableText(nodeGroup, text, isSummary = false, philosopher = 
     }
 }
 
-// Stream text directly from LLM completion into node
+// Stream text directly from LLM completion into scrollable node container
 async function streamNodeTextFromLLM(nodeGroup, completion) {
-    const maxCharsPerLine = 40;
+    const width = 350;
+    const maxHeight = 150;
     let startY = 15;
-    let textStartY = 28;
 
     // Add philosopher name label if this is a root branch (depth 0)
     const nodeData = nodeGroup.datum().data;
@@ -1463,81 +1547,52 @@ async function streamNodeTextFromLLM(nodeGroup, completion) {
             .text(`[${nodeData.philosopher.name}]`);
 
         startY = 28;
-        textStartY = 42;
     }
 
-    // Add background rectangle
-    const bgRect = nodeGroup.append('rect')
+    // Create foreignObject for scrollable container - set to maxHeight for SVG container
+    const fo = nodeGroup.append('foreignObject')
         .attr('class', 'thought-label-bg')
+        .attr('x', -width / 2)
         .attr('y', startY)
-        .attr('opacity', 0);
+        .attr('width', width)
+        .attr('height', maxHeight);
 
-    // Add text elements
-    const textElements = [];
-    for (let i = 0; i < 3; i++) {
-        const textEl = nodeGroup.append('text')
-            .attr('y', textStartY + (i * 16))
-            .attr('text-anchor', 'middle')
-            .attr('class', 'thought-text active')
-            .text('');
-        textElements.push(textEl);
-    }
+    // Create auto-expanding div with max-height
+    const div = fo.append('xhtml:div')
+        .attr('xmlns', 'http://www.w3.org/1999/xhtml')
+        .style('width', '100%')
+        .style('min-height', 'auto')
+        .style('max-height', maxHeight + 'px')
+        .style('overflow-y', 'auto')
+        .style('overflow-x', 'hidden')
+        .style('padding', '8px')
+        .style('background', '#0a0a0a')
+        .style('border-radius', '6px')
+        .style('border', '1px solid #333')
+        .style('box-sizing', 'border-box')
+        .style('font-family', "'Courier New', monospace")
+        .style('font-size', '11px')
+        .style('line-height', '1.5')
+        .style('color', '#aaa')
+        .style('pointer-events', 'auto')
+        .attr('class', 'thought-text scrollable active')
+        .on('wheel', function(event) {
+            // Prevent zoom when scrolling inside the text container
+            event.stopPropagation();
+        });
 
-    // Stream tokens word-by-word as they arrive from LLM
+    // Stream tokens directly into div
     let currentText = '';
-    let lines = ['', '', ''];
-    let currentLineIndex = 0;
 
     for await (const chunk of completion) {
         const token = chunk.choices[0]?.delta?.content || '';
         if (!token) continue;
 
         currentText += token;
+        div.text(currentText);
 
-        // Split into words
-        const words = currentText.split(' ');
-        lines = ['', '', ''];
-        currentLineIndex = 0;
-
-        for (const word of words) {
-            if (currentLineIndex >= 3) break;
-
-            const testLine = lines[currentLineIndex] ? lines[currentLineIndex] + ' ' + word : word;
-            if (testLine.length <= maxCharsPerLine) {
-                lines[currentLineIndex] = testLine;
-            } else {
-                currentLineIndex++;
-                if (currentLineIndex < 3) {
-                    lines[currentLineIndex] = word;
-                }
-            }
-        }
-
-        // Update display
-        lines.forEach((line, i) => {
-            textElements[i].text(line);
-        });
-
-        // Update background
-        const maxLineLength = Math.max(...lines.map(l => l.length));
-        const textWidth = maxLineLength * 6.5;
-        const lineCount = lines.filter(l => l.length > 0).length;
-        const textHeight = lineCount * 16;
-
-        bgRect
-            .attr('x', -textWidth / 2 - 4)
-            .attr('width', textWidth + 8)
-            .attr('height', textHeight + 8)
-            .attr('opacity', 0.9);
-
-        // Small delay to make streaming visible (5ms feels responsive)
+        // Small delay to make streaming visible
         await new Promise(resolve => setTimeout(resolve, 5));
-    }
-
-    // Truncate if needed
-    if (lines[2] && lines[2].length > 37) {
-        lines[2] = lines[2].substring(0, 37) + '...';
-        textElements[2].text(lines[2]);
     }
 }
 
@@ -1722,35 +1777,126 @@ async function sendMessage() {
         treeLayout(rootHierarchy);
         updateTree(rootHierarchy);
 
-        // PHASE 1: Build one branch per philosopher
-        assistantTextDiv.textContent = `Channeling ${activePhilosophers.length} philosophical perspectives...`;
-        console.log(`  🌳 Building ${activePhilosophers.length} philosophical branches...`);
+        // PHASE 1: Tree-of-Thought Reasoning with BFS
+        assistantTextDiv.textContent = `Initiating Tree-of-Thought reasoning...`;
+        console.log(`  🌳 Starting Tree-of-Thought exploration with BFS...`);
 
+        // BFS parameters
+        const THOUGHTS_PER_STEP = 5; // Generate 5 candidate thoughts at each level
+        const KEEP_TOP_K = 3; // Keep top 3 most promising thoughts
+        const MAX_DEPTH = 4; // Explore up to depth 4
+
+        // BFS: Maintain frontier of most promising states
+        let frontier = [{ node: rootNode, depth: 0, score: 1.0 }];
         const philosophicalBranches = [];
 
-        for (const philosopher of activePhilosophers) {
-            console.log(`  📖 ${philosopher.name}: Starting exploration...`);
+        for (let depth = 0; depth < MAX_DEPTH && frontier.length > 0; depth++) {
+            console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+            console.log(`📊 BFS DEPTH ${depth}: Exploring ${frontier.length} states`);
+            assistantTextDiv.textContent = `Tree-of-Thought: Depth ${depth + 1}/${MAX_DEPTH} - Exploring ${frontier.length} states...`;
 
-            // Build a tree branch for this philosopher
-            const branch = await buildIntrospectiveTree(
-                philosopher,
-                userMessage,
-                conversationHistory,
-                rootNode,
-                null,  // No parent thought
-                [],    // Empty context path
-                0,     // Starting depth
-                2      // Reduced max depth since we have multiple branches
-            );
+            const nextFrontier = [];
 
-            if (branch) {
-                branch.philosopher = philosopher;
-                philosophicalBranches.push(branch);
-                console.log(`  ✅ ${philosopher.name}: Branch complete`);
+            // For each state in frontier, generate and evaluate candidate thoughts
+            for (const state of frontier) {
+                console.log(`  🔍 Expanding state (score: ${state.score.toFixed(2)})`);
+
+                // Generate multiple candidate thoughts for this state
+                const candidates = [];
+                for (let i = 0; i < THOUGHTS_PER_STEP; i++) {
+                    console.log(`    Generating candidate ${i + 1}/${THOUGHTS_PER_STEP}...`);
+
+                    // Select philosopher (round-robin or random)
+                    const philosopher = activePhilosophers[i % activePhilosophers.length];
+
+                    // Create node
+                    const nodeId = thoughtTree.nodeCount++;
+                    const node = {
+                        id: nodeId,
+                        originalThought: '',
+                        summary: null,
+                        isValid: true,
+                        showingSummary: false,
+                        philosopher: philosopher,
+                        x: state.node.x + (Math.random() - 0.5) * 200,
+                        y: state.node.y + 150,
+                        depth: depth,
+                        children: [],
+                        _children: null,
+                        active: true
+                    };
+
+                    thoughtTree.nodes.push(node);
+                    state.node.children.push(node);
+                    thoughtTree.edges.push({ source: state.node, target: node });
+
+                    // Update visualization
+                    rootHierarchy = d3.hierarchy(thoughtTree.rootNode, d => d.children);
+                    treeLayout(rootHierarchy);
+                    updateTree(rootHierarchy);
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    // Generate thought
+                    const nodeGroup = d3Container.select(`#node-${nodeId}`);
+                    const thought = await generateIntrospectiveThought(
+                        philosopher,
+                        userMessage,
+                        conversationHistory,
+                        state.node.originalThought || userMessage,
+                        [],
+                        nodeGroup
+                    );
+
+                    node.originalThought = thought;
+
+                    if (thought) {
+                        candidates.push({ node, thought, philosopher });
+                        console.log(`    ✓ Generated: "${thought.substring(0, 50)}..."`);
+                    }
+                }
+
+                // Evaluate all candidates for this state
+                if (candidates.length > 0) {
+                    console.log(`  📊 Evaluating ${candidates.length} candidates...`);
+                    const evaluatedCandidates = await evaluateThoughts(candidates, userMessage);
+
+                    // Add top K to next frontier
+                    const topK = evaluatedCandidates.slice(0, KEEP_TOP_K);
+                    topK.forEach(cand => {
+                        nextFrontier.push({
+                            node: cand.node,
+                            depth: depth + 1,
+                            score: cand.score
+                        });
+                        console.log(`    ✅ Keeping (score ${cand.score.toFixed(2)}): "${cand.thought.substring(0, 50)}..."`);
+                    });
+
+                    // Mark non-selected candidates as inactive
+                    const rejected = evaluatedCandidates.slice(KEEP_TOP_K);
+                    rejected.forEach(cand => {
+                        cand.node.active = false;
+                        const nodeGroup = d3Container.select(`#node-${cand.node.id}`);
+                        nodeGroup.selectAll('foreignObject, .philosopher-label')
+                            .transition()
+                            .duration(400)
+                            .attr('opacity', 0.3);
+                        console.log(`    ⊗ Pruned (score ${cand.score.toFixed(2)}): "${cand.thought.substring(0, 50)}..."`);
+                    });
+                }
             }
+
+            // Update frontier for next iteration
+            frontier = nextFrontier;
+            console.log(`  → Next frontier: ${frontier.length} states`);
         }
 
-        console.log('  📊 All philosophical branches complete');
+        console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`✅ BFS complete - explored ${MAX_DEPTH} levels`);
+
+        // Collect final states for synthesis
+        frontier.forEach(state => {
+            philosophicalBranches.push(state.node);
+        });
 
         // PHASE 2: Bottom-up summarization for each branch
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -1793,20 +1939,23 @@ A philosophical council explored this question through ${philosophicalBranches.l
 
 ${perspectives}
 
-TASK: Synthesize these perspectives into a unified response that:
-1. Honors the distinct insights from each philosopher
-2. Reveals where they agree, conflict, or complement each other
-3. Distills the collective wisdom into practical insight
+TASK: Synthesize these perspectives into a comprehensive, unified response that:
 
-Deliver a clear, thoughtful response (3-4 sentences) that integrates their wisdom.`;
+1. HONORS each philosopher's distinct insights - what unique contribution did each perspective offer?
+2. REVEALS the patterns - where do they agree, conflict, or complement each other?
+3. INTEGRATES the tensions - what deeper truth emerges from their disagreements?
+4. DISTILLS practical wisdom - what does this mean for the person asking the question?
+5. CONCLUDES with clarity - what is the synthesized answer to their question?
+
+Write a thorough, well-structured response (4-6 paragraphs). This should feel proportional to the depth of exploration that preceded it. Be clear, profound, and comprehensive.`;
 
         const completion = await demoEngine.chat.completions.create({
             messages: [
-                { role: "system", content: `You are synthesizing insights from multiple philosophical perspectives. Integrate their wisdom respectfully and clearly.` },
+                { role: "system", content: `You are synthesizing insights from multiple philosophical perspectives. Integrate their wisdom respectfully and clearly. Write a comprehensive response that does justice to the depth of exploration.` },
                 { role: "user", content: synthesisPrompt }
             ],
             temperature: 0.7,
-            max_tokens: 200,
+            max_tokens: 800,
             repetition_penalty: 1.2,
             stream: true,
         });
