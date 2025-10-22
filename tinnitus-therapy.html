@@ -765,19 +765,24 @@
         this.type = 'sine';
         this.frequency = 4000;
         this.volume = 50;
+        this.pan = 0;
         this.whiteNoiseVolume = 0;
         this.pinkNoiseVolume = 0;
         this.brownNoiseVolume = 0;
         this.isPlaying = false;
         this.source = null;
         this.gainNode = null;
+        this.panNode = null;
         this.filter = null;
         this.whiteNoiseSource = null;
         this.whiteNoiseGain = null;
+        this.whiteNoisePan = null;
         this.pinkNoiseSource = null;
         this.pinkNoiseGain = null;
+        this.pinkNoisePan = null;
         this.brownNoiseSource = null;
         this.brownNoiseGain = null;
+        this.brownNoisePan = null;
       }
 
       createAudioNodes() {
@@ -785,7 +790,12 @@
 
         this.gainNode = audioContext.createGain();
         this.gainNode.gain.setValueAtTime((this.volume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
-        this.gainNode.connect(analyser);
+
+        this.panNode = audioContext.createStereoPanner();
+        this.panNode.pan.setValueAtTime(this.pan, audioContext.currentTime);
+
+        this.gainNode.connect(this.panNode);
+        this.panNode.connect(analyser);
 
         switch (this.type) {
           case 'sine':
@@ -888,8 +898,11 @@
           this.whiteNoiseSource = this.createWhiteNoise();
           this.whiteNoiseGain = audioContext.createGain();
           this.whiteNoiseGain.gain.setValueAtTime((this.whiteNoiseVolume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
+          this.whiteNoisePan = audioContext.createStereoPanner();
+          this.whiteNoisePan.pan.setValueAtTime(this.pan, audioContext.currentTime);
           this.whiteNoiseSource.connect(this.whiteNoiseGain);
-          this.whiteNoiseGain.connect(analyser);
+          this.whiteNoiseGain.connect(this.whiteNoisePan);
+          this.whiteNoisePan.connect(analyser);
           this.whiteNoiseSource.start();
         }
 
@@ -897,8 +910,11 @@
           this.pinkNoiseSource = this.createPinkNoise();
           this.pinkNoiseGain = audioContext.createGain();
           this.pinkNoiseGain.gain.setValueAtTime((this.pinkNoiseVolume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
+          this.pinkNoisePan = audioContext.createStereoPanner();
+          this.pinkNoisePan.pan.setValueAtTime(this.pan, audioContext.currentTime);
           this.pinkNoiseSource.connect(this.pinkNoiseGain);
-          this.pinkNoiseGain.connect(analyser);
+          this.pinkNoiseGain.connect(this.pinkNoisePan);
+          this.pinkNoisePan.connect(analyser);
           this.pinkNoiseSource.start();
         }
 
@@ -906,8 +922,11 @@
           this.brownNoiseSource = this.createBrownNoise();
           this.brownNoiseGain = audioContext.createGain();
           this.brownNoiseGain.gain.setValueAtTime((this.brownNoiseVolume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
+          this.brownNoisePan = audioContext.createStereoPanner();
+          this.brownNoisePan.pan.setValueAtTime(this.pan, audioContext.currentTime);
           this.brownNoiseSource.connect(this.brownNoiseGain);
-          this.brownNoiseGain.connect(analyser);
+          this.brownNoiseGain.connect(this.brownNoisePan);
+          this.brownNoisePan.connect(analyser);
           this.brownNoiseSource.start();
         }
 
@@ -928,20 +947,24 @@
           try { this.whiteNoiseSource.stop(); } catch (e) { }
           this.whiteNoiseSource = null;
           this.whiteNoiseGain = null;
+          this.whiteNoisePan = null;
         }
         if (this.pinkNoiseSource) {
           try { this.pinkNoiseSource.stop(); } catch (e) { }
           this.pinkNoiseSource = null;
           this.pinkNoiseGain = null;
+          this.pinkNoisePan = null;
         }
         if (this.brownNoiseSource) {
           try { this.brownNoiseSource.stop(); } catch (e) { }
           this.brownNoiseSource = null;
           this.brownNoiseGain = null;
+          this.brownNoisePan = null;
         }
 
         this.source = null;
         this.gainNode = null;
+        this.panNode = null;
         this.filter = null;
         this.isPlaying = false;
       }
@@ -950,6 +973,21 @@
         if (this.gainNode) {
           const masterVolume = parseInt(elements.masterVolumeSlider.value) / 100;
           this.gainNode.gain.setValueAtTime((this.volume / 100) * masterVolume, audioContext.currentTime);
+        }
+      }
+
+      updatePan() {
+        if (this.panNode) {
+          this.panNode.pan.setValueAtTime(this.pan, audioContext.currentTime);
+        }
+        if (this.whiteNoisePan) {
+          this.whiteNoisePan.pan.setValueAtTime(this.pan, audioContext.currentTime);
+        }
+        if (this.pinkNoisePan) {
+          this.pinkNoisePan.pan.setValueAtTime(this.pan, audioContext.currentTime);
+        }
+        if (this.brownNoisePan) {
+          this.brownNoisePan.pan.setValueAtTime(this.pan, audioContext.currentTime);
         }
       }
 
@@ -1099,6 +1137,13 @@
 
         <div class="control-group">
           <label>
+            Pan: <span class="value-display layer-pan-value" data-id="${layer.id}">Center</span>
+          </label>
+          <input type="range" class="layer-pan" data-id="${layer.id}" min="-1" max="1" value="0" step="0.01" />
+        </div>
+
+        <div class="control-group">
+          <label>
             White Noise: <span class="value-display layer-white-value" data-id="${layer.id}">0%</span>
           </label>
           <input type="range" class="layer-white" data-id="${layer.id}" min="0" max="100" value="0" step="1" />
@@ -1173,6 +1218,14 @@
         layer.volume = parseInt(e.target.value);
         layerEl.querySelector('.layer-vol-value').textContent = `${layer.volume}%`;
         layer.updateVolume();
+      });
+
+      // Pan slider
+      layerEl.querySelector('.layer-pan').addEventListener('input', (e) => {
+        layer.pan = parseFloat(e.target.value);
+        const panValue = layer.pan === 0 ? 'Center' : layer.pan < 0 ? `Left ${Math.abs(layer.pan * 100).toFixed(0)}%` : `Right ${(layer.pan * 100).toFixed(0)}%`;
+        layerEl.querySelector('.layer-pan-value').textContent = panValue;
+        layer.updatePan();
       });
 
       // White noise slider
