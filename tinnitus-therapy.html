@@ -826,12 +826,14 @@
         this.frequency = 4000;
         this.volume = 50;
         this.pan = 0;
+        this.phaseInverted = false;
         this.whiteNoiseVolume = 0;
         this.pinkNoiseVolume = 0;
         this.brownNoiseVolume = 0;
         this.isPlaying = false;
         this.source = null;
         this.gainNode = null;
+        this.phaseGainNode = null;
         this.panNode = null;
         this.filter = null;
         this.whiteNoiseSource = null;
@@ -851,10 +853,15 @@
         this.gainNode = audioContext.createGain();
         this.gainNode.gain.setValueAtTime((this.volume / 100) * (parseInt(elements.masterVolumeSlider.value) / 100), audioContext.currentTime);
 
+        // Phase inversion node (multiply by -1 to invert phase by 180°)
+        this.phaseGainNode = audioContext.createGain();
+        this.phaseGainNode.gain.setValueAtTime(this.phaseInverted ? -1 : 1, audioContext.currentTime);
+
         this.panNode = audioContext.createStereoPanner();
         this.panNode.pan.setValueAtTime(this.pan, audioContext.currentTime);
 
-        this.gainNode.connect(this.panNode);
+        this.gainNode.connect(this.phaseGainNode);
+        this.phaseGainNode.connect(this.panNode);
         this.panNode.connect(analyser);
 
         switch (this.type) {
@@ -1024,6 +1031,7 @@
 
         this.source = null;
         this.gainNode = null;
+        this.phaseGainNode = null;
         this.panNode = null;
         this.filter = null;
         this.isPlaying = false;
@@ -1033,6 +1041,12 @@
         if (this.gainNode) {
           const masterVolume = parseInt(elements.masterVolumeSlider.value) / 100;
           this.gainNode.gain.setValueAtTime((this.volume / 100) * masterVolume, audioContext.currentTime);
+        }
+      }
+
+      updatePhase() {
+        if (this.phaseGainNode) {
+          this.phaseGainNode.gain.setValueAtTime(this.phaseInverted ? -1 : 1, audioContext.currentTime);
         }
       }
 
@@ -1206,6 +1220,15 @@
 
         <div class="control-group">
           <label>
+            Phase: <span class="value-display layer-phase-value" data-id="${layer.id}">${layer.phaseInverted ? '180°' : 'Normal'}</span>
+          </label>
+          <button class="layer-btn phase-btn" data-id="${layer.id}" style="width: 100%; padding: 10px; background: ${layer.phaseInverted ? '#667eea' : '#404040'}; color: white; border: 1px solid ${layer.phaseInverted ? '#7c8ff0' : '#505050'}; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+            ${layer.phaseInverted ? '180° Inverted' : 'Normal Phase'}
+          </button>
+        </div>
+
+        <div class="control-group">
+          <label>
             White Noise: <span class="value-display layer-white-value" data-id="${layer.id}">${layer.whiteNoiseVolume}%</span>
           </label>
           <input type="range" class="layer-white" data-id="${layer.id}" min="0" max="100" value="${layer.whiteNoiseVolume}" step="1" />
@@ -1291,6 +1314,21 @@
         const panValue = layer.pan === 0 ? 'Center' : layer.pan < 0 ? `Left ${Math.abs(layer.pan * 100).toFixed(0)}%` : `Right ${(layer.pan * 100).toFixed(0)}%`;
         layerEl.querySelector('.layer-pan-value').textContent = panValue;
         layer.updatePan();
+        saveSettings();
+      });
+
+      // Phase inversion button
+      layerEl.querySelector('.phase-btn').addEventListener('click', () => {
+        layer.phaseInverted = !layer.phaseInverted;
+        const phaseBtn = layerEl.querySelector('.phase-btn');
+        const phaseValue = layerEl.querySelector('.layer-phase-value');
+
+        phaseValue.textContent = layer.phaseInverted ? '180°' : 'Normal';
+        phaseBtn.textContent = layer.phaseInverted ? '180° Inverted' : 'Normal Phase';
+        phaseBtn.style.background = layer.phaseInverted ? '#667eea' : '#404040';
+        phaseBtn.style.borderColor = layer.phaseInverted ? '#7c8ff0' : '#505050';
+
+        layer.updatePhase();
         saveSettings();
       });
 
@@ -1413,6 +1451,7 @@
           frequency: layer.frequency,
           volume: layer.volume,
           pan: layer.pan,
+          phaseInverted: layer.phaseInverted,
           whiteNoiseVolume: layer.whiteNoiseVolume,
           pinkNoiseVolume: layer.pinkNoiseVolume,
           brownNoiseVolume: layer.brownNoiseVolume
@@ -1443,6 +1482,7 @@
             layer.frequency = layerData.frequency;
             layer.volume = layerData.volume;
             layer.pan = layerData.pan || 0;
+            layer.phaseInverted = layerData.phaseInverted || false;
             layer.whiteNoiseVolume = layerData.whiteNoiseVolume || 0;
             layer.pinkNoiseVolume = layerData.pinkNoiseVolume || 0;
             layer.brownNoiseVolume = layerData.brownNoiseVolume || 0;
