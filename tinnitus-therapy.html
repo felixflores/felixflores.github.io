@@ -1111,6 +1111,7 @@
       renderLayer(layer);
       updateEmptyState();
       updateStatus();
+      saveSettings();
     }
 
     // Remove Layer
@@ -1122,6 +1123,7 @@
         document.getElementById(`layer-${id}`).remove();
         updateEmptyState();
         updateStatus();
+        saveSettings();
       }
     }
 
@@ -1147,21 +1149,21 @@
           <label>Sound Type</label>
           <select class="layer-type" data-id="${layer.id}">
             <optgroup label="Tones">
-              <option value="sine" selected>Sine Wave (Pure Tone)</option>
-              <option value="square">Square Wave</option>
-              <option value="sawtooth">Sawtooth Wave</option>
-              <option value="triangle">Triangle Wave</option>
+              <option value="sine" ${layer.type === 'sine' ? 'selected' : ''}>Sine Wave (Pure Tone)</option>
+              <option value="square" ${layer.type === 'square' ? 'selected' : ''}>Square Wave</option>
+              <option value="sawtooth" ${layer.type === 'sawtooth' ? 'selected' : ''}>Sawtooth Wave</option>
+              <option value="triangle" ${layer.type === 'triangle' ? 'selected' : ''}>Triangle Wave</option>
             </optgroup>
             <optgroup label="Noise">
-              <option value="white">White Noise</option>
-              <option value="pink">Pink Noise</option>
-              <option value="brown">Brown Noise</option>
-              <option value="notch">Notch Therapy</option>
+              <option value="white" ${layer.type === 'white' ? 'selected' : ''}>White Noise</option>
+              <option value="pink" ${layer.type === 'pink' ? 'selected' : ''}>Pink Noise</option>
+              <option value="brown" ${layer.type === 'brown' ? 'selected' : ''}>Brown Noise</option>
+              <option value="notch" ${layer.type === 'notch' ? 'selected' : ''}>Notch Therapy</option>
             </optgroup>
           </select>
         </div>
 
-        <div class="control-group frequency-control" data-id="${layer.id}">
+        <div class="control-group frequency-control" data-id="${layer.id}" style="display: ${['white', 'pink', 'brown'].includes(layer.type) ? 'none' : 'block'}">
           <label>
             Frequency: <span class="value-display layer-freq-value" data-id="${layer.id}">${layer.frequency} Hz</span>
           </label>
@@ -1197,30 +1199,30 @@
 
         <div class="control-group">
           <label>
-            Pan: <span class="value-display layer-pan-value" data-id="${layer.id}">Center</span>
+            Pan: <span class="value-display layer-pan-value" data-id="${layer.id}">${layer.pan === 0 ? 'Center' : layer.pan < 0 ? `Left ${Math.abs(layer.pan * 100).toFixed(0)}%` : `Right ${(layer.pan * 100).toFixed(0)}%`}</span>
           </label>
-          <input type="range" class="layer-pan" data-id="${layer.id}" min="-1" max="1" value="0" step="0.01" />
+          <input type="range" class="layer-pan" data-id="${layer.id}" min="-1" max="1" value="${layer.pan}" step="0.01" />
         </div>
 
         <div class="control-group">
           <label>
-            White Noise: <span class="value-display layer-white-value" data-id="${layer.id}">0%</span>
+            White Noise: <span class="value-display layer-white-value" data-id="${layer.id}">${layer.whiteNoiseVolume}%</span>
           </label>
-          <input type="range" class="layer-white" data-id="${layer.id}" min="0" max="100" value="0" step="1" />
+          <input type="range" class="layer-white" data-id="${layer.id}" min="0" max="100" value="${layer.whiteNoiseVolume}" step="1" />
         </div>
 
         <div class="control-group">
           <label>
-            Pink Noise: <span class="value-display layer-pink-value" data-id="${layer.id}">0%</span>
+            Pink Noise: <span class="value-display layer-pink-value" data-id="${layer.id}">${layer.pinkNoiseVolume}%</span>
           </label>
-          <input type="range" class="layer-pink" data-id="${layer.id}" min="0" max="100" value="0" step="1" />
+          <input type="range" class="layer-pink" data-id="${layer.id}" min="0" max="100" value="${layer.pinkNoiseVolume}" step="1" />
         </div>
 
         <div class="control-group">
           <label>
-            Brown Noise: <span class="value-display layer-brown-value" data-id="${layer.id}">0%</span>
+            Brown Noise: <span class="value-display layer-brown-value" data-id="${layer.id}">${layer.brownNoiseVolume}%</span>
           </label>
-          <input type="range" class="layer-brown" data-id="${layer.id}" min="0" max="100" value="0" step="1" />
+          <input type="range" class="layer-brown" data-id="${layer.id}" min="0" max="100" value="${layer.brownNoiseVolume}" step="1" />
         </div>
       `;
 
@@ -1264,6 +1266,7 @@
         const frequencyControl = layerEl.querySelector('.frequency-control');
         const isNoiseType = ['white', 'pink', 'brown'].includes(layer.type);
         frequencyControl.style.display = isNoiseType ? 'none' : 'block';
+        saveSettings();
       });
 
       // Frequency slider
@@ -1271,6 +1274,7 @@
         layer.frequency = parseInt(e.target.value);
         layerEl.querySelector('.layer-freq-value').textContent = `${layer.frequency} Hz`;
         layer.updateFrequency();
+        saveSettings();
       });
 
       // Volume slider
@@ -1278,6 +1282,7 @@
         layer.volume = parseInt(e.target.value);
         layerEl.querySelector('.layer-vol-value').textContent = `${layer.volume}%`;
         layer.updateVolume();
+        saveSettings();
       });
 
       // Pan slider
@@ -1286,6 +1291,7 @@
         const panValue = layer.pan === 0 ? 'Center' : layer.pan < 0 ? `Left ${Math.abs(layer.pan * 100).toFixed(0)}%` : `Right ${(layer.pan * 100).toFixed(0)}%`;
         layerEl.querySelector('.layer-pan-value').textContent = panValue;
         layer.updatePan();
+        saveSettings();
       });
 
       // White noise slider
@@ -1299,6 +1305,7 @@
           layer.stop();
           layer.play();
         }
+        saveSettings();
       });
 
       // Pink noise slider
@@ -1312,6 +1319,7 @@
           layer.stop();
           layer.play();
         }
+        saveSettings();
       });
 
       // Brown noise slider
@@ -1325,6 +1333,7 @@
           layer.stop();
           layer.play();
         }
+        saveSettings();
       });
 
     }
@@ -1392,6 +1401,61 @@
       const vol = parseInt(value);
       elements.masterVolumeValue.textContent = `${vol}%`;
       soundLayers.forEach(layer => layer.updateVolume());
+      saveSettings();
+    }
+
+    // Save Settings to localStorage
+    function saveSettings() {
+      const settings = {
+        masterVolume: parseInt(elements.masterVolumeSlider.value),
+        layers: soundLayers.map(layer => ({
+          type: layer.type,
+          frequency: layer.frequency,
+          volume: layer.volume,
+          pan: layer.pan,
+          whiteNoiseVolume: layer.whiteNoiseVolume,
+          pinkNoiseVolume: layer.pinkNoiseVolume,
+          brownNoiseVolume: layer.brownNoiseVolume
+        }))
+      };
+      localStorage.setItem('tinnitusTherapySettings', JSON.stringify(settings));
+    }
+
+    // Load Settings from localStorage
+    function loadSettings() {
+      const saved = localStorage.getItem('tinnitusTherapySettings');
+      if (!saved) return false;
+
+      try {
+        const settings = JSON.parse(saved);
+
+        // Restore master volume
+        if (settings.masterVolume !== undefined) {
+          elements.masterVolumeSlider.value = settings.masterVolume;
+          elements.masterVolumeValue.textContent = `${settings.masterVolume}%`;
+        }
+
+        // Restore layers
+        if (settings.layers && settings.layers.length > 0) {
+          settings.layers.forEach(layerData => {
+            const layer = new SoundLayer(layerIdCounter++);
+            layer.type = layerData.type;
+            layer.frequency = layerData.frequency;
+            layer.volume = layerData.volume;
+            layer.pan = layerData.pan || 0;
+            layer.whiteNoiseVolume = layerData.whiteNoiseVolume || 0;
+            layer.pinkNoiseVolume = layerData.pinkNoiseVolume || 0;
+            layer.brownNoiseVolume = layerData.brownNoiseVolume || 0;
+            soundLayers.push(layer);
+            renderLayer(layer);
+          });
+          updateEmptyState();
+        }
+        return true;
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+        return false;
+      }
     }
 
     // Visualization
@@ -1462,7 +1526,12 @@
     elements.stopAllButton.addEventListener('click', stopAllLayers);
 
     // Initialize
-    updateMasterVolume(70);
+    const settingsLoaded = loadSettings();
+    // Only set default master volume if no settings were loaded
+    if (!settingsLoaded) {
+      elements.masterVolumeSlider.value = 70;
+      elements.masterVolumeValue.textContent = '70%';
+    }
     updateEmptyState();
   </script>
 </body>
