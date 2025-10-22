@@ -751,7 +751,10 @@
           <span class="section-number">1</span>
           Sound Layers
         </div>
-        <button class="add-layer-btn" id="addLayerBtn">+ Add Layer</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="add-layer-btn" id="addToneBtn">+ Add Tone</button>
+          <button class="add-layer-btn" id="addNoiseBtn">+ Add Noise</button>
+        </div>
       </div>
 
       <div class="sound-layers" id="soundLayers">
@@ -814,15 +817,17 @@
       statusText: document.getElementById('statusText'),
       canvas: document.getElementById('visualizer'),
       soundLayersContainer: document.getElementById('soundLayers'),
-      addLayerBtn: document.getElementById('addLayerBtn'),
+      addToneBtn: document.getElementById('addToneBtn'),
+      addNoiseBtn: document.getElementById('addNoiseBtn'),
       emptyState: document.getElementById('emptyState')
     };
 
     // Sound Layer Class
     class SoundLayer {
-      constructor(id) {
+      constructor(id, layerType = 'tone') {
         this.id = id;
-        this.type = 'sine';
+        this.layerType = layerType; // 'tone' or 'noise'
+        this.type = layerType === 'tone' ? 'sine' : 'white';
         this.frequency = 4000;
         this.volume = 50;
         this.pan = 0;
@@ -1119,8 +1124,8 @@
     }
 
     // Add Layer
-    function addLayer() {
-      const layer = new SoundLayer(layerIdCounter++);
+    function addLayer(layerType = 'tone') {
+      const layer = new SoundLayer(layerIdCounter++, layerType);
       soundLayers.push(layer);
       renderLayer(layer);
       updateEmptyState();
@@ -1147,11 +1152,13 @@
       layerEl.className = 'sound-layer';
       layerEl.id = `layer-${layer.id}`;
 
+      const isTone = layer.layerType === 'tone';
+
       layerEl.innerHTML = `
         <div class="layer-header">
           <div class="layer-title">
             <span class="layer-number">${soundLayers.indexOf(layer) + 1}</span>
-            <span>Sound Layer</span>
+            <span>${isTone ? 'Tone Layer' : 'Noise Layer'}</span>
           </div>
           <div class="layer-controls">
             <button class="layer-btn play" data-id="${layer.id}">Play</button>
@@ -1162,51 +1169,79 @@
         <div class="control-group">
           <label>Sound Type</label>
           <select class="layer-type" data-id="${layer.id}">
-            <optgroup label="Tones">
+            ${isTone ? `
               <option value="sine" ${layer.type === 'sine' ? 'selected' : ''}>Sine Wave (Pure Tone)</option>
               <option value="square" ${layer.type === 'square' ? 'selected' : ''}>Square Wave</option>
               <option value="sawtooth" ${layer.type === 'sawtooth' ? 'selected' : ''}>Sawtooth Wave</option>
               <option value="triangle" ${layer.type === 'triangle' ? 'selected' : ''}>Triangle Wave</option>
-            </optgroup>
-            <optgroup label="Noise">
+            ` : `
               <option value="white" ${layer.type === 'white' ? 'selected' : ''}>White Noise</option>
               <option value="pink" ${layer.type === 'pink' ? 'selected' : ''}>Pink Noise</option>
               <option value="brown" ${layer.type === 'brown' ? 'selected' : ''}>Brown Noise</option>
               <option value="notch" ${layer.type === 'notch' ? 'selected' : ''}>Notch Therapy</option>
-            </optgroup>
+            `}
           </select>
         </div>
 
-        <div class="control-group frequency-control" data-id="${layer.id}" style="display: ${['white', 'pink', 'brown'].includes(layer.type) ? 'none' : 'block'}">
-          <label>
-            Frequency: <span class="value-display layer-freq-value" data-id="${layer.id}">${layer.frequency} Hz</span>
-          </label>
-          <div class="frequency-scale">
-            <input type="range" class="layer-freq" data-id="${layer.id}" min="20" max="20000" value="${layer.frequency}" step="10" />
-            <div class="scale-labels">
-              <span>20 Hz</span>
-              <span>100 Hz</span>
-              <span>1 kHz</span>
-              <span>5 kHz</span>
-              <span>10 kHz</span>
-              <span>15 kHz</span>
-              <span>20 kHz</span>
-            </div>
-            <div class="scale-markers">
-              <span class="marker"></span>
-              <span class="marker"></span>
-              <span class="marker"></span>
-              <span class="marker"></span>
-              <span class="marker"></span>
-              <span class="marker"></span>
-              <span class="marker"></span>
+        ${isTone ? `
+          <div class="control-group">
+            <label>
+              Frequency: <span class="value-display layer-freq-value" data-id="${layer.id}">${layer.frequency} Hz</span>
+            </label>
+            <div class="frequency-scale">
+              <input type="range" class="layer-freq" data-id="${layer.id}" min="20" max="20000" value="${layer.frequency}" step="10" />
+              <div class="scale-labels">
+                <span>20 Hz</span>
+                <span>100 Hz</span>
+                <span>1 kHz</span>
+                <span>5 kHz</span>
+                <span>10 kHz</span>
+                <span>15 kHz</span>
+                <span>20 kHz</span>
+              </div>
+              <div class="scale-markers">
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+              </div>
             </div>
           </div>
-        </div>
+        ` : layer.type === 'notch' ? `
+          <div class="control-group">
+            <label>
+              Frequency: <span class="value-display layer-freq-value" data-id="${layer.id}">${layer.frequency} Hz</span>
+            </label>
+            <div class="frequency-scale">
+              <input type="range" class="layer-freq" data-id="${layer.id}" min="20" max="20000" value="${layer.frequency}" step="10" />
+              <div class="scale-labels">
+                <span>20 Hz</span>
+                <span>100 Hz</span>
+                <span>1 kHz</span>
+                <span>5 kHz</span>
+                <span>10 kHz</span>
+                <span>15 kHz</span>
+                <span>20 kHz</span>
+              </div>
+              <div class="scale-markers">
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+                <span class="marker"></span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
 
         <div class="control-group">
           <label>
-            Tone Volume: <span class="value-display layer-vol-value" data-id="${layer.id}">${layer.volume}%</span>
+            Volume: <span class="value-display layer-vol-value" data-id="${layer.id}">${layer.volume}%</span>
           </label>
           <input type="range" class="layer-vol" data-id="${layer.id}" min="0" max="100" value="${layer.volume}" step="1" />
         </div>
@@ -1218,35 +1253,37 @@
           <input type="range" class="layer-pan" data-id="${layer.id}" min="-1" max="1" value="${layer.pan}" step="0.01" />
         </div>
 
-        <div class="control-group">
-          <label>
-            Phase: <span class="value-display layer-phase-value" data-id="${layer.id}">${layer.phaseInverted ? '180°' : 'Normal'}</span>
-          </label>
-          <button class="layer-btn phase-btn" data-id="${layer.id}" style="width: 100%; padding: 10px; background: ${layer.phaseInverted ? '#667eea' : '#404040'}; color: white; border: 1px solid ${layer.phaseInverted ? '#7c8ff0' : '#505050'}; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
-            ${layer.phaseInverted ? '180° Inverted' : 'Normal Phase'}
-          </button>
-        </div>
+        ${isTone ? `
+          <div class="control-group">
+            <label>
+              Phase: <span class="value-display layer-phase-value" data-id="${layer.id}">${layer.phaseInverted ? '180°' : 'Normal'}</span>
+            </label>
+            <button class="layer-btn phase-btn" data-id="${layer.id}" style="width: 100%; padding: 10px; background: ${layer.phaseInverted ? '#667eea' : '#404040'}; color: white; border: 1px solid ${layer.phaseInverted ? '#7c8ff0' : '#505050'}; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+              ${layer.phaseInverted ? '180° Inverted' : 'Normal Phase'}
+            </button>
+          </div>
 
-        <div class="control-group">
-          <label>
-            White Noise: <span class="value-display layer-white-value" data-id="${layer.id}">${layer.whiteNoiseVolume}%</span>
-          </label>
-          <input type="range" class="layer-white" data-id="${layer.id}" min="0" max="100" value="${layer.whiteNoiseVolume}" step="1" />
-        </div>
+          <div class="control-group">
+            <label>
+              White Noise: <span class="value-display layer-white-value" data-id="${layer.id}">${layer.whiteNoiseVolume}%</span>
+            </label>
+            <input type="range" class="layer-white" data-id="${layer.id}" min="0" max="100" value="${layer.whiteNoiseVolume}" step="1" />
+          </div>
 
-        <div class="control-group">
-          <label>
-            Pink Noise: <span class="value-display layer-pink-value" data-id="${layer.id}">${layer.pinkNoiseVolume}%</span>
-          </label>
-          <input type="range" class="layer-pink" data-id="${layer.id}" min="0" max="100" value="${layer.pinkNoiseVolume}" step="1" />
-        </div>
+          <div class="control-group">
+            <label>
+              Pink Noise: <span class="value-display layer-pink-value" data-id="${layer.id}">${layer.pinkNoiseVolume}%</span>
+            </label>
+            <input type="range" class="layer-pink" data-id="${layer.id}" min="0" max="100" value="${layer.pinkNoiseVolume}" step="1" />
+          </div>
 
-        <div class="control-group">
-          <label>
-            Brown Noise: <span class="value-display layer-brown-value" data-id="${layer.id}">${layer.brownNoiseVolume}%</span>
-          </label>
-          <input type="range" class="layer-brown" data-id="${layer.id}" min="0" max="100" value="${layer.brownNoiseVolume}" step="1" />
-        </div>
+          <div class="control-group">
+            <label>
+              Brown Noise: <span class="value-display layer-brown-value" data-id="${layer.id}">${layer.brownNoiseVolume}%</span>
+            </label>
+            <input type="range" class="layer-brown" data-id="${layer.id}" min="0" max="100" value="${layer.brownNoiseVolume}" step="1" />
+          </div>
+        ` : ''}
       `;
 
       elements.soundLayersContainer.appendChild(layerEl);
@@ -1256,6 +1293,7 @@
     // Attach Event Listeners to Layer
     function attachLayerEventListeners(layer) {
       const layerEl = document.getElementById(`layer-${layer.id}`);
+      const isTone = layer.layerType === 'tone';
 
       // Play/Stop button
       const playBtn = layerEl.querySelector('.layer-btn.play');
@@ -1284,21 +1322,19 @@
       layerEl.querySelector('.layer-type').addEventListener('change', (e) => {
         layer.type = e.target.value;
         layer.updateType();
-
-        // Hide/show frequency control based on sound type
-        const frequencyControl = layerEl.querySelector('.frequency-control');
-        const isNoiseType = ['white', 'pink', 'brown'].includes(layer.type);
-        frequencyControl.style.display = isNoiseType ? 'none' : 'block';
         saveSettings();
       });
 
-      // Frequency slider
-      layerEl.querySelector('.layer-freq').addEventListener('input', (e) => {
-        layer.frequency = parseInt(e.target.value);
-        layerEl.querySelector('.layer-freq-value').textContent = `${layer.frequency} Hz`;
-        layer.updateFrequency();
-        saveSettings();
-      });
+      // Frequency slider (tone layers and notch therapy)
+      const freqSlider = layerEl.querySelector('.layer-freq');
+      if (freqSlider) {
+        freqSlider.addEventListener('input', (e) => {
+          layer.frequency = parseInt(e.target.value);
+          layerEl.querySelector('.layer-freq-value').textContent = `${layer.frequency} Hz`;
+          layer.updateFrequency();
+          saveSettings();
+        });
+      }
 
       // Volume slider
       layerEl.querySelector('.layer-vol').addEventListener('input', (e) => {
@@ -1317,62 +1353,73 @@
         saveSettings();
       });
 
-      // Phase inversion button
-      layerEl.querySelector('.phase-btn').addEventListener('click', () => {
-        layer.phaseInverted = !layer.phaseInverted;
-        const phaseBtn = layerEl.querySelector('.phase-btn');
-        const phaseValue = layerEl.querySelector('.layer-phase-value');
+      // Phase inversion button (tone layers only)
+      const phaseBtn = layerEl.querySelector('.phase-btn');
+      if (phaseBtn) {
+        phaseBtn.addEventListener('click', () => {
+          layer.phaseInverted = !layer.phaseInverted;
+          const phaseValue = layerEl.querySelector('.layer-phase-value');
 
-        phaseValue.textContent = layer.phaseInverted ? '180°' : 'Normal';
-        phaseBtn.textContent = layer.phaseInverted ? '180° Inverted' : 'Normal Phase';
-        phaseBtn.style.background = layer.phaseInverted ? '#667eea' : '#404040';
-        phaseBtn.style.borderColor = layer.phaseInverted ? '#7c8ff0' : '#505050';
+          phaseValue.textContent = layer.phaseInverted ? '180°' : 'Normal';
+          phaseBtn.textContent = layer.phaseInverted ? '180° Inverted' : 'Normal Phase';
+          phaseBtn.style.background = layer.phaseInverted ? '#667eea' : '#404040';
+          phaseBtn.style.borderColor = layer.phaseInverted ? '#7c8ff0' : '#505050';
 
-        layer.updatePhase();
-        saveSettings();
-      });
+          layer.updatePhase();
+          saveSettings();
+        });
+      }
 
-      // White noise slider
-      layerEl.querySelector('.layer-white').addEventListener('input', (e) => {
-        layer.whiteNoiseVolume = parseInt(e.target.value);
-        layerEl.querySelector('.layer-white-value').textContent = `${layer.whiteNoiseVolume}%`;
-        layer.updateNoiseVolume('white');
+      // White noise slider (tone layers only)
+      const whiteSlider = layerEl.querySelector('.layer-white');
+      if (whiteSlider) {
+        whiteSlider.addEventListener('input', (e) => {
+          layer.whiteNoiseVolume = parseInt(e.target.value);
+          layerEl.querySelector('.layer-white-value').textContent = `${layer.whiteNoiseVolume}%`;
+          layer.updateNoiseVolume('white');
 
-        // Restart layer if playing to apply changes
-        if (layer.isPlaying) {
-          layer.stop();
-          layer.play();
-        }
-        saveSettings();
-      });
+          // Restart layer if playing to apply changes
+          if (layer.isPlaying) {
+            layer.stop();
+            layer.play();
+          }
+          saveSettings();
+        });
+      }
 
-      // Pink noise slider
-      layerEl.querySelector('.layer-pink').addEventListener('input', (e) => {
-        layer.pinkNoiseVolume = parseInt(e.target.value);
-        layerEl.querySelector('.layer-pink-value').textContent = `${layer.pinkNoiseVolume}%`;
-        layer.updateNoiseVolume('pink');
+      // Pink noise slider (tone layers only)
+      const pinkSlider = layerEl.querySelector('.layer-pink');
+      if (pinkSlider) {
+        pinkSlider.addEventListener('input', (e) => {
+          layer.pinkNoiseVolume = parseInt(e.target.value);
+          layerEl.querySelector('.layer-pink-value').textContent = `${layer.pinkNoiseVolume}%`;
+          layer.updateNoiseVolume('pink');
 
-        // Restart layer if playing to apply changes
-        if (layer.isPlaying) {
-          layer.stop();
-          layer.play();
-        }
-        saveSettings();
-      });
+          // Restart layer if playing to apply changes
+          if (layer.isPlaying) {
+            layer.stop();
+            layer.play();
+          }
+          saveSettings();
+        });
+      }
 
-      // Brown noise slider
-      layerEl.querySelector('.layer-brown').addEventListener('input', (e) => {
-        layer.brownNoiseVolume = parseInt(e.target.value);
-        layerEl.querySelector('.layer-brown-value').textContent = `${layer.brownNoiseVolume}%`;
-        layer.updateNoiseVolume('brown');
+      // Brown noise slider (tone layers only)
+      const brownSlider = layerEl.querySelector('.layer-brown');
+      if (brownSlider) {
+        brownSlider.addEventListener('input', (e) => {
+          layer.brownNoiseVolume = parseInt(e.target.value);
+          layerEl.querySelector('.layer-brown-value').textContent = `${layer.brownNoiseVolume}%`;
+          layer.updateNoiseVolume('brown');
 
-        // Restart layer if playing to apply changes
-        if (layer.isPlaying) {
-          layer.stop();
-          layer.play();
-        }
-        saveSettings();
-      });
+          // Restart layer if playing to apply changes
+          if (layer.isPlaying) {
+            layer.stop();
+            layer.play();
+          }
+          saveSettings();
+        });
+      }
 
     }
 
@@ -1447,6 +1494,7 @@
       const settings = {
         masterVolume: parseInt(elements.masterVolumeSlider.value),
         layers: soundLayers.map(layer => ({
+          layerType: layer.layerType,
           type: layer.type,
           frequency: layer.frequency,
           volume: layer.volume,
@@ -1477,7 +1525,12 @@
         // Restore layers
         if (settings.layers && settings.layers.length > 0) {
           settings.layers.forEach(layerData => {
-            const layer = new SoundLayer(layerIdCounter++);
+            // Determine layer type (backward compatible with old saves)
+            const layerType = layerData.layerType || (
+              ['sine', 'square', 'sawtooth', 'triangle'].includes(layerData.type) ? 'tone' : 'noise'
+            );
+
+            const layer = new SoundLayer(layerIdCounter++, layerType);
             layer.type = layerData.type;
             layer.frequency = layerData.frequency;
             layer.volume = layerData.volume;
@@ -1549,7 +1602,8 @@
     }
 
     // Event Listeners
-    elements.addLayerBtn.addEventListener('click', addLayer);
+    elements.addToneBtn.addEventListener('click', () => addLayer('tone'));
+    elements.addNoiseBtn.addEventListener('click', () => addLayer('noise'));
 
     elements.masterVolumeSlider.addEventListener('input', (e) => {
       updateMasterVolume(e.target.value);
