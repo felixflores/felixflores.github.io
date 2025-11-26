@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buddhabrot Background</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        #buddhabrot-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+            min-width: 220px;
+        }
+
+        .controls h3 {
+            margin: 0 0 15px 0;
+            font-size: 14px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 4px;
+            color: #aaa;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 4px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+
+        .control-group .value {
+            float: right;
+            color: #f90;
+        }
+
+        button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            background: #f90;
+            color: black;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #fa0;
+        }
+
+        #status {
+            margin-top: 10px;
+            color: #888;
+            font-size: 11px;
+        }
+
+        #buddhabrot-canvas {
+            cursor: grab;
+        }
+
+        #buddhabrot-canvas:active {
+            cursor: grabbing;
+        }
+
+        .zoom-hint {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 15px;
+            border-radius: 6px;
+            color: #888;
+            font-family: monospace;
+            font-size: 11px;
+            z-index: 100;
+        }
+
+        .info {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            max-width: 400px;
+            background: rgba(0,0,0,0.75);
+            padding: 20px 25px;
+            border-radius: 10px;
+            color: #ccc;
+            font-family: Georgia, serif;
+            font-size: 15px;
+            line-height: 1.6;
+            z-index: 100;
+        }
+
+        .info h2 {
+            margin: 0 0 12px 0;
+            color: #fff;
+            font-size: 18px;
+            font-weight: normal;
+        }
+
+        .info p {
+            margin: 0;
+        }
+
+        .equation {
+            text-align: center;
+            margin: 18px 0 14px 0;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 26px;
+            font-style: italic;
+            color: #fff;
+            letter-spacing: 2px;
+        }
+
+        .equation sup {
+            font-size: 16px;
+            vertical-align: super;
+        }
+
+        .equation sub {
+            font-size: 14px;
+            vertical-align: sub;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="buddhabrot-canvas"></canvas>
+
+    <div class="info">
+        <h2>The Buddhabrot</h2>
+        <p>This ghostly figure emerges from a simple equation repeated millions of times:</p>
+        <div class="equation">z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + c</div>
+        <p>Each point follows a path through an imaginary number space—some spiral inward forever, others escape to infinity. By tracing only the escaping paths and recording where they wander, this Buddha-like shape appears. The colors show depth: blue traces short journeys, green medium ones, and red the longest voyages before escape. No one designed this. It was discovered hiding in pure mathematics.</p>
+    </div>
+
+    <div class="controls">
+        <h3>Nebulabrot</h3>
+
+        <div class="control-group">
+            <label>Quality</label>
+            <select id="quality">
+                <option value="preview">Preview (fast)</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High (slow)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Brightness <span class="value" id="brightVal">1.0</span></label>
+            <input type="range" id="brightness" min="0.3" max="2.5" step="0.1" value="1">
+        </div>
+
+        <div class="control-group">
+            <label>Gamma <span class="value" id="gammaVal">0.4</span></label>
+            <input type="range" id="gamma" min="0.2" max="1.0" step="0.05" value="0.4">
+        </div>
+
+        <button id="regenerate">Regenerate</button>
+        <button id="resetView" style="background:#666; margin-top:5px;">Reset View</button>
+        <div id="status">Ready</div>
+        <div id="zoomLevel" style="margin-top:8px; color:#666;">Zoom: 1.0x</div>
+    </div>
+
+    <div class="zoom-hint">
+        Scroll to zoom · Drag to pan
+    </div>
+
+    <script>
+        const canvas = document.getElementById('buddhabrot-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Three channels for Nebulabrot (R=high iter, G=mid iter, B=low iter)
+        let imgR = null, imgG = null, imgB = null;
+        let width, height;
+
+        // View bounds (what we're currently showing)
+        let viewReMin, viewReMax, viewImMin, viewImMax;
+
+        // View state
+        let viewCenterRe = -0.5;  // Center in real axis
+        let viewCenterIm = 0;     // Center in imaginary axis
+        let zoom = 1.0;
+
+        let animationId = null;
+        let totalSamples = 0;
+
+        // Iteration counts for each channel
+        const ITER_R = 20000;
+        const ITER_G = 2000;
+        const ITER_B = 200;
+
+        // Controls
+        const qualitySelect = document.getElementById('quality');
+        const brightnessSlider = document.getElementById('brightness');
+        const gammaSlider = document.getElementById('gamma');
+        const regenerateBtn = document.getElementById('regenerate');
+        const resetViewBtn = document.getElementById('resetView');
+        const statusEl = document.getElementById('status');
+        const zoomLevelEl = document.getElementById('zoomLevel');
+
+        brightnessSlider.oninput = () => {
+            document.getElementById('brightVal').textContent = brightnessSlider.value;
+            render();
+        };
+        gammaSlider.oninput = () => {
+            document.getElementById('gammaVal').textContent = gammaSlider.value;
+            render();
+        };
+        regenerateBtn.onclick = () => startRender();
+        resetViewBtn.onclick = () => {
+            viewCenterRe = -0.5;
+            viewCenterIm = 0;
+            zoom = 1.0;
+            startRender();
+        };
+
+        function updateViewBounds() {
+            const baseHeight = 3.0;
+            const baseWidth = 3.0;
+            const screenAspect = width / height;
+
+            let viewHeight = baseHeight / zoom;
+            let viewWidth = viewHeight * screenAspect;
+
+            // View bounds (rotated: re is vertical, im is horizontal)
+            viewReMin = viewCenterRe - viewHeight / 2;
+            viewReMax = viewCenterRe + viewHeight / 2;
+            viewImMin = viewCenterIm - viewWidth / 2;
+            viewImMax = viewCenterIm + viewWidth / 2;
+
+            zoomLevelEl.textContent = `Zoom: ${zoom.toFixed(1)}x`;
+        }
+
+        function startRender() {
+            if (animationId) cancelAnimationFrame(animationId);
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            width = canvas.width;
+            height = canvas.height;
+
+            updateViewBounds();
+
+            // Reset RGB channels
+            imgR = new Float32Array(width * height);
+            imgG = new Float32Array(width * height);
+            imgB = new Float32Array(width * height);
+            totalSamples = 0;
+
+            progressiveRender();
+        }
+
+        window.addEventListener('resize', startRender);
+
+        // Check if point is in main cardioid or period-2 bulb
+        function inMainBulbs(cRe, cIm) {
+            const q = (cRe - 0.25) * (cRe - 0.25) + cIm * cIm;
+            if (q * (q + (cRe - 0.25)) < 0.25 * cIm * cIm) return true;
+            if ((cRe + 1) * (cRe + 1) + cIm * cIm < 0.0625) return true;
+            return false;
+        }
+
+        // Run one orbit and plot to the specified image array
+        function traceOrbit(cRe, cIm, maxIter, imgArray) {
+            let zRe = 0, zIm = 0;
+            const orbitRe = new Float64Array(maxIter);
+            const orbitIm = new Float64Array(maxIter);
+            let orbitLen = 0;
+
+            for (let i = 0; i < maxIter; i++) {
+                orbitRe[orbitLen] = zRe;
+                orbitIm[orbitLen] = zIm;
+                orbitLen++;
+
+                const zRe2 = zRe * zRe - zIm * zIm + cRe;
+                const zIm2 = 2 * zRe * zIm + cIm;
+                zRe = zRe2;
+                zIm = zIm2;
+
+                if (zRe * zRe + zIm * zIm > 4) break;
+            }
+
+            // Only plot if escaped
+            if (orbitLen < maxIter) {
+                for (let i = 0; i < orbitLen; i++) {
+                    const pRe = orbitRe[i];
+                    const pIm = orbitIm[i];
+
+                    // Only plot points within current view
+                    if (pRe >= viewReMin && pRe <= viewReMax && pIm >= viewImMin && pIm <= viewImMax) {
+                        const x = Math.floor((pIm - viewImMin) / (viewImMax - viewImMin) * (width - 1));
+                        const y = Math.floor((pRe - viewReMin) / (viewReMax - viewReMin) * (height - 1));
+
+                        if (x >= 0 && x < width && y >= 0 && y < height) {
+                            imgArray[y * width + x]++;
+                        }
+                    }
+                }
+            }
+        }
+
+        function generateSamplesChunk(count) {
+            // Expand sampling region beyond view to catch orbits that pass through
+            const samplePadding = 2.0 / zoom;
+            const sampleReMin = Math.max(-2.5, viewReMin - samplePadding);
+            const sampleReMax = Math.min(1.5, viewReMax + samplePadding);
+            const sampleImMin = Math.max(-2.0, viewImMin - samplePadding);
+            const sampleImMax = Math.min(2.0, viewImMax + samplePadding);
+
+            for (let s = 0; s < count; s++) {
+                let cRe, cIm;
+
+                // Adaptive sampling based on zoom level
+                const r = Math.random();
+                if (r < 0.6) {
+                    // Sample near the Mandelbrot boundary (most interesting orbits)
+                    const theta = Math.random() * Math.PI * 2;
+                    const radius = 0.3 + Math.random() * 0.9;
+                    cRe = radius * Math.cos(theta) - 0.5;
+                    cIm = radius * Math.sin(theta);
+                } else if (r < 0.85) {
+                    // Sample in expanded view region
+                    cRe = Math.random() * (sampleReMax - sampleReMin) + sampleReMin;
+                    cIm = Math.random() * (sampleImMax - sampleImMin) + sampleImMin;
+                } else {
+                    // Sample near antenna
+                    cRe = -2 + Math.random() * 0.5;
+                    cIm = (Math.random() - 0.5) * 0.2;
+                }
+
+                // Skip points in main bulbs
+                const q = (cRe - 0.25) * (cRe - 0.25) + cIm * cIm;
+                if (q * (q + (cRe - 0.25)) < 0.25 * cIm * cIm) continue;
+                if ((cRe + 1) * (cRe + 1) + cIm * cIm < 0.0625) continue;
+
+                // Trace orbit for each channel
+                traceOrbit(cRe, cIm, ITER_B, imgB);
+                traceOrbit(cRe, cIm, ITER_G, imgG);
+                traceOrbit(cRe, cIm, ITER_R, imgR);
+            }
+            totalSamples += count;
+        }
+
+        function render() {
+            const brightness = parseFloat(brightnessSlider.value);
+            const gamma = parseFloat(gammaSlider.value);
+
+            const imageData = ctx.createImageData(width, height);
+
+            // Find max for each channel
+            let maxR = 0, maxG = 0, maxB = 0;
+            for (let i = 0; i < imgR.length; i++) {
+                if (imgR[i] > maxR) maxR = imgR[i];
+                if (imgG[i] > maxG) maxG = imgG[i];
+                if (imgB[i] > maxB) maxB = imgB[i];
+            }
+            if (maxR === 0) maxR = 1;
+            if (maxG === 0) maxG = 1;
+            if (maxB === 0) maxB = 1;
+
+            const logMaxR = Math.log(maxR + 1);
+            const logMaxG = Math.log(maxG + 1);
+            const logMaxB = Math.log(maxB + 1);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const pixIdx = y * width + x;
+
+                    const vR = Math.pow(Math.log(imgR[pixIdx] + 1) / logMaxR, gamma) * brightness;
+                    const vG = Math.pow(Math.log(imgG[pixIdx] + 1) / logMaxG, gamma) * brightness;
+                    const vB = Math.pow(Math.log(imgB[pixIdx] + 1) / logMaxB, gamma) * brightness;
+
+                    imageData.data[idx] = Math.min(255, vR * 255);
+                    imageData.data[idx + 1] = Math.min(255, vG * 255);
+                    imageData.data[idx + 2] = Math.min(255, vB * 255);
+                    imageData.data[idx + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function progressiveRender() {
+            const quality = qualitySelect.value;
+            // Scale samples with zoom (need more samples when zoomed in)
+            const zoomFactor = Math.max(1, Math.sqrt(zoom));
+            const targets = {
+                preview: Math.floor(500000 * zoomFactor),
+                medium: Math.floor(3000000 * zoomFactor),
+                high: Math.floor(15000000 * zoomFactor)
+            };
+            const targetSamples = targets[quality];
+            const samplesPerFrame = quality === 'high' ? 5000 : 8000;
+
+            function frame() {
+                if (totalSamples < targetSamples) {
+                    generateSamplesChunk(samplesPerFrame);
+                    render();
+                    const pct = Math.round(totalSamples / targetSamples * 100);
+                    statusEl.textContent = `${pct}% (${(totalSamples/1000000).toFixed(1)}M samples)`;
+                    animationId = requestAnimationFrame(frame);
+                } else {
+                    statusEl.textContent = `Done: ${(totalSamples/1000000).toFixed(1)}M samples`;
+                }
+            }
+            frame();
+        }
+
+        // ===== Pan and Zoom Controls =====
+
+        let isDragging = false;
+        let dragStartX, dragStartY;
+        let dragStartCenterRe, dragStartCenterIm;
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.target !== canvas) return;
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragStartCenterRe = viewCenterRe;
+            dragStartCenterIm = viewCenterIm;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+
+            // Convert pixel movement to complex plane movement
+            const viewHeight = (viewReMax - viewReMin);
+            const viewWidth = (viewImMax - viewImMin);
+
+            viewCenterIm = dragStartCenterIm - (dx / width) * viewWidth;
+            viewCenterRe = dragStartCenterRe - (dy / height) * viewHeight;
+
+            updateViewBounds();
+            startRender();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            // Get mouse position in complex plane before zoom
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const mouseIm = viewImMin + (mouseX / width) * (viewImMax - viewImMin);
+            const mouseRe = viewReMin + (mouseY / height) * (viewReMax - viewReMin);
+
+            // Zoom in/out
+            const zoomFactor = e.deltaY > 0 ? 0.8 : 1.25;
+            const newZoom = Math.max(0.5, Math.min(1000, zoom * zoomFactor));
+
+            if (newZoom !== zoom) {
+                // Adjust center to zoom toward mouse position
+                const zoomRatio = zoom / newZoom;
+                viewCenterRe = mouseRe + (viewCenterRe - mouseRe) * zoomRatio;
+                viewCenterIm = mouseIm + (viewCenterIm - mouseIm) * zoomRatio;
+                zoom = newZoom;
+
+                startRender();
+            }
+        }, { passive: false });
+
+        // Touch support for mobile
+        let lastTouchDist = 0;
+        let lastTouchCenter = null;
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                dragStartX = e.touches[0].clientX;
+                dragStartY = e.touches[0].clientY;
+                dragStartCenterRe = viewCenterRe;
+                dragStartCenterIm = viewCenterIm;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                const dx = e.touches[1].clientX - e.touches[0].clientX;
+                const dy = e.touches[1].clientY - e.touches[0].clientY;
+                lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+                lastTouchCenter = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+
+            if (e.touches.length === 1 && isDragging) {
+                const dx = e.touches[0].clientX - dragStartX;
+                const dy = e.touches[0].clientY - dragStartY;
+
+                const viewHeight = (viewReMax - viewReMin);
+                const viewWidth = (viewImMax - viewImMin);
+
+                viewCenterIm = dragStartCenterIm - (dx / width) * viewWidth;
+                viewCenterRe = dragStartCenterRe - (dy / height) * viewHeight;
+
+                updateViewBounds();
+                startRender();
+            } else if (e.touches.length === 2 && lastTouchDist > 0) {
+                const dx = e.touches[1].clientX - e.touches[0].clientX;
+                const dy = e.touches[1].clientY - e.touches[0].clientY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                const zoomFactor = dist / lastTouchDist;
+                const newZoom = Math.max(0.5, Math.min(1000, zoom * zoomFactor));
+
+                if (newZoom !== zoom) {
+                    zoom = newZoom;
+                    lastTouchDist = dist;
+                    startRender();
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', () => {
+            isDragging = false;
+            lastTouchDist = 0;
+        });
+
+        startRender();
+    </script>
+</body>
+</html>
