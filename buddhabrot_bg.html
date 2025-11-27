@@ -112,6 +112,29 @@
             z-index: 100;
         }
 
+        .minimap-container {
+            position: fixed;
+            bottom: 80px;
+            right: 30px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px;
+            border-radius: 8px;
+            z-index: 100;
+        }
+
+        .minimap-container canvas {
+            display: block;
+            border-radius: 4px;
+        }
+
+        .minimap-label {
+            color: #666;
+            font-family: monospace;
+            font-size: 10px;
+            margin-top: 5px;
+            text-align: center;
+        }
+
         .info {
             position: fixed;
             bottom: 30px;
@@ -183,19 +206,36 @@
         </div>
 
         <div class="control-group">
-            <label>Brightness <span class="value" id="brightVal">1.0</span></label>
-            <input type="range" id="brightness" min="0.3" max="2.5" step="0.1" value="1">
+            <label>Noise Floor <span class="value" id="floorVal">0</span></label>
+            <input type="range" id="noiseFloor" min="0" max="50" step="1" value="0">
         </div>
 
         <div class="control-group">
-            <label>Gamma <span class="value" id="gammaVal">0.4</span></label>
-            <input type="range" id="gamma" min="0.2" max="1.0" step="0.05" value="0.4">
+            <label>Exposure <span class="value" id="exposureVal">0</span></label>
+            <input type="range" id="exposure" min="-3" max="3" step="0.1" value="0">
+        </div>
+
+        <div class="control-group">
+            <label>Contrast <span class="value" id="contrastVal">1.0</span></label>
+            <input type="range" id="contrast" min="0.5" max="2.0" step="0.1" value="1.0">
+        </div>
+
+        <div class="control-group">
+            <label>Highlight Compression <span class="value" id="compressVal">0.5</span></label>
+            <input type="range" id="compress" min="0.1" max="1.0" step="0.05" value="0.5">
         </div>
 
         <button id="regenerate">Regenerate</button>
         <button id="resetView" style="background:#666; margin-top:5px;">Reset View</button>
+        <button id="download" style="background:#4a9; margin-top:5px;">Download PNG</button>
+        <button id="copyLink" style="background:#68c; margin-top:5px;">Copy Link</button>
         <div id="status">Ready</div>
         <div id="zoomLevel" style="margin-top:8px; color:#666;">Zoom: 1.0x</div>
+    </div>
+
+    <div class="minimap-container">
+        <canvas id="minimap" width="150" height="150"></canvas>
+        <div class="minimap-label">Overview</div>
     </div>
 
     <div class="zoom-hint">
@@ -204,11 +244,199 @@
 
     <script>
         const canvas = document.getElementById('buddhabrot-canvas');
-        const ctx = canvas.getContext('2d');
+        let ctx = canvas.getContext('2d');
+
+        // Minimap
+        const minimapCanvas = document.getElementById('minimap');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const MINIMAP_SIZE = 150;
+        let minimapImgR = null, minimapImgG = null, minimapImgB = null;
+        let minimapReady = false;
+        let minimapSamples = 0;
+
+        // Full view bounds for minimap (what zoom=1 shows)
+        const FULL_RE_MIN = -2.0, FULL_RE_MAX = 1.0;
+        const FULL_IM_MIN = -1.5, FULL_IM_MAX = 1.5;
 
         // Three channels for Nebulabrot (R=high iter, G=mid iter, B=low iter)
         let imgR = null, imgG = null, imgB = null;
         let width, height;
+
+        // Preview canvas for smooth panning
+        const previewCanvas = document.createElement('canvas');
+        const previewCtx = previewCanvas.getContext('2d');
+        let lastViewState = null; // Store previous view for transform calculation
+
+        // Parallel workers - persistent, send frequent small updates
+        const numWorkers = navigator.hardwareConcurrency || 8;
+        let workers = [];
+        let isRendering = false;
+
+        // Worker code - sends small updates frequently for smooth rendering
+        const workerCode = `
+            const ITER_R = 20000;
+            const ITER_G = 2000;
+            const ITER_B = 200;
+            const UPDATE_INTERVAL = 2000; // Send update every N samples
+
+            let width, height;
+            let viewReMin, viewReMax, viewImMin, viewImMax;
+            let imgR, imgG, imgB;
+            let localSamples = 0;
+            let running = false;
+
+            function traceOrbit(cRe, cIm, maxIter, hits) {
+                let zRe = 0, zIm = 0;
+                const orbitRe = new Float64Array(maxIter);
+                const orbitIm = new Float64Array(maxIter);
+                let orbitLen = 0;
+
+                for (let i = 0; i < maxIter; i++) {
+                    orbitRe[orbitLen] = zRe;
+                    orbitIm[orbitLen] = zIm;
+                    orbitLen++;
+
+                    const zRe2 = zRe * zRe - zIm * zIm + cRe;
+                    const zIm2 = 2 * zRe * zIm + cIm;
+                    zRe = zRe2;
+                    zIm = zIm2;
+
+                    if (zRe * zRe + zIm * zIm > 4) break;
+                }
+
+                if (orbitLen < maxIter) {
+                    for (let i = 0; i < orbitLen; i++) {
+                        const pRe = orbitRe[i];
+                        const pIm = orbitIm[i];
+
+                        if (pRe >= viewReMin && pRe <= viewReMax && pIm >= viewImMin && pIm <= viewImMax) {
+                            const x = Math.floor((pIm - viewImMin) / (viewImMax - viewImMin) * (width - 1));
+                            const y = Math.floor((pRe - viewReMin) / (viewReMax - viewReMin) * (height - 1));
+
+                            if (x >= 0 && x < width && y >= 0 && y < height) {
+                                hits[y * width + x]++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            function runSampling() {
+                if (!running) return;
+
+                const samplePadding = 2.0;
+                const sampleReMin = Math.max(-2.5, viewReMin - samplePadding);
+                const sampleReMax = Math.min(1.5, viewReMax + samplePadding);
+                const sampleImMin = Math.max(-2.0, viewImMin - samplePadding);
+                const sampleImMax = Math.min(2.0, viewImMax + samplePadding);
+
+                for (let s = 0; s < UPDATE_INTERVAL; s++) {
+                    let cRe, cIm;
+
+                    const r = Math.random();
+                    if (r < 0.6) {
+                        const theta = Math.random() * Math.PI * 2;
+                        const radius = 0.3 + Math.random() * 0.9;
+                        cRe = radius * Math.cos(theta) - 0.5;
+                        cIm = radius * Math.sin(theta);
+                    } else if (r < 0.85) {
+                        cRe = Math.random() * (sampleReMax - sampleReMin) + sampleReMin;
+                        cIm = Math.random() * (sampleImMax - sampleImMin) + sampleImMin;
+                    } else {
+                        cRe = -2 + Math.random() * 0.5;
+                        cIm = (Math.random() - 0.5) * 0.2;
+                    }
+
+                    const q = (cRe - 0.25) * (cRe - 0.25) + cIm * cIm;
+                    if (q * (q + (cRe - 0.25)) < 0.25 * cIm * cIm) continue;
+                    if ((cRe + 1) * (cRe + 1) + cIm * cIm < 0.0625) continue;
+
+                    traceOrbit(cRe, cIm, ITER_B, imgB);
+                    traceOrbit(cRe, cIm, ITER_G, imgG);
+                    traceOrbit(cRe, cIm, ITER_R, imgR);
+                }
+                localSamples += UPDATE_INTERVAL;
+
+                // Send incremental update
+                self.postMessage({
+                    type: 'update',
+                    samples: UPDATE_INTERVAL,
+                    imgR: imgR,
+                    imgG: imgG,
+                    imgB: imgB
+                });
+
+                // Reset local accumulators
+                imgR = new Float32Array(width * height);
+                imgG = new Float32Array(width * height);
+                imgB = new Float32Array(width * height);
+
+                // Continue sampling
+                setTimeout(runSampling, 0);
+            }
+
+            self.onmessage = function(e) {
+                const { type, data } = e.data;
+
+                if (type === 'init') {
+                    width = data.width;
+                    height = data.height;
+                    viewReMin = data.viewReMin;
+                    viewReMax = data.viewReMax;
+                    viewImMin = data.viewImMin;
+                    viewImMax = data.viewImMax;
+                    imgR = new Float32Array(width * height);
+                    imgG = new Float32Array(width * height);
+                    imgB = new Float32Array(width * height);
+                    localSamples = 0;
+                    self.postMessage({ type: 'ready' });
+                } else if (type === 'start') {
+                    running = true;
+                    runSampling();
+                } else if (type === 'stop') {
+                    running = false;
+                }
+            };
+        `;
+
+        const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(workerBlob);
+
+        function initWorkers() {
+            workers.forEach(w => w.terminate());
+            workers = [];
+
+            for (let i = 0; i < numWorkers; i++) {
+                const worker = new Worker(workerUrl);
+                worker.onmessage = handleWorkerMessage;
+                workers.push(worker);
+            }
+        }
+
+        let workersReady = 0;
+        function handleWorkerMessage(e) {
+            const { type, samples, imgR: wR, imgG: wG, imgB: wB } = e.data;
+
+            if (type === 'ready') {
+                workersReady++;
+                if (workersReady === numWorkers) {
+                    // All ready, start them all
+                    workers.forEach(w => w.postMessage({ type: 'start' }));
+                }
+            } else if (type === 'update') {
+                // Accumulate from this worker
+                for (let i = 0; i < imgR.length; i++) {
+                    imgR[i] += wR[i];
+                    imgG[i] += wG[i];
+                    imgB[i] += wB[i];
+                }
+                totalSamples += samples;
+            }
+        }
+
+        function stopWorkers() {
+            workers.forEach(w => w.postMessage({ type: 'stop' }));
+        }
 
         // View bounds (what we're currently showing)
         let viewReMin, viewReMax, viewImMin, viewImMax;
@@ -228,21 +456,36 @@
 
         // Controls
         const qualitySelect = document.getElementById('quality');
-        const brightnessSlider = document.getElementById('brightness');
-        const gammaSlider = document.getElementById('gamma');
+        const noiseFloorSlider = document.getElementById('noiseFloor');
+        const exposureSlider = document.getElementById('exposure');
+        const contrastSlider = document.getElementById('contrast');
+        const compressSlider = document.getElementById('compress');
         const regenerateBtn = document.getElementById('regenerate');
         const resetViewBtn = document.getElementById('resetView');
         const statusEl = document.getElementById('status');
         const zoomLevelEl = document.getElementById('zoomLevel');
 
-        brightnessSlider.oninput = () => {
-            document.getElementById('brightVal').textContent = brightnessSlider.value;
+        noiseFloorSlider.oninput = () => {
+            document.getElementById('floorVal').textContent = noiseFloorSlider.value;
             render();
+            saveToStorage();
         };
-        gammaSlider.oninput = () => {
-            document.getElementById('gammaVal').textContent = gammaSlider.value;
+        exposureSlider.oninput = () => {
+            document.getElementById('exposureVal').textContent = exposureSlider.value;
             render();
+            saveToStorage();
         };
+        contrastSlider.oninput = () => {
+            document.getElementById('contrastVal').textContent = contrastSlider.value;
+            render();
+            saveToStorage();
+        };
+        compressSlider.oninput = () => {
+            document.getElementById('compressVal').textContent = compressSlider.value;
+            render();
+            saveToStorage();
+        };
+        qualitySelect.onchange = () => saveToStorage();
         regenerateBtn.onclick = () => startRender();
         resetViewBtn.onclick = () => {
             viewCenterRe = -0.5;
@@ -250,6 +493,149 @@
             zoom = 1.0;
             startRender();
         };
+        document.getElementById('download').onclick = () => {
+            // Create composite canvas with minimap
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            // Draw main render
+            exportCtx.drawImage(canvas, 0, 0);
+
+            // Draw minimap in bottom-right corner with padding
+            const padding = 20;
+            const minimapX = canvas.width - MINIMAP_SIZE - padding;
+            const minimapY = canvas.height - MINIMAP_SIZE - padding;
+
+            // Draw minimap background
+            exportCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            exportCtx.roundRect(minimapX - 8, minimapY - 8, MINIMAP_SIZE + 16, MINIMAP_SIZE + 16, 8);
+            exportCtx.fill();
+
+            // Draw minimap
+            exportCtx.drawImage(minimapCanvas, minimapX, minimapY);
+
+            // Draw "Overview" label
+            exportCtx.fillStyle = '#666';
+            exportCtx.font = '10px monospace';
+            exportCtx.textAlign = 'center';
+            exportCtx.fillText('Overview', minimapX + MINIMAP_SIZE / 2, minimapY + MINIMAP_SIZE + 14);
+
+            const link = document.createElement('a');
+            link.download = `nebulabrot-${zoom.toFixed(1)}x-${Date.now()}.png`;
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+        };
+
+        document.getElementById('copyLink').onclick = () => {
+            const params = new URLSearchParams({
+                re: viewCenterRe.toFixed(10),
+                im: viewCenterIm.toFixed(10),
+                z: zoom.toFixed(4),
+                floor: noiseFloorSlider.value,
+                exp: exposureSlider.value,
+                con: contrastSlider.value,
+                comp: compressSlider.value,
+                q: qualitySelect.value
+            });
+            const url = `${window.location.origin}${window.location.pathname}?${params}`;
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = document.getElementById('copyLink');
+                btn.textContent = 'Copied!';
+                btn.style.background = '#4a9';
+                setTimeout(() => {
+                    btn.textContent = 'Copy Link';
+                    btn.style.background = '#68c';
+                }, 2000);
+            });
+        };
+
+        // Load state from URL parameters
+        function loadFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('re')) viewCenterRe = parseFloat(params.get('re'));
+            if (params.has('im')) viewCenterIm = parseFloat(params.get('im'));
+            if (params.has('z')) zoom = parseFloat(params.get('z'));
+            if (params.has('floor')) {
+                noiseFloorSlider.value = params.get('floor');
+                document.getElementById('floorVal').textContent = params.get('floor');
+            }
+            if (params.has('exp')) {
+                exposureSlider.value = params.get('exp');
+                document.getElementById('exposureVal').textContent = params.get('exp');
+            }
+            if (params.has('con')) {
+                contrastSlider.value = params.get('con');
+                document.getElementById('contrastVal').textContent = params.get('con');
+            }
+            if (params.has('comp')) {
+                compressSlider.value = params.get('comp');
+                document.getElementById('compressVal').textContent = params.get('comp');
+            }
+            if (params.has('q')) qualitySelect.value = params.get('q');
+        }
+
+        // Load from localStorage (URL params override)
+        function loadFromStorage() {
+            const saved = localStorage.getItem('buddhabrot-view');
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    viewCenterRe = state.re ?? viewCenterRe;
+                    viewCenterIm = state.im ?? viewCenterIm;
+                    zoom = state.z ?? zoom;
+                    if (state.floor !== undefined) {
+                        noiseFloorSlider.value = state.floor;
+                        document.getElementById('floorVal').textContent = state.floor;
+                    }
+                    if (state.exp !== undefined) {
+                        exposureSlider.value = state.exp;
+                        document.getElementById('exposureVal').textContent = state.exp;
+                    }
+                    if (state.con !== undefined) {
+                        contrastSlider.value = state.con;
+                        document.getElementById('contrastVal').textContent = state.con;
+                    }
+                    if (state.comp !== undefined) {
+                        compressSlider.value = state.comp;
+                        document.getElementById('compressVal').textContent = state.comp;
+                    }
+                    if (state.q) qualitySelect.value = state.q;
+                } catch (e) {}
+            }
+        }
+
+        function saveToStorage() {
+            const state = {
+                re: viewCenterRe,
+                im: viewCenterIm,
+                z: zoom,
+                floor: noiseFloorSlider.value,
+                exp: exposureSlider.value,
+                con: contrastSlider.value,
+                comp: compressSlider.value,
+                q: qualitySelect.value
+            };
+            localStorage.setItem('buddhabrot-view', JSON.stringify(state));
+
+            // Update URL for easy sharing
+            const params = new URLSearchParams({
+                re: viewCenterRe.toFixed(10),
+                im: viewCenterIm.toFixed(10),
+                z: zoom.toFixed(4),
+                floor: noiseFloorSlider.value,
+                exp: exposureSlider.value,
+                con: contrastSlider.value,
+                comp: compressSlider.value,
+                q: qualitySelect.value
+            });
+            history.replaceState(null, '', `?${params}`);
+        }
+
+        // Load storage first, then URL params override
+        loadFromStorage();
+        loadFromURL();
 
         function updateViewBounds() {
             const baseHeight = 3.0;
@@ -266,161 +652,67 @@
             viewImMax = viewCenterIm + viewWidth / 2;
 
             zoomLevelEl.textContent = `Zoom: ${zoom.toFixed(1)}x`;
+
+            // Update minimap viewport indicator
+            if (minimapReady) {
+                renderMinimap();
+            }
         }
 
         function startRender() {
             if (animationId) cancelAnimationFrame(animationId);
+            stopWorkers();
 
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            width = canvas.width;
-            height = canvas.height;
+            const newWidth = window.innerWidth;
+            const newHeight = window.innerHeight;
+
+            // Save current view state for preview transform
+            if (width && height && imgR && totalSamples > 0) {
+                lastViewState = {
+                    viewReMin, viewReMax, viewImMin, viewImMax,
+                    width, height
+                };
+                // Copy current canvas to preview
+                previewCanvas.width = width;
+                previewCanvas.height = height;
+                previewCtx.drawImage(canvas, 0, 0);
+            }
+
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            width = newWidth;
+            height = newHeight;
 
             updateViewBounds();
+            saveToStorage();
+
+            // Show transformed preview immediately
+            if (lastViewState) {
+                drawTransformedPreview();
+            }
 
             // Reset RGB channels
             imgR = new Float32Array(width * height);
             imgG = new Float32Array(width * height);
             imgB = new Float32Array(width * height);
             totalSamples = 0;
+            workersReady = 0;
 
-            progressiveRender();
-        }
-
-        window.addEventListener('resize', startRender);
-
-        // Check if point is in main cardioid or period-2 bulb
-        function inMainBulbs(cRe, cIm) {
-            const q = (cRe - 0.25) * (cRe - 0.25) + cIm * cIm;
-            if (q * (q + (cRe - 0.25)) < 0.25 * cIm * cIm) return true;
-            if ((cRe + 1) * (cRe + 1) + cIm * cIm < 0.0625) return true;
-            return false;
-        }
-
-        // Run one orbit and plot to the specified image array
-        function traceOrbit(cRe, cIm, maxIter, imgArray) {
-            let zRe = 0, zIm = 0;
-            const orbitRe = new Float64Array(maxIter);
-            const orbitIm = new Float64Array(maxIter);
-            let orbitLen = 0;
-
-            for (let i = 0; i < maxIter; i++) {
-                orbitRe[orbitLen] = zRe;
-                orbitIm[orbitLen] = zIm;
-                orbitLen++;
-
-                const zRe2 = zRe * zRe - zIm * zIm + cRe;
-                const zIm2 = 2 * zRe * zIm + cIm;
-                zRe = zRe2;
-                zIm = zIm2;
-
-                if (zRe * zRe + zIm * zIm > 4) break;
+            // Initialize and start workers
+            initWorkers();
+            for (const worker of workers) {
+                worker.postMessage({
+                    type: 'init',
+                    data: { width, height, viewReMin, viewReMax, viewImMin, viewImMax }
+                });
             }
 
-            // Only plot if escaped
-            if (orbitLen < maxIter) {
-                for (let i = 0; i < orbitLen; i++) {
-                    const pRe = orbitRe[i];
-                    const pIm = orbitIm[i];
-
-                    // Only plot points within current view
-                    if (pRe >= viewReMin && pRe <= viewReMax && pIm >= viewImMin && pIm <= viewImMax) {
-                        const x = Math.floor((pIm - viewImMin) / (viewImMax - viewImMin) * (width - 1));
-                        const y = Math.floor((pRe - viewReMin) / (viewReMax - viewReMin) * (height - 1));
-
-                        if (x >= 0 && x < width && y >= 0 && y < height) {
-                            imgArray[y * width + x]++;
-                        }
-                    }
-                }
-            }
+            // Start render loop
+            renderLoop();
         }
 
-        function generateSamplesChunk(count) {
-            // Expand sampling region beyond view to catch orbits that pass through
-            const samplePadding = 2.0 / zoom;
-            const sampleReMin = Math.max(-2.5, viewReMin - samplePadding);
-            const sampleReMax = Math.min(1.5, viewReMax + samplePadding);
-            const sampleImMin = Math.max(-2.0, viewImMin - samplePadding);
-            const sampleImMax = Math.min(2.0, viewImMax + samplePadding);
-
-            for (let s = 0; s < count; s++) {
-                let cRe, cIm;
-
-                // Adaptive sampling based on zoom level
-                const r = Math.random();
-                if (r < 0.6) {
-                    // Sample near the Mandelbrot boundary (most interesting orbits)
-                    const theta = Math.random() * Math.PI * 2;
-                    const radius = 0.3 + Math.random() * 0.9;
-                    cRe = radius * Math.cos(theta) - 0.5;
-                    cIm = radius * Math.sin(theta);
-                } else if (r < 0.85) {
-                    // Sample in expanded view region
-                    cRe = Math.random() * (sampleReMax - sampleReMin) + sampleReMin;
-                    cIm = Math.random() * (sampleImMax - sampleImMin) + sampleImMin;
-                } else {
-                    // Sample near antenna
-                    cRe = -2 + Math.random() * 0.5;
-                    cIm = (Math.random() - 0.5) * 0.2;
-                }
-
-                // Skip points in main bulbs
-                const q = (cRe - 0.25) * (cRe - 0.25) + cIm * cIm;
-                if (q * (q + (cRe - 0.25)) < 0.25 * cIm * cIm) continue;
-                if ((cRe + 1) * (cRe + 1) + cIm * cIm < 0.0625) continue;
-
-                // Trace orbit for each channel
-                traceOrbit(cRe, cIm, ITER_B, imgB);
-                traceOrbit(cRe, cIm, ITER_G, imgG);
-                traceOrbit(cRe, cIm, ITER_R, imgR);
-            }
-            totalSamples += count;
-        }
-
-        function render() {
-            const brightness = parseFloat(brightnessSlider.value);
-            const gamma = parseFloat(gammaSlider.value);
-
-            const imageData = ctx.createImageData(width, height);
-
-            // Find max for each channel
-            let maxR = 0, maxG = 0, maxB = 0;
-            for (let i = 0; i < imgR.length; i++) {
-                if (imgR[i] > maxR) maxR = imgR[i];
-                if (imgG[i] > maxG) maxG = imgG[i];
-                if (imgB[i] > maxB) maxB = imgB[i];
-            }
-            if (maxR === 0) maxR = 1;
-            if (maxG === 0) maxG = 1;
-            if (maxB === 0) maxB = 1;
-
-            const logMaxR = Math.log(maxR + 1);
-            const logMaxG = Math.log(maxG + 1);
-            const logMaxB = Math.log(maxB + 1);
-
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    const pixIdx = y * width + x;
-
-                    const vR = Math.pow(Math.log(imgR[pixIdx] + 1) / logMaxR, gamma) * brightness;
-                    const vG = Math.pow(Math.log(imgG[pixIdx] + 1) / logMaxG, gamma) * brightness;
-                    const vB = Math.pow(Math.log(imgB[pixIdx] + 1) / logMaxB, gamma) * brightness;
-
-                    imageData.data[idx] = Math.min(255, vR * 255);
-                    imageData.data[idx + 1] = Math.min(255, vG * 255);
-                    imageData.data[idx + 2] = Math.min(255, vB * 255);
-                    imageData.data[idx + 3] = 255;
-                }
-            }
-
-            ctx.putImageData(imageData, 0, 0);
-        }
-
-        function progressiveRender() {
+        function renderLoop() {
             const quality = qualitySelect.value;
-            // Scale samples with zoom (need more samples when zoomed in)
             const zoomFactor = Math.max(1, Math.sqrt(zoom));
             const targets = {
                 preview: Math.floor(500000 * zoomFactor),
@@ -428,20 +720,140 @@
                 high: Math.floor(15000000 * zoomFactor)
             };
             const targetSamples = targets[quality];
-            const samplesPerFrame = quality === 'high' ? 5000 : 8000;
 
             function frame() {
+                render();
+                const pct = Math.round(totalSamples / targetSamples * 100);
+                statusEl.textContent = `${Math.min(100, pct)}% (${(totalSamples/1000000).toFixed(1)}M) [${numWorkers} cores]`;
+
                 if (totalSamples < targetSamples) {
-                    generateSamplesChunk(samplesPerFrame);
-                    render();
-                    const pct = Math.round(totalSamples / targetSamples * 100);
-                    statusEl.textContent = `${pct}% (${(totalSamples/1000000).toFixed(1)}M samples)`;
                     animationId = requestAnimationFrame(frame);
                 } else {
-                    statusEl.textContent = `Done: ${(totalSamples/1000000).toFixed(1)}M samples`;
+                    stopWorkers();
+                    statusEl.textContent = `Done: ${(totalSamples/1000000).toFixed(1)}M samples [${numWorkers} cores]`;
                 }
             }
             frame();
+        }
+
+        function drawTransformedPreview() {
+            if (!lastViewState) return;
+
+            const old = lastViewState;
+
+            // Calculate how the old view maps to the new view
+            // Map old pixel coords to complex coords, then to new pixel coords
+            const oldImRange = old.viewImMax - old.viewImMin;
+            const oldReRange = old.viewReMax - old.viewReMin;
+            const newImRange = viewImMax - viewImMin;
+            const newReRange = viewReMax - viewReMin;
+
+            // Scale factors
+            const scaleX = (oldImRange / newImRange) * (width / old.width);
+            const scaleY = (oldReRange / newReRange) * (height / old.height);
+
+            // Offset: where does the old view's top-left appear in new coords?
+            const offsetX = ((old.viewImMin - viewImMin) / newImRange) * width;
+            const offsetY = ((old.viewReMin - viewReMin) / newReRange) * height;
+
+            // Draw transformed preview with slight dimming to indicate it's a preview
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+            ctx.globalAlpha = 0.6;
+            ctx.drawImage(previewCanvas, offsetX, offsetY, old.width * scaleX, old.height * scaleY);
+            ctx.globalAlpha = 1.0;
+        }
+
+        window.addEventListener('resize', startRender);
+
+        function render() {
+            const noiseFloor = parseInt(noiseFloorSlider.value);
+            const exposure = parseFloat(exposureSlider.value);
+            const contrast = parseFloat(contrastSlider.value);
+            const compress = parseFloat(compressSlider.value);
+
+            const imageData = ctx.createImageData(width, height);
+
+            // Find max for each channel (ignoring noise floor)
+            let maxR = 0, maxG = 0, maxB = 0;
+            for (let i = 0; i < imgR.length; i++) {
+                if (imgR[i] > noiseFloor && imgR[i] > maxR) maxR = imgR[i];
+                if (imgG[i] > noiseFloor && imgG[i] > maxG) maxG = imgG[i];
+                if (imgB[i] > noiseFloor && imgB[i] > maxB) maxB = imgB[i];
+            }
+            if (maxR === 0) maxR = 1;
+            if (maxG === 0) maxG = 1;
+            if (maxB === 0) maxB = 1;
+
+            // Exposure multiplier (2^exposure gives photographer-style stops)
+            const expMult = Math.pow(2, exposure);
+
+            // Tone mapping function with highlight compression
+            function toneMap(val, max) {
+                if (val <= noiseFloor) return 0;
+
+                // Normalize to 0-1 range using log scale
+                const normalized = Math.log(val - noiseFloor + 1) / Math.log(max - noiseFloor + 1);
+
+                // Apply contrast around midpoint
+                const midpoint = 0.5;
+                let contrasted = midpoint + (normalized - midpoint) * contrast;
+                contrasted = Math.max(0, Math.min(1, contrasted));
+
+                // Apply exposure
+                let exposed = contrasted * expMult;
+
+                // Soft highlight compression (Reinhard-style tone mapping)
+                // compress controls how aggressively highlights are compressed
+                // Lower compress = more compression (preserves highlights)
+                const compressed = exposed / (exposed + compress);
+
+                return Math.min(1, compressed / (1 / (1 + compress))); // Normalize so 1 maps to 1
+            }
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const pixIdx = y * width + x;
+
+                    const vR = toneMap(imgR[pixIdx], maxR);
+                    const vG = toneMap(imgG[pixIdx], maxG);
+                    const vB = toneMap(imgB[pixIdx], maxB);
+
+                    imageData.data[idx] = Math.floor(vR * 255);
+                    imageData.data[idx + 1] = Math.floor(vG * 255);
+                    imageData.data[idx + 2] = Math.floor(vB * 255);
+                    imageData.data[idx + 3] = 255;
+                }
+            }
+
+            // If we have a preview and not much new data yet, blend them
+            const quality = qualitySelect.value;
+            const zoomFactor = Math.max(1, Math.sqrt(zoom));
+            const targets = {
+                preview: Math.floor(500000 * zoomFactor),
+                medium: Math.floor(3000000 * zoomFactor),
+                high: Math.floor(15000000 * zoomFactor)
+            };
+            const targetSamples = targets[quality];
+            const progress = Math.min(1, totalSamples / (targetSamples * 0.1)); // Fade preview over first 10%
+
+            if (lastViewState && progress < 1) {
+                // Draw transformed preview first
+                drawTransformedPreview();
+                // Create temp canvas for new data
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = width;
+                tempCanvas.height = height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.putImageData(imageData, 0, 0);
+                // Blend new data on top with increasing opacity
+                ctx.globalAlpha = progress;
+                ctx.drawImage(tempCanvas, 0, 0);
+                ctx.globalAlpha = 1.0;
+            } else {
+                ctx.putImageData(imageData, 0, 0);
+            }
         }
 
         // ===== Pan and Zoom Controls =====
@@ -568,6 +980,182 @@
             isDragging = false;
             lastTouchDist = 0;
         });
+
+        // ===== Minimap =====
+
+        function initMinimap() {
+            minimapImgR = new Float32Array(MINIMAP_SIZE * MINIMAP_SIZE);
+            minimapImgG = new Float32Array(MINIMAP_SIZE * MINIMAP_SIZE);
+            minimapImgB = new Float32Array(MINIMAP_SIZE * MINIMAP_SIZE);
+            minimapSamples = 0;
+            minimapReady = false;
+            renderMinimapProgressive();
+        }
+
+        function traceOrbitMinimap(cRe, cIm, maxIter, imgArray) {
+            let zRe = 0, zIm = 0;
+            const orbitRe = new Float64Array(maxIter);
+            const orbitIm = new Float64Array(maxIter);
+            let orbitLen = 0;
+
+            for (let i = 0; i < maxIter; i++) {
+                orbitRe[orbitLen] = zRe;
+                orbitIm[orbitLen] = zIm;
+                orbitLen++;
+
+                const zRe2 = zRe * zRe - zIm * zIm + cRe;
+                const zIm2 = 2 * zRe * zIm + cIm;
+                zRe = zRe2;
+                zIm = zIm2;
+
+                if (zRe * zRe + zIm * zIm > 4) break;
+            }
+
+            if (orbitLen < maxIter) {
+                for (let i = 0; i < orbitLen; i++) {
+                    const pRe = orbitRe[i];
+                    const pIm = orbitIm[i];
+
+                    if (pRe >= FULL_RE_MIN && pRe <= FULL_RE_MAX && pIm >= FULL_IM_MIN && pIm <= FULL_IM_MAX) {
+                        const x = Math.floor((pIm - FULL_IM_MIN) / (FULL_IM_MAX - FULL_IM_MIN) * (MINIMAP_SIZE - 1));
+                        const y = Math.floor((pRe - FULL_RE_MIN) / (FULL_RE_MAX - FULL_RE_MIN) * (MINIMAP_SIZE - 1));
+
+                        if (x >= 0 && x < MINIMAP_SIZE && y >= 0 && y < MINIMAP_SIZE) {
+                            imgArray[y * MINIMAP_SIZE + x]++;
+                        }
+                    }
+                }
+            }
+        }
+
+        function generateMinimapSamples(count) {
+            for (let s = 0; s < count; s++) {
+                let cRe, cIm;
+                const r = Math.random();
+                if (r < 0.6) {
+                    const theta = Math.random() * Math.PI * 2;
+                    const radius = 0.3 + Math.random() * 0.9;
+                    cRe = radius * Math.cos(theta) - 0.5;
+                    cIm = radius * Math.sin(theta);
+                } else if (r < 0.85) {
+                    cRe = Math.random() * 3.5 - 2.5;
+                    cIm = Math.random() * 3 - 1.5;
+                } else {
+                    cRe = -2 + Math.random() * 0.5;
+                    cIm = (Math.random() - 0.5) * 0.2;
+                }
+
+                const q = (cRe - 0.25) * (cRe - 0.25) + cIm * cIm;
+                if (q * (q + (cRe - 0.25)) < 0.25 * cIm * cIm) continue;
+                if ((cRe + 1) * (cRe + 1) + cIm * cIm < 0.0625) continue;
+
+                traceOrbitMinimap(cRe, cIm, 50, minimapImgB);
+                traceOrbitMinimap(cRe, cIm, 500, minimapImgG);
+                traceOrbitMinimap(cRe, cIm, 2000, minimapImgR);
+            }
+            minimapSamples += count;
+        }
+
+        function renderMinimap() {
+            const imageData = minimapCtx.createImageData(MINIMAP_SIZE, MINIMAP_SIZE);
+
+            let maxR = 0, maxG = 0, maxB = 0;
+            for (let i = 0; i < minimapImgR.length; i++) {
+                if (minimapImgR[i] > maxR) maxR = minimapImgR[i];
+                if (minimapImgG[i] > maxG) maxG = minimapImgG[i];
+                if (minimapImgB[i] > maxB) maxB = minimapImgB[i];
+            }
+            if (maxR === 0) maxR = 1;
+            if (maxG === 0) maxG = 1;
+            if (maxB === 0) maxB = 1;
+
+            const logMaxR = Math.log(maxR + 1);
+            const logMaxG = Math.log(maxG + 1);
+            const logMaxB = Math.log(maxB + 1);
+            const gamma = 0.4;
+
+            for (let y = 0; y < MINIMAP_SIZE; y++) {
+                for (let x = 0; x < MINIMAP_SIZE; x++) {
+                    const idx = (y * MINIMAP_SIZE + x) * 4;
+                    const pixIdx = y * MINIMAP_SIZE + x;
+
+                    const vR = Math.pow(Math.log(minimapImgR[pixIdx] + 1) / logMaxR, gamma);
+                    const vG = Math.pow(Math.log(minimapImgG[pixIdx] + 1) / logMaxG, gamma);
+                    const vB = Math.pow(Math.log(minimapImgB[pixIdx] + 1) / logMaxB, gamma);
+
+                    imageData.data[idx] = Math.min(255, vR * 255);
+                    imageData.data[idx + 1] = Math.min(255, vG * 255);
+                    imageData.data[idx + 2] = Math.min(255, vB * 255);
+                    imageData.data[idx + 3] = 255;
+                }
+            }
+
+            minimapCtx.putImageData(imageData, 0, 0);
+            drawMinimapViewport();
+        }
+
+        function drawMinimapViewport() {
+            if (!minimapReady) return;
+
+            // Redraw the minimap base
+            const imageData = minimapCtx.getImageData(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+            minimapCtx.putImageData(imageData, 0, 0);
+
+            // Calculate viewport rectangle in minimap coordinates
+            const x1 = (viewImMin - FULL_IM_MIN) / (FULL_IM_MAX - FULL_IM_MIN) * MINIMAP_SIZE;
+            const x2 = (viewImMax - FULL_IM_MIN) / (FULL_IM_MAX - FULL_IM_MIN) * MINIMAP_SIZE;
+            const y1 = (viewReMin - FULL_RE_MIN) / (FULL_RE_MAX - FULL_RE_MIN) * MINIMAP_SIZE;
+            const y2 = (viewReMax - FULL_RE_MIN) / (FULL_RE_MAX - FULL_RE_MIN) * MINIMAP_SIZE;
+
+            const rectX = Math.max(0, Math.min(x1, x2));
+            const rectY = Math.max(0, Math.min(y1, y2));
+            const rectW = Math.min(MINIMAP_SIZE - rectX, Math.abs(x2 - x1));
+            const rectH = Math.min(MINIMAP_SIZE - rectY, Math.abs(y2 - y1));
+
+            // Draw viewport rectangle
+            minimapCtx.strokeStyle = '#fff';
+            minimapCtx.lineWidth = 2;
+            minimapCtx.strokeRect(rectX, rectY, rectW, rectH);
+
+            // Draw subtle fill
+            minimapCtx.fillStyle = 'rgba(255,255,255,0.1)';
+            minimapCtx.fillRect(rectX, rectY, rectW, rectH);
+        }
+
+        function renderMinimapProgressive() {
+            const targetSamples = 200000;
+            const samplesPerFrame = 5000;
+
+            function frame() {
+                if (minimapSamples < targetSamples) {
+                    generateMinimapSamples(samplesPerFrame);
+                    renderMinimap();
+                    requestAnimationFrame(frame);
+                } else {
+                    minimapReady = true;
+                    renderMinimap();
+                }
+            }
+            frame();
+        }
+
+        // Click on minimap to navigate
+        minimapCanvas.addEventListener('click', (e) => {
+            const rect = minimapCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Convert to complex coordinates
+            viewCenterIm = FULL_IM_MIN + (x / MINIMAP_SIZE) * (FULL_IM_MAX - FULL_IM_MIN);
+            viewCenterRe = FULL_RE_MIN + (y / MINIMAP_SIZE) * (FULL_RE_MAX - FULL_RE_MIN);
+
+            startRender();
+        });
+
+        minimapCanvas.style.cursor = 'crosshair';
+
+        // Initialize minimap
+        initMinimap();
 
         startRender();
     </script>
