@@ -295,6 +295,11 @@
             const ITER_B = 200;
             const UPDATE_INTERVAL = 2000;
 
+            // Importance sampling grid
+            const GRID_SIZE = 32;
+            const WARMUP_SAMPLES = 20000;
+            const IMPORTANCE_BLEND = 0.7; // How much to favor high-density regions
+
             let width, height;
             let viewReMin, viewReMax, viewImMin, viewImMax;
             let imgR, imgG, imgB;
@@ -305,38 +310,85 @@
             let adaptivePadding, viewSamplePct, annularThreshold;
             let sampleReMin, sampleReMax, sampleImMin, sampleImMax;
 
+            // Density tracking for importance sampling
+            let densityGrid = null;
+            let densityCDF = null;
+            let gridCellWidth, gridCellHeight;
+
             function calculateSamplingParams() {
                 const viewHeight = viewReMax - viewReMin;
                 const viewWidth = viewImMax - viewImMin;
                 const viewSize = Math.max(viewHeight, viewWidth);
 
-                // Adaptive padding scales with view size
-                // At zoom 1 (viewSize ≈ 3): padding ≈ 1.5
-                // At zoom 10 (viewSize ≈ 0.3): padding ≈ 0.15
-                // At zoom 100 (viewSize ≈ 0.03): padding ≈ 0.015
                 adaptivePadding = Math.max(0.05, viewSize * 0.5);
 
-                // Calculate zoom level (1 at default view where viewSize ≈ 3)
                 const zoomLevel = 3.0 / viewSize;
-
-                // Shift sampling towards view-adaptive at higher zoom
-                // zoom 1: 25% view-adaptive
-                // zoom 10: ~85% view-adaptive
-                // zoom 100: ~98% view-adaptive
                 viewSamplePct = Math.min(0.98, 0.25 + 0.73 * (1 - 1 / Math.max(1, zoomLevel)));
 
-                // Remaining probability split: 80% annular, 20% antenna
                 const remaining = 1 - viewSamplePct;
                 annularThreshold = viewSamplePct + remaining * 0.8;
 
-                // Compute padded sampling region
                 sampleReMin = Math.max(-2.5, viewReMin - adaptivePadding);
                 sampleReMax = Math.min(1.5, viewReMax + adaptivePadding);
                 sampleImMin = Math.max(-2.0, viewImMin - adaptivePadding);
                 sampleImMax = Math.min(2.0, viewImMax + adaptivePadding);
+
+                // Initialize density grid for c-space
+                densityGrid = new Float32Array(GRID_SIZE * GRID_SIZE);
+                densityCDF = new Float32Array(GRID_SIZE * GRID_SIZE);
+                gridCellWidth = (sampleImMax - sampleImMin) / GRID_SIZE;
+                gridCellHeight = (sampleReMax - sampleReMin) / GRID_SIZE;
             }
 
-            function traceOrbit(cRe, cIm, maxIter, hits) {
+            function getGridIndex(cRe, cIm) {
+                const gx = Math.floor((cIm - sampleImMin) / gridCellWidth);
+                const gy = Math.floor((cRe - sampleReMin) / gridCellHeight);
+                if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return -1;
+                return gy * GRID_SIZE + gx;
+            }
+
+            function buildCDF() {
+                // Add small base probability to all cells to ensure exploration
+                const baseProb = 0.1 / (GRID_SIZE * GRID_SIZE);
+                let total = 0;
+
+                for (let i = 0; i < densityGrid.length; i++) {
+                    // Use sqrt to reduce variance between high/low density regions
+                    total += Math.sqrt(densityGrid[i] + 1) + baseProb;
+                }
+
+                let cumulative = 0;
+                for (let i = 0; i < densityGrid.length; i++) {
+                    cumulative += (Math.sqrt(densityGrid[i] + 1) + baseProb) / total;
+                    densityCDF[i] = cumulative;
+                }
+                densityCDF[densityCDF.length - 1] = 1.0; // Ensure last is exactly 1
+            }
+
+            function sampleFromCDF() {
+                const r = Math.random();
+                // Binary search for cell
+                let lo = 0, hi = densityCDF.length - 1;
+                while (lo < hi) {
+                    const mid = (lo + hi) >> 1;
+                    if (densityCDF[mid] < r) lo = mid + 1;
+                    else hi = mid;
+                }
+                return lo;
+            }
+
+            function sampleFromGrid() {
+                const cellIdx = sampleFromCDF();
+                const gx = cellIdx % GRID_SIZE;
+                const gy = Math.floor(cellIdx / GRID_SIZE);
+
+                // Random point within the cell
+                const cIm = sampleImMin + (gx + Math.random()) * gridCellWidth;
+                const cRe = sampleReMin + (gy + Math.random()) * gridCellHeight;
+                return { cRe, cIm };
+            }
+
+            function traceOrbitWithDensity(cRe, cIm, maxIter, hits) {
                 let zRe = 0, zIm = 0;
                 const orbitRe = new Float64Array(maxIter);
                 const orbitIm = new Float64Array(maxIter);
@@ -355,6 +407,7 @@
                     if (zRe * zRe + zIm * zIm > 4) break;
                 }
 
+                let hitCount = 0;
                 if (orbitLen < maxIter) {
                     for (let i = 0; i < orbitLen; i++) {
                         const pRe = orbitRe[i];
@@ -366,44 +419,78 @@
 
                             if (x >= 0 && x < width && y >= 0 && y < height) {
                                 hits[y * width + x]++;
+                                hitCount++;
                             }
                         }
                     }
                 }
+                return hitCount;
             }
 
             function runSampling() {
                 if (!running) return;
 
+                const useImportance = localSamples >= WARMUP_SAMPLES;
+
+                // Rebuild CDF periodically after warmup
+                if (useImportance && localSamples % 10000 === 0) {
+                    buildCDF();
+                }
+
                 for (let s = 0; s < UPDATE_INTERVAL; s++) {
                     let cRe, cIm;
 
-                    const r = Math.random();
-                    if (r < viewSamplePct) {
-                        // View-adaptive sampling with scaled padding
-                        cRe = Math.random() * (sampleReMax - sampleReMin) + sampleReMin;
-                        cIm = Math.random() * (sampleImMax - sampleImMin) + sampleImMin;
-                    } else if (r < annularThreshold) {
-                        // Annular region around main cardioid (reduced at high zoom)
-                        const theta = Math.random() * Math.PI * 2;
-                        const radius = 0.3 + Math.random() * 0.9;
-                        cRe = radius * Math.cos(theta) - 0.5;
-                        cIm = radius * Math.sin(theta);
+                    // First decide: importance sampling or regular?
+                    const useImportanceThisSample = useImportance && Math.random() < IMPORTANCE_BLEND;
+
+                    if (useImportanceThisSample) {
+                        // Importance sampling from density grid
+                        const sample = sampleFromGrid();
+                        cRe = sample.cRe;
+                        cIm = sample.cIm;
                     } else {
-                        // Left antenna region (reduced at high zoom)
-                        cRe = -2 + Math.random() * 0.5;
-                        cIm = (Math.random() - 0.5) * 0.2;
+                        // Regular sampling with zoom-adaptive distribution
+                        const r = Math.random();
+                        if (r < viewSamplePct) {
+                            // View-adaptive uniform sampling
+                            cRe = Math.random() * (sampleReMax - sampleReMin) + sampleReMin;
+                            cIm = Math.random() * (sampleImMax - sampleImMin) + sampleImMin;
+                        } else if (r < annularThreshold) {
+                            const theta = Math.random() * Math.PI * 2;
+                            const radius = 0.3 + Math.random() * 0.9;
+                            cRe = radius * Math.cos(theta) - 0.5;
+                            cIm = radius * Math.sin(theta);
+                        } else {
+                            cRe = -2 + Math.random() * 0.5;
+                            cIm = (Math.random() - 0.5) * 0.2;
+                        }
                     }
 
+                    // Skip points in main cardioid or period-2 bulb
                     const q = (cRe - 0.25) * (cRe - 0.25) + cIm * cIm;
                     if (q * (q + (cRe - 0.25)) < 0.25 * cIm * cIm) continue;
                     if ((cRe + 1) * (cRe + 1) + cIm * cIm < 0.0625) continue;
 
-                    traceOrbit(cRe, cIm, ITER_B, imgB);
-                    traceOrbit(cRe, cIm, ITER_G, imgG);
-                    traceOrbit(cRe, cIm, ITER_R, imgR);
+                    // Trace and track density
+                    const hitsB = traceOrbitWithDensity(cRe, cIm, ITER_B, imgB);
+                    const hitsG = traceOrbitWithDensity(cRe, cIm, ITER_G, imgG);
+                    const hitsR = traceOrbitWithDensity(cRe, cIm, ITER_R, imgR);
+
+                    // Update density grid (weight by total hits across all channels)
+                    const totalHits = hitsB + hitsG + hitsR;
+                    if (totalHits > 0) {
+                        const gridIdx = getGridIndex(cRe, cIm);
+                        if (gridIdx >= 0) {
+                            densityGrid[gridIdx] += totalHits;
+                        }
+                    }
                 }
                 localSamples += UPDATE_INTERVAL;
+
+                // Build initial CDF right after warmup
+                if (localSamples === WARMUP_SAMPLES + UPDATE_INTERVAL) {
+                    buildCDF();
+                }
 
                 self.postMessage({
                     type: 'update',
