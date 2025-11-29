@@ -12,7 +12,7 @@
             width: 100%;
             height: 100vh;
         }
-        
+
         #buddhabrot-canvas {
             position: fixed;
             top: 0;
@@ -20,8 +20,13 @@
             width: 100%;
             height: 100%;
             z-index: 0;
+            cursor: grab;
         }
-        
+
+        #buddhabrot-canvas:active {
+            cursor: grabbing;
+        }
+
         .controls {
             position: fixed;
             top: 20px;
@@ -89,14 +94,6 @@
             margin-top: 10px;
             color: #888;
             font-size: 11px;
-        }
-
-        #buddhabrot-canvas {
-            cursor: grab;
-        }
-
-        #buddhabrot-canvas:active {
-            cursor: grabbing;
         }
 
         .zoom-hint {
@@ -206,6 +203,11 @@
         </div>
 
         <div class="control-group">
+            <label>Workers <span class="value" id="workersVal"></span></label>
+            <input type="range" id="numWorkersSlider" min="1" max="32" step="1" value="8">
+        </div>
+
+        <div class="control-group">
             <label>Noise Floor <span class="value" id="floorVal">0</span></label>
             <input type="range" id="noiseFloor" min="0" max="50" step="1" value="0">
         </div>
@@ -265,25 +267,74 @@
         // Preview canvas for smooth panning
         const previewCanvas = document.createElement('canvas');
         const previewCtx = previewCanvas.getContext('2d');
-        let lastViewState = null; // Store previous view for transform calculation
+        let lastViewState = null;
 
-        // Parallel workers - persistent, send frequent small updates
-        const numWorkers = navigator.hardwareConcurrency || 8;
+        // Parallel workers
+        const detectedCores = navigator.hardwareConcurrency || 8;
+        let numWorkers = detectedCores;
         let workers = [];
-        let isRendering = false;
 
-        // Worker code - sends small updates frequently for smooth rendering
+        // Initialize workers slider with detected cores
+        const numWorkersSlider = document.getElementById('numWorkersSlider');
+        numWorkersSlider.value = detectedCores;
+        numWorkersSlider.max = Math.max(32, detectedCores * 2);
+        document.getElementById('workersVal').textContent = detectedCores;
+
+        numWorkersSlider.oninput = () => {
+            numWorkers = parseInt(numWorkersSlider.value);
+            document.getElementById('workersVal').textContent = numWorkers;
+        };
+        numWorkersSlider.onchange = () => {
+            startRender();
+        };
+
+        // Worker code
         const workerCode = `
             const ITER_R = 20000;
             const ITER_G = 2000;
             const ITER_B = 200;
-            const UPDATE_INTERVAL = 2000; // Send update every N samples
+            const UPDATE_INTERVAL = 2000;
 
             let width, height;
             let viewReMin, viewReMax, viewImMin, viewImMax;
             let imgR, imgG, imgB;
             let localSamples = 0;
             let running = false;
+
+            // Zoom-adaptive sampling parameters
+            let adaptivePadding, viewSamplePct, annularThreshold;
+            let sampleReMin, sampleReMax, sampleImMin, sampleImMax;
+
+            function calculateSamplingParams() {
+                const viewHeight = viewReMax - viewReMin;
+                const viewWidth = viewImMax - viewImMin;
+                const viewSize = Math.max(viewHeight, viewWidth);
+
+                // Adaptive padding scales with view size
+                // At zoom 1 (viewSize ≈ 3): padding ≈ 1.5
+                // At zoom 10 (viewSize ≈ 0.3): padding ≈ 0.15
+                // At zoom 100 (viewSize ≈ 0.03): padding ≈ 0.015
+                adaptivePadding = Math.max(0.05, viewSize * 0.5);
+
+                // Calculate zoom level (1 at default view where viewSize ≈ 3)
+                const zoomLevel = 3.0 / viewSize;
+
+                // Shift sampling towards view-adaptive at higher zoom
+                // zoom 1: 25% view-adaptive
+                // zoom 10: ~85% view-adaptive
+                // zoom 100: ~98% view-adaptive
+                viewSamplePct = Math.min(0.98, 0.25 + 0.73 * (1 - 1 / Math.max(1, zoomLevel)));
+
+                // Remaining probability split: 80% annular, 20% antenna
+                const remaining = 1 - viewSamplePct;
+                annularThreshold = viewSamplePct + remaining * 0.8;
+
+                // Compute padded sampling region
+                sampleReMin = Math.max(-2.5, viewReMin - adaptivePadding);
+                sampleReMax = Math.min(1.5, viewReMax + adaptivePadding);
+                sampleImMin = Math.max(-2.0, viewImMin - adaptivePadding);
+                sampleImMax = Math.min(2.0, viewImMax + adaptivePadding);
+            }
 
             function traceOrbit(cRe, cIm, maxIter, hits) {
                 let zRe = 0, zIm = 0;
@@ -324,25 +375,22 @@
             function runSampling() {
                 if (!running) return;
 
-                const samplePadding = 2.0;
-                const sampleReMin = Math.max(-2.5, viewReMin - samplePadding);
-                const sampleReMax = Math.min(1.5, viewReMax + samplePadding);
-                const sampleImMin = Math.max(-2.0, viewImMin - samplePadding);
-                const sampleImMax = Math.min(2.0, viewImMax + samplePadding);
-
                 for (let s = 0; s < UPDATE_INTERVAL; s++) {
                     let cRe, cIm;
 
                     const r = Math.random();
-                    if (r < 0.6) {
+                    if (r < viewSamplePct) {
+                        // View-adaptive sampling with scaled padding
+                        cRe = Math.random() * (sampleReMax - sampleReMin) + sampleReMin;
+                        cIm = Math.random() * (sampleImMax - sampleImMin) + sampleImMin;
+                    } else if (r < annularThreshold) {
+                        // Annular region around main cardioid (reduced at high zoom)
                         const theta = Math.random() * Math.PI * 2;
                         const radius = 0.3 + Math.random() * 0.9;
                         cRe = radius * Math.cos(theta) - 0.5;
                         cIm = radius * Math.sin(theta);
-                    } else if (r < 0.85) {
-                        cRe = Math.random() * (sampleReMax - sampleReMin) + sampleReMin;
-                        cIm = Math.random() * (sampleImMax - sampleImMin) + sampleImMin;
                     } else {
+                        // Left antenna region (reduced at high zoom)
                         cRe = -2 + Math.random() * 0.5;
                         cIm = (Math.random() - 0.5) * 0.2;
                     }
@@ -357,7 +405,6 @@
                 }
                 localSamples += UPDATE_INTERVAL;
 
-                // Send incremental update
                 self.postMessage({
                     type: 'update',
                     samples: UPDATE_INTERVAL,
@@ -366,12 +413,10 @@
                     imgB: imgB
                 });
 
-                // Reset local accumulators
                 imgR = new Float32Array(width * height);
                 imgG = new Float32Array(width * height);
                 imgB = new Float32Array(width * height);
 
-                // Continue sampling
                 setTimeout(runSampling, 0);
             }
 
@@ -385,6 +430,7 @@
                     viewReMax = data.viewReMax;
                     viewImMin = data.viewImMin;
                     viewImMax = data.viewImMax;
+                    calculateSamplingParams();
                     imgR = new Float32Array(width * height);
                     imgG = new Float32Array(width * height);
                     imgB = new Float32Array(width * height);
@@ -420,11 +466,9 @@
             if (type === 'ready') {
                 workersReady++;
                 if (workersReady === numWorkers) {
-                    // All ready, start them all
                     workers.forEach(w => w.postMessage({ type: 'start' }));
                 }
             } else if (type === 'update') {
-                // Accumulate from this worker
                 for (let i = 0; i < imgR.length; i++) {
                     imgR[i] += wR[i];
                     imgG[i] += wG[i];
@@ -435,24 +479,23 @@
         }
 
         function stopWorkers() {
-            workers.forEach(w => w.postMessage({ type: 'stop' }));
+            workers.forEach(w => {
+                w.postMessage({ type: 'stop' });
+                w.terminate();
+            });
+            workers = [];
         }
 
-        // View bounds (what we're currently showing)
+        // View bounds
         let viewReMin, viewReMax, viewImMin, viewImMax;
 
         // View state
-        let viewCenterRe = -0.5;  // Center in real axis
-        let viewCenterIm = 0;     // Center in imaginary axis
+        let viewCenterRe = -0.5;
+        let viewCenterIm = 0;
         let zoom = 1.0;
 
         let animationId = null;
         let totalSamples = 0;
-
-        // Iteration counts for each channel
-        const ITER_R = 20000;
-        const ITER_G = 2000;
-        const ITER_B = 200;
 
         // Controls
         const qualitySelect = document.getElementById('quality');
@@ -493,30 +536,25 @@
             zoom = 1.0;
             startRender();
         };
+
         document.getElementById('download').onclick = () => {
-            // Create composite canvas with minimap
             const exportCanvas = document.createElement('canvas');
             exportCanvas.width = canvas.width;
             exportCanvas.height = canvas.height;
             const exportCtx = exportCanvas.getContext('2d');
 
-            // Draw main render
             exportCtx.drawImage(canvas, 0, 0);
 
-            // Draw minimap in bottom-right corner with padding
             const padding = 20;
             const minimapX = canvas.width - MINIMAP_SIZE - padding;
             const minimapY = canvas.height - MINIMAP_SIZE - padding;
 
-            // Draw minimap background
             exportCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             exportCtx.roundRect(minimapX - 8, minimapY - 8, MINIMAP_SIZE + 16, MINIMAP_SIZE + 16, 8);
             exportCtx.fill();
 
-            // Draw minimap
             exportCtx.drawImage(minimapCanvas, minimapX, minimapY);
 
-            // Draw "Overview" label
             exportCtx.fillStyle = '#666';
             exportCtx.font = '10px monospace';
             exportCtx.textAlign = 'center';
@@ -551,7 +589,6 @@
             });
         };
 
-        // Load state from URL parameters
         function loadFromURL() {
             const params = new URLSearchParams(window.location.search);
             if (params.has('re')) viewCenterRe = parseFloat(params.get('re'));
@@ -576,7 +613,6 @@
             if (params.has('q')) qualitySelect.value = params.get('q');
         }
 
-        // Load from localStorage (URL params override)
         function loadFromStorage() {
             const saved = localStorage.getItem('buddhabrot-view');
             if (saved) {
@@ -619,7 +655,6 @@
             };
             localStorage.setItem('buddhabrot-view', JSON.stringify(state));
 
-            // Update URL for easy sharing
             const params = new URLSearchParams({
                 re: viewCenterRe.toFixed(10),
                 im: viewCenterIm.toFixed(10),
@@ -633,19 +668,16 @@
             history.replaceState(null, '', `?${params}`);
         }
 
-        // Load storage first, then URL params override
         loadFromStorage();
         loadFromURL();
 
         function updateViewBounds() {
             const baseHeight = 3.0;
-            const baseWidth = 3.0;
             const screenAspect = width / height;
 
             let viewHeight = baseHeight / zoom;
             let viewWidth = viewHeight * screenAspect;
 
-            // View bounds (rotated: re is vertical, im is horizontal)
             viewReMin = viewCenterRe - viewHeight / 2;
             viewReMax = viewCenterRe + viewHeight / 2;
             viewImMin = viewCenterIm - viewWidth / 2;
@@ -653,7 +685,6 @@
 
             zoomLevelEl.textContent = `Zoom: ${zoom.toFixed(1)}x`;
 
-            // Update minimap viewport indicator
             if (minimapReady) {
                 renderMinimap();
             }
@@ -666,13 +697,11 @@
             const newWidth = window.innerWidth;
             const newHeight = window.innerHeight;
 
-            // Save current view state for preview transform
             if (width && height && imgR && totalSamples > 0) {
                 lastViewState = {
                     viewReMin, viewReMax, viewImMin, viewImMax,
                     width, height
                 };
-                // Copy current canvas to preview
                 previewCanvas.width = width;
                 previewCanvas.height = height;
                 previewCtx.drawImage(canvas, 0, 0);
@@ -686,19 +715,16 @@
             updateViewBounds();
             saveToStorage();
 
-            // Show transformed preview immediately
             if (lastViewState) {
                 drawTransformedPreview();
             }
 
-            // Reset RGB channels
             imgR = new Float32Array(width * height);
             imgG = new Float32Array(width * height);
             imgB = new Float32Array(width * height);
             totalSamples = 0;
             workersReady = 0;
 
-            // Initialize and start workers
             initWorkers();
             for (const worker of workers) {
                 worker.postMessage({
@@ -706,31 +732,29 @@
                     data: { width, height, viewReMin, viewReMax, viewImMin, viewImMax }
                 });
             }
-
-            // Start render loop
             renderLoop();
         }
 
         function renderLoop() {
             const quality = qualitySelect.value;
-            const zoomFactor = Math.max(1, Math.sqrt(zoom));
+            // Fixed targets - adaptive sampling provides consistent performance at any zoom
             const targets = {
-                preview: Math.floor(500000 * zoomFactor),
-                medium: Math.floor(3000000 * zoomFactor),
-                high: Math.floor(15000000 * zoomFactor)
+                preview: 500000,
+                medium: 3000000,
+                high: 15000000
             };
             const targetSamples = targets[quality];
 
             function frame() {
                 render();
                 const pct = Math.round(totalSamples / targetSamples * 100);
-                statusEl.textContent = `${Math.min(100, pct)}% (${(totalSamples/1000000).toFixed(1)}M) [${numWorkers} cores]`;
+                statusEl.textContent = `${Math.min(100, pct)}% (${(totalSamples/1000000).toFixed(1)}M) [${numWorkers} workers]`;
 
                 if (totalSamples < targetSamples) {
                     animationId = requestAnimationFrame(frame);
                 } else {
                     stopWorkers();
-                    statusEl.textContent = `Done: ${(totalSamples/1000000).toFixed(1)}M samples [${numWorkers} cores]`;
+                    statusEl.textContent = `Done: ${(totalSamples/1000000).toFixed(1)}M samples`;
                 }
             }
             frame();
@@ -740,23 +764,17 @@
             if (!lastViewState) return;
 
             const old = lastViewState;
-
-            // Calculate how the old view maps to the new view
-            // Map old pixel coords to complex coords, then to new pixel coords
             const oldImRange = old.viewImMax - old.viewImMin;
             const oldReRange = old.viewReMax - old.viewReMin;
             const newImRange = viewImMax - viewImMin;
             const newReRange = viewReMax - viewReMin;
 
-            // Scale factors
             const scaleX = (oldImRange / newImRange) * (width / old.width);
             const scaleY = (oldReRange / newReRange) * (height / old.height);
 
-            // Offset: where does the old view's top-left appear in new coords?
             const offsetX = ((old.viewImMin - viewImMin) / newImRange) * width;
             const offsetY = ((old.viewReMin - viewReMin) / newReRange) * height;
 
-            // Draw transformed preview with slight dimming to indicate it's a preview
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, width, height);
             ctx.globalAlpha = 0.6;
@@ -774,7 +792,6 @@
 
             const imageData = ctx.createImageData(width, height);
 
-            // Find max for each channel (ignoring noise floor)
             let maxR = 0, maxG = 0, maxB = 0;
             for (let i = 0; i < imgR.length; i++) {
                 if (imgR[i] > noiseFloor && imgR[i] > maxR) maxR = imgR[i];
@@ -785,30 +802,22 @@
             if (maxG === 0) maxG = 1;
             if (maxB === 0) maxB = 1;
 
-            // Exposure multiplier (2^exposure gives photographer-style stops)
             const expMult = Math.pow(2, exposure);
 
-            // Tone mapping function with highlight compression
             function toneMap(val, max) {
                 if (val <= noiseFloor) return 0;
 
-                // Normalize to 0-1 range using log scale
                 const normalized = Math.log(val - noiseFloor + 1) / Math.log(max - noiseFloor + 1);
 
-                // Apply contrast around midpoint
                 const midpoint = 0.5;
                 let contrasted = midpoint + (normalized - midpoint) * contrast;
                 contrasted = Math.max(0, Math.min(1, contrasted));
 
-                // Apply exposure
                 let exposed = contrasted * expMult;
 
-                // Soft highlight compression (Reinhard-style tone mapping)
-                // compress controls how aggressively highlights are compressed
-                // Lower compress = more compression (preserves highlights)
                 const compressed = exposed / (exposed + compress);
 
-                return Math.min(1, compressed / (1 / (1 + compress))); // Normalize so 1 maps to 1
+                return Math.min(1, compressed / (1 / (1 + compress)));
             }
 
             for (let y = 0; y < height; y++) {
@@ -827,27 +836,22 @@
                 }
             }
 
-            // If we have a preview and not much new data yet, blend them
             const quality = qualitySelect.value;
-            const zoomFactor = Math.max(1, Math.sqrt(zoom));
             const targets = {
-                preview: Math.floor(500000 * zoomFactor),
-                medium: Math.floor(3000000 * zoomFactor),
-                high: Math.floor(15000000 * zoomFactor)
+                preview: 500000,
+                medium: 3000000,
+                high: 15000000
             };
             const targetSamples = targets[quality];
-            const progress = Math.min(1, totalSamples / (targetSamples * 0.1)); // Fade preview over first 10%
+            const progress = Math.min(1, totalSamples / (targetSamples * 0.1));
 
             if (lastViewState && progress < 1) {
-                // Draw transformed preview first
                 drawTransformedPreview();
-                // Create temp canvas for new data
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = width;
                 tempCanvas.height = height;
                 const tempCtx = tempCanvas.getContext('2d');
                 tempCtx.putImageData(imageData, 0, 0);
-                // Blend new data on top with increasing opacity
                 ctx.globalAlpha = progress;
                 ctx.drawImage(tempCanvas, 0, 0);
                 ctx.globalAlpha = 1.0;
@@ -856,8 +860,7 @@
             }
         }
 
-        // ===== Pan and Zoom Controls =====
-
+        // Pan and Zoom Controls
         let isDragging = false;
         let dragStartX, dragStartY;
         let dragStartCenterRe, dragStartCenterIm;
@@ -877,7 +880,6 @@
             const dx = e.clientX - dragStartX;
             const dy = e.clientY - dragStartY;
 
-            // Convert pixel movement to complex plane movement
             const viewHeight = (viewReMax - viewReMin);
             const viewWidth = (viewImMax - viewImMin);
 
@@ -888,18 +890,12 @@
             startRender();
         });
 
-        canvas.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        canvas.addEventListener('mouseleave', () => {
-            isDragging = false;
-        });
+        canvas.addEventListener('mouseup', () => { isDragging = false; });
+        canvas.addEventListener('mouseleave', () => { isDragging = false; });
 
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
 
-            // Get mouse position in complex plane before zoom
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
@@ -907,12 +903,10 @@
             const mouseIm = viewImMin + (mouseX / width) * (viewImMax - viewImMin);
             const mouseRe = viewReMin + (mouseY / height) * (viewReMax - viewReMin);
 
-            // Zoom in/out
             const zoomFactor = e.deltaY > 0 ? 0.8 : 1.25;
             const newZoom = Math.max(0.5, Math.min(1000, zoom * zoomFactor));
 
             if (newZoom !== zoom) {
-                // Adjust center to zoom toward mouse position
                 const zoomRatio = zoom / newZoom;
                 viewCenterRe = mouseRe + (viewCenterRe - mouseRe) * zoomRatio;
                 viewCenterIm = mouseIm + (viewCenterIm - mouseIm) * zoomRatio;
@@ -922,9 +916,8 @@
             }
         }, { passive: false });
 
-        // Touch support for mobile
+        // Touch support
         let lastTouchDist = 0;
-        let lastTouchCenter = null;
 
         canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
@@ -938,10 +931,6 @@
                 const dx = e.touches[1].clientX - e.touches[0].clientX;
                 const dy = e.touches[1].clientY - e.touches[0].clientY;
                 lastTouchDist = Math.sqrt(dx * dx + dy * dy);
-                lastTouchCenter = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-                };
             }
         });
 
@@ -981,8 +970,7 @@
             lastTouchDist = 0;
         });
 
-        // ===== Minimap =====
-
+        // Minimap
         function initMinimap() {
             minimapImgR = new Float32Array(MINIMAP_SIZE * MINIMAP_SIZE);
             minimapImgG = new Float32Array(MINIMAP_SIZE * MINIMAP_SIZE);
@@ -1097,11 +1085,9 @@
         function drawMinimapViewport() {
             if (!minimapReady) return;
 
-            // Redraw the minimap base
             const imageData = minimapCtx.getImageData(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
             minimapCtx.putImageData(imageData, 0, 0);
 
-            // Calculate viewport rectangle in minimap coordinates
             const x1 = (viewImMin - FULL_IM_MIN) / (FULL_IM_MAX - FULL_IM_MIN) * MINIMAP_SIZE;
             const x2 = (viewImMax - FULL_IM_MIN) / (FULL_IM_MAX - FULL_IM_MIN) * MINIMAP_SIZE;
             const y1 = (viewReMin - FULL_RE_MIN) / (FULL_RE_MAX - FULL_RE_MIN) * MINIMAP_SIZE;
@@ -1112,12 +1098,10 @@
             const rectW = Math.min(MINIMAP_SIZE - rectX, Math.abs(x2 - x1));
             const rectH = Math.min(MINIMAP_SIZE - rectY, Math.abs(y2 - y1));
 
-            // Draw viewport rectangle
             minimapCtx.strokeStyle = '#fff';
             minimapCtx.lineWidth = 2;
             minimapCtx.strokeRect(rectX, rectY, rectW, rectH);
 
-            // Draw subtle fill
             minimapCtx.fillStyle = 'rgba(255,255,255,0.1)';
             minimapCtx.fillRect(rectX, rectY, rectW, rectH);
         }
@@ -1139,13 +1123,11 @@
             frame();
         }
 
-        // Click on minimap to navigate
         minimapCanvas.addEventListener('click', (e) => {
             const rect = minimapCanvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            // Convert to complex coordinates
             viewCenterIm = FULL_IM_MIN + (x / MINIMAP_SIZE) * (FULL_IM_MAX - FULL_IM_MIN);
             viewCenterRe = FULL_RE_MIN + (y / MINIMAP_SIZE) * (FULL_RE_MAX - FULL_RE_MIN);
 
@@ -1154,9 +1136,7 @@
 
         minimapCanvas.style.cursor = 'crosshair';
 
-        // Initialize minimap
         initMinimap();
-
         startRender();
     </script>
 </body>
