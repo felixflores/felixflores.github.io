@@ -178,16 +178,270 @@
             vertical-align: sub;
             color: #999;
         }
+
+        /* How It Works Modal */
+        .how-it-works-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(100, 140, 200, 0.9);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: Georgia, serif;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 101;
+            transition: background 0.2s;
+        }
+
+        .how-it-works-btn:hover {
+            background: rgba(120, 160, 220, 1);
+        }
+
+        .info.hidden {
+            display: none;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 200;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border-radius: 16px;
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+            color: #ddd;
+            font-family: Georgia, serif;
+            line-height: 1.7;
+        }
+
+        .modal-content h1 {
+            margin: 0 0 10px 0;
+            color: #fff;
+            font-size: 28px;
+            font-weight: normal;
+        }
+
+        .modal-content h2 {
+            margin: 30px 0 15px 0;
+            color: #fff;
+            font-size: 20px;
+            font-weight: normal;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+
+        .modal-content p {
+            margin: 0 0 15px 0;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 32px;
+            cursor: pointer;
+            padding: 0;
+            width: auto;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+            background: none;
+        }
+
+        .demo-container {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .demo-panel {
+            flex: 1;
+            min-width: 280px;
+            background: #111;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .demo-panel h3 {
+            margin: 0 0 10px 0;
+            color: #aaa;
+            font-size: 13px;
+            font-family: monospace;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .demo-panel canvas {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 6px;
+            cursor: crosshair;
+        }
+
+        .demo-controls {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .demo-controls button {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px 12px;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .demo-info {
+            margin-top: 12px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #888;
+            min-height: 40px;
+        }
+
+        .demo-info .escaping {
+            color: #4a9;
+        }
+
+        .demo-info .bounded {
+            color: #c44;
+        }
+
+        .step-list {
+            background: #111;
+            border-radius: 10px;
+            padding: 20px 25px;
+            margin: 20px 0;
+        }
+
+        .step-list ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .step-list li {
+            margin-bottom: 12px;
+            color: #ccc;
+        }
+
+        .step-list li strong {
+            color: #f90;
+        }
+
+        .color-legend {
+            display: flex;
+            gap: 20px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .color-legend span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .color-dot.red { background: #f44; }
+        .color-dot.green { background: #4f4; }
+        .color-dot.blue { background: #44f; }
     </style>
 </head>
 <body>
     <canvas id="buddhabrot-canvas"></canvas>
 
-    <div class="info">
-        <h2>The Buddhabrot</h2>
-        <p>This ghostly figure emerges from a simple equation repeated millions of times:</p>
-        <div class="equation">z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + c</div>
-        <p>Each point follows a path through an imaginary number space—some spiral inward forever, others escape to infinity. By tracing only the escaping paths and recording where they wander, this Buddha-like shape appears. The colors show depth: blue traces short journeys, green medium ones, and red the longest voyages before escape. No one designed this. It was discovered hiding in pure mathematics.</p>
+    <button class="how-it-works-btn" id="openHowItWorks">How It Works</button>
+
+    <div class="modal-overlay" id="howItWorksModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+
+            <h1>The Buddhabrot</h1>
+            <p>This ghostly figure emerges from a simple equation repeated millions of times. No one designed it—it was discovered hiding in pure mathematics.</p>
+
+            <h2>The Algorithm</h2>
+            <div class="step-list">
+                <ol>
+                    <li><strong>Pick a random point c</strong> in the complex plane (the starting position)</li>
+                    <li><strong>Iterate the equation:</strong> z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + c, starting with z<sub>0</sub> = 0</li>
+                    <li><strong>Track the orbit</strong>—the sequence of points z visits</li>
+                    <li><strong>If the orbit escapes</strong> (|z| > 2), record every point it visited</li>
+                    <li><strong>If the orbit stays bounded</strong>, discard it (these points are in the Mandelbrot set)</li>
+                    <li><strong>Repeat millions of times</strong> and count how often each pixel was visited</li>
+                </ol>
+            </div>
+
+            <h2>Interactive Demo</h2>
+            <p>Click anywhere on the left panel to pick a starting point c. Watch how the orbit (the path) evolves. Only escaping orbits contribute to the final image.</p>
+
+            <div class="demo-container">
+                <div class="demo-panel">
+                    <h3>Complex Plane (pick point c)</h3>
+                    <canvas id="demo-plane" width="400" height="400"></canvas>
+                    <div class="demo-controls">
+                        <button id="demo-random">Random Point</button>
+                        <button id="demo-animate" style="background:#68c;">Animate</button>
+                        <button id="demo-clear" style="background:#666;">Clear</button>
+                    </div>
+                    <div class="demo-info" id="demo-info">Click to select a starting point c</div>
+                </div>
+                <div class="demo-panel">
+                    <h3>Accumulated Hits</h3>
+                    <canvas id="demo-accum" width="400" height="400"></canvas>
+                    <div class="demo-controls">
+                        <button id="demo-run100" style="background:#4a9;">Run 100 Orbits</button>
+                        <button id="demo-reset" style="background:#666;">Reset</button>
+                    </div>
+                    <div class="demo-info" id="accum-info">Escaping orbits: 0 | Total hits: 0</div>
+                </div>
+            </div>
+
+            <h2>The Colors (Nebulabrot)</h2>
+            <p>The Nebulabrot variation uses different iteration limits for each color channel, revealing structure at multiple scales:</p>
+            <div class="color-legend">
+                <span><div class="color-dot red"></div> Red: 20,000 iterations (long journeys)</span>
+                <span><div class="color-dot green"></div> Green: 2,000 iterations</span>
+                <span><div class="color-dot blue"></div> Blue: 200 iterations (short journeys)</span>
+            </div>
+            <p>Short orbits tend to stay near the Mandelbrot set boundary, while long orbits wander further—creating the ethereal, nebula-like appearance.</p>
+
+            <h2>Why "Buddhabrot"?</h2>
+            <p>The name was coined by Lori Gardi in 1993 when she noticed the figure's resemblance to a seated Buddha in meditation. The shape emerges naturally from the mathematics—a surprising example of order arising from chaos.</p>
+        </div>
     </div>
 
     <div class="controls">
@@ -1225,6 +1479,323 @@
 
         initMinimap();
         startRender();
+
+        // ===== How It Works Modal & Demo =====
+        const modal = document.getElementById('howItWorksModal');
+        const openBtn = document.getElementById('openHowItWorks');
+        const closeBtn = document.getElementById('closeModal');
+
+        let wasRenderingBeforeModal = false;
+
+        openBtn.onclick = () => {
+            // Pause main rendering for smooth scrolling
+            wasRenderingBeforeModal = workers.length > 0;
+            if (wasRenderingBeforeModal) {
+                stopWorkers();
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+            }
+            modal.classList.add('visible');
+            initDemo();
+        };
+
+        function closeModal() {
+            modal.classList.remove('visible');
+            stopDemoAnimation();
+            // Resume main rendering
+            if (wasRenderingBeforeModal) {
+                startRender();
+            }
+        }
+
+        closeBtn.onclick = closeModal;
+
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('visible')) {
+                closeModal();
+            }
+        });
+
+        // Demo state
+        const DEMO_SIZE = 400;
+        const DEMO_RE_MIN = -2.0, DEMO_RE_MAX = 1.0;
+        const DEMO_IM_MIN = -1.5, DEMO_IM_MAX = 1.5;
+
+        let demoPlaneCanvas, demoPlaneCtx;
+        let demoAccumCanvas, demoAccumCtx;
+        let demoAccumData;
+        let demoAnimationId = null;
+        let demoEscapingCount = 0;
+        let demoTotalHits = 0;
+        let demoInitialized = false;
+
+        function initDemo() {
+            if (demoInitialized) return;
+            demoInitialized = true;
+
+            demoPlaneCanvas = document.getElementById('demo-plane');
+            demoPlaneCtx = demoPlaneCanvas.getContext('2d');
+            demoAccumCanvas = document.getElementById('demo-accum');
+            demoAccumCtx = demoAccumCanvas.getContext('2d');
+
+            demoAccumData = new Float32Array(DEMO_SIZE * DEMO_SIZE);
+
+            drawDemoPlane();
+            renderDemoAccum();
+
+            // Event listeners
+            demoPlaneCanvas.addEventListener('click', (e) => {
+                const rect = demoPlaneCanvas.getBoundingClientRect();
+                const scaleX = DEMO_SIZE / rect.width;
+                const scaleY = DEMO_SIZE / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+
+                const cIm = DEMO_IM_MIN + (x / DEMO_SIZE) * (DEMO_IM_MAX - DEMO_IM_MIN);
+                const cRe = DEMO_RE_MIN + (y / DEMO_SIZE) * (DEMO_RE_MAX - DEMO_RE_MIN);
+
+                traceAndShowOrbit(cRe, cIm);
+            });
+
+            document.getElementById('demo-random').onclick = () => {
+                let cRe, cIm;
+                do {
+                    cRe = Math.random() * 3 - 2;
+                    cIm = Math.random() * 3 - 1.5;
+                    const q = (cRe - 0.25) ** 2 + cIm ** 2;
+                    if (q * (q + (cRe - 0.25)) >= 0.25 * cIm ** 2 &&
+                        (cRe + 1) ** 2 + cIm ** 2 >= 0.0625) break;
+                } while (true);
+                traceAndShowOrbit(cRe, cIm);
+            };
+
+            document.getElementById('demo-animate').onclick = startDemoAnimation;
+            document.getElementById('demo-clear').onclick = () => {
+                stopDemoAnimation();
+                drawDemoPlane();
+                document.getElementById('demo-info').textContent = 'Click to select a starting point c';
+            };
+
+            document.getElementById('demo-run100').onclick = () => {
+                for (let i = 0; i < 100; i++) {
+                    let cRe, cIm;
+                    do {
+                        cRe = Math.random() * 3 - 2;
+                        cIm = Math.random() * 3 - 1.5;
+                        const q = (cRe - 0.25) ** 2 + cIm ** 2;
+                        if (q * (q + (cRe - 0.25)) >= 0.25 * cIm ** 2 &&
+                            (cRe + 1) ** 2 + cIm ** 2 >= 0.0625) break;
+                    } while (true);
+                    traceDemoOrbit(cRe, cIm, true);
+                }
+                renderDemoAccum();
+            };
+
+            document.getElementById('demo-reset').onclick = () => {
+                demoAccumData.fill(0);
+                demoEscapingCount = 0;
+                demoTotalHits = 0;
+                renderDemoAccum();
+            };
+        }
+
+        function drawDemoPlane() {
+            // Draw Mandelbrot set boundary as reference
+            const imageData = demoPlaneCtx.createImageData(DEMO_SIZE, DEMO_SIZE);
+
+            for (let py = 0; py < DEMO_SIZE; py++) {
+                for (let px = 0; px < DEMO_SIZE; px++) {
+                    const cRe = DEMO_RE_MIN + (py / DEMO_SIZE) * (DEMO_RE_MAX - DEMO_RE_MIN);
+                    const cIm = DEMO_IM_MIN + (px / DEMO_SIZE) * (DEMO_IM_MAX - DEMO_IM_MIN);
+
+                    let zRe = 0, zIm = 0;
+                    let iter = 0;
+                    const maxIter = 100;
+
+                    while (iter < maxIter && zRe * zRe + zIm * zIm <= 4) {
+                        const temp = zRe * zRe - zIm * zIm + cRe;
+                        zIm = 2 * zRe * zIm + cIm;
+                        zRe = temp;
+                        iter++;
+                    }
+
+                    const idx = (py * DEMO_SIZE + px) * 4;
+                    if (iter === maxIter) {
+                        // In set - dark
+                        imageData.data[idx] = 20;
+                        imageData.data[idx + 1] = 20;
+                        imageData.data[idx + 2] = 30;
+                    } else {
+                        // Outside - gradient based on escape time
+                        const t = iter / maxIter;
+                        imageData.data[idx] = Math.floor(30 + t * 20);
+                        imageData.data[idx + 1] = Math.floor(30 + t * 30);
+                        imageData.data[idx + 2] = Math.floor(40 + t * 40);
+                    }
+                    imageData.data[idx + 3] = 255;
+                }
+            }
+
+            demoPlaneCtx.putImageData(imageData, 0, 0);
+        }
+
+        function traceDemoOrbit(cRe, cIm, accumulate = false) {
+            const maxIter = 500;
+            const orbit = [];
+
+            let zRe = 0, zIm = 0;
+
+            for (let i = 0; i < maxIter; i++) {
+                orbit.push({ re: zRe, im: zIm });
+
+                const temp = zRe * zRe - zIm * zIm + cRe;
+                zIm = 2 * zRe * zIm + cIm;
+                zRe = temp;
+
+                if (zRe * zRe + zIm * zIm > 4) {
+                    // Escaping orbit
+                    if (accumulate) {
+                        demoEscapingCount++;
+                        for (const p of orbit) {
+                            if (p.re >= DEMO_RE_MIN && p.re <= DEMO_RE_MAX &&
+                                p.im >= DEMO_IM_MIN && p.im <= DEMO_IM_MAX) {
+                                const px = Math.floor((p.im - DEMO_IM_MIN) / (DEMO_IM_MAX - DEMO_IM_MIN) * (DEMO_SIZE - 1));
+                                const py = Math.floor((p.re - DEMO_RE_MIN) / (DEMO_RE_MAX - DEMO_RE_MIN) * (DEMO_SIZE - 1));
+                                if (px >= 0 && px < DEMO_SIZE && py >= 0 && py < DEMO_SIZE) {
+                                    demoAccumData[py * DEMO_SIZE + px]++;
+                                    demoTotalHits++;
+                                }
+                            }
+                        }
+                        updateAccumInfo();
+                    }
+                    return { orbit, escaped: true, iterations: i + 1 };
+                }
+            }
+
+            return { orbit, escaped: false, iterations: maxIter };
+        }
+
+        function traceAndShowOrbit(cRe, cIm) {
+            stopDemoAnimation();
+            drawDemoPlane();
+
+            const { orbit, escaped, iterations } = traceDemoOrbit(cRe, cIm, true);
+
+            // Draw starting point
+            const startX = (cIm - DEMO_IM_MIN) / (DEMO_IM_MAX - DEMO_IM_MIN) * DEMO_SIZE;
+            const startY = (cRe - DEMO_RE_MIN) / (DEMO_RE_MAX - DEMO_RE_MIN) * DEMO_SIZE;
+
+            demoPlaneCtx.fillStyle = '#ff0';
+            demoPlaneCtx.beginPath();
+            demoPlaneCtx.arc(startX, startY, 6, 0, Math.PI * 2);
+            demoPlaneCtx.fill();
+
+            // Draw orbit path
+            demoPlaneCtx.strokeStyle = escaped ? 'rgba(100, 200, 150, 0.8)' : 'rgba(200, 80, 80, 0.8)';
+            demoPlaneCtx.lineWidth = 1.5;
+            demoPlaneCtx.beginPath();
+
+            for (let i = 0; i < orbit.length; i++) {
+                const px = (orbit[i].im - DEMO_IM_MIN) / (DEMO_IM_MAX - DEMO_IM_MIN) * DEMO_SIZE;
+                const py = (orbit[i].re - DEMO_RE_MIN) / (DEMO_RE_MAX - DEMO_RE_MIN) * DEMO_SIZE;
+
+                if (i === 0) demoPlaneCtx.moveTo(px, py);
+                else demoPlaneCtx.lineTo(px, py);
+            }
+            demoPlaneCtx.stroke();
+
+            // Draw orbit points
+            for (let i = 0; i < Math.min(orbit.length, 50); i++) {
+                const px = (orbit[i].im - DEMO_IM_MIN) / (DEMO_IM_MAX - DEMO_IM_MIN) * DEMO_SIZE;
+                const py = (orbit[i].re - DEMO_RE_MIN) / (DEMO_RE_MAX - DEMO_RE_MIN) * DEMO_SIZE;
+
+                const alpha = 1 - i / 50;
+                demoPlaneCtx.fillStyle = escaped ?
+                    `rgba(100, 255, 150, ${alpha})` :
+                    `rgba(255, 100, 100, ${alpha})`;
+                demoPlaneCtx.beginPath();
+                demoPlaneCtx.arc(px, py, 3, 0, Math.PI * 2);
+                demoPlaneCtx.fill();
+            }
+
+            // Update info
+            const info = document.getElementById('demo-info');
+            info.innerHTML = `c = ${cRe.toFixed(3)} + ${cIm.toFixed(3)}i<br>` +
+                `<span class="${escaped ? 'escaping' : 'bounded'}">` +
+                `${escaped ? `Escaping after ${iterations} iterations ✓` : `Bounded (in Mandelbrot set) ✗`}</span>`;
+
+            renderDemoAccum();
+        }
+
+        function startDemoAnimation() {
+            if (demoAnimationId) return;
+
+            function animateFrame() {
+                let cRe, cIm;
+                do {
+                    cRe = Math.random() * 3 - 2;
+                    cIm = Math.random() * 3 - 1.5;
+                    const q = (cRe - 0.25) ** 2 + cIm ** 2;
+                    if (q * (q + (cRe - 0.25)) >= 0.25 * cIm ** 2 &&
+                        (cRe + 1) ** 2 + cIm ** 2 >= 0.0625) break;
+                } while (true);
+
+                traceAndShowOrbit(cRe, cIm);
+                demoAnimationId = setTimeout(animateFrame, 800);
+            }
+
+            animateFrame();
+        }
+
+        function stopDemoAnimation() {
+            if (demoAnimationId) {
+                clearTimeout(demoAnimationId);
+                demoAnimationId = null;
+            }
+        }
+
+        function renderDemoAccum() {
+            const imageData = demoAccumCtx.createImageData(DEMO_SIZE, DEMO_SIZE);
+
+            let maxVal = 0;
+            for (let i = 0; i < demoAccumData.length; i++) {
+                if (demoAccumData[i] > maxVal) maxVal = demoAccumData[i];
+            }
+            if (maxVal === 0) maxVal = 1;
+
+            const logMax = Math.log(maxVal + 1);
+
+            for (let y = 0; y < DEMO_SIZE; y++) {
+                for (let x = 0; x < DEMO_SIZE; x++) {
+                    const idx = (y * DEMO_SIZE + x) * 4;
+                    const val = demoAccumData[y * DEMO_SIZE + x];
+
+                    const normalized = Math.log(val + 1) / logMax;
+                    const v = Math.pow(normalized, 0.5);
+
+                    // Cyan-ish color scheme
+                    imageData.data[idx] = Math.floor(v * 100);
+                    imageData.data[idx + 1] = Math.floor(v * 200);
+                    imageData.data[idx + 2] = Math.floor(v * 255);
+                    imageData.data[idx + 3] = 255;
+                }
+            }
+
+            demoAccumCtx.putImageData(imageData, 0, 0);
+            updateAccumInfo();
+        }
+
+        function updateAccumInfo() {
+            document.getElementById('accum-info').textContent =
+                `Escaping orbits: ${demoEscapingCount} | Total hits: ${demoTotalHits.toLocaleString()}`;
+        }
     </script>
 </body>
 </html>
