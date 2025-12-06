@@ -195,6 +195,11 @@
       font-size: 13px;
     }
 
+    .annotation-loading.model-loading-status {
+      font-size: 11px;
+      word-break: break-word;
+    }
+
     .annotation-actions {
       display: flex;
       gap: 6px;
@@ -669,54 +674,24 @@
       <h2>Settings</h2>
 
       <div class="settings-group">
-        <label>Backend</label>
-        <select id="backendSelect">
-          <option value="webllm">WebLLM (Browser)</option>
-          <option value="ollama">Ollama (Local)</option>
-        </select>
-        <small id="backendStatus"><span class="status-dot disconnected"></span>Not connected</small>
-      </div>
-
-      <div class="settings-group" id="ollamaUrlGroup" style="display: none;">
-        <label>Ollama URL</label>
-        <input type="text" id="ollamaUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
+        <label>Models</label>
+        <small style="display: block; margin-bottom: 10px; color: #666;">
+          <strong>Completion:</strong> Phi 3.5 Mini (3.8B)<br>
+          <strong>Thinking:</strong> DeepSeek R1 8B
+        </small>
       </div>
 
       <div class="settings-group">
-        <label>Completion Model</label>
-        <select id="completionModelSelect">
-          <optgroup label="WebLLM Models">
-            <option value="webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 1.7B (Fast)</option>
-            <option value="webllm:Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5 0.5B (Fastest)</option>
-            <option value="webllm:Qwen3-0.6B-q4f16_1-MLC">Qwen3 0.6B</option>
-            <option value="webllm:Qwen3-1.7B-q4f16_1-MLC">Qwen3 1.7B</option>
-            <option value="webllm:gemma-2-2b-it-q4f16_1-MLC">Gemma 2 2B</option>
-            <option value="webllm:Phi-3.5-mini-instruct-q4f16_1-MLC">Phi 3.5 Mini</option>
-          </optgroup>
-          <optgroup label="Ollama Models" id="ollamaCompletionModels">
-          </optgroup>
-        </select>
-        <small>Used for autocomplete suggestions</small>
-      </div>
-
-      <div class="settings-group">
-        <label>Thinking Model</label>
-        <select id="thinkingModelSelect">
-          <optgroup label="WebLLM Models">
-            <option value="webllm:gemma-2-2b-it-q4f16_1-MLC">Gemma 2 2B</option>
-            <option value="webllm:Phi-3.5-mini-instruct-q4f16_1-MLC">Phi 3.5 Mini (Best)</option>
-            <option value="webllm:Qwen3-1.7B-q4f16_1-MLC">Qwen3 1.7B</option>
-            <option value="webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 1.7B</option>
-          </optgroup>
-          <optgroup label="Ollama Models" id="ollamaThinkingModels">
-          </optgroup>
-        </select>
-        <small>Used for insights when highlighting text</small>
+        <label>Storage</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-cancel" id="clearModelsBtn">Clear Model Cache</button>
+          <button class="btn-cancel" id="clearStorageBtn">Clear All Data</button>
+        </div>
+        <small style="margin-top: 8px; display: block;">Clear model cache to re-download models. Clear all data to reset documents and history.</small>
       </div>
 
       <div class="settings-actions">
-        <button class="btn-cancel" id="settingsCancel">Cancel</button>
-        <button class="btn-save" id="settingsSave">Save & Apply</button>
+        <button class="btn-cancel" id="settingsCancel">Close</button>
       </div>
     </div>
   </div>
@@ -765,12 +740,9 @@
     const DEBOUNCE_MS = 300;
     const HISTORY_SAVE_MS = 2000;
 
-    const DEFAULT_SETTINGS = Object.freeze({
-      backend: 'webllm',
-      ollamaUrl: 'http://localhost:11434',
-      completionModel: 'webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC',
-      thinkingModel: 'webllm:gemma-2-2b-it-q4f16_1-MLC',
-    });
+    // Hardcoded model choices
+    const COMPLETION_MODEL = 'webllm:Phi-3.5-mini-instruct-q4f16_1-MLC'; // 3.8B - good quality completions
+    const THINKING_MODEL = 'webllm:DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC';
 
     // ============================================
     // STATE - Single source of truth
@@ -789,7 +761,6 @@
       documents: {},
       currentDocId: null,
       nextDocId: 1,
-      settings: { ...DEFAULT_SETTINGS },
 
       // Ephemeral (not persisted)
       suggestion: null,
@@ -821,11 +792,6 @@
     const getCurrentHistory = (state) => getCurrentDoc(state)?.history || { nodes: {}, currentId: null, nextId: 1 };
     const getCacheKey = (docId, nodeId) => `${docId}:${nodeId}`;
 
-    const isValidSettings = (settings) => {
-      const [completionBackend] = settings.completionModel.split(':');
-      const [thinkingBackend] = settings.thinkingModel.split(':');
-      return completionBackend === settings.backend && thinkingBackend === settings.backend;
-    };
 
     // ============================================
     // STATE UPDATERS (immutable)
@@ -856,26 +822,46 @@
     // SUGGESTION CACHE (uses state immutably)
     // ============================================
 
-    const getCachedSuggestions = (docId, nodeId) => {
+    // Simple hash for content comparison
+    const hashContent = (content) => {
+      let hash = 0;
+      const str = content.slice(-200); // Only hash the last 200 chars for speed
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return hash;
+    };
+
+    const getCachedSuggestions = (docId, nodeId, content) => {
       const key = getCacheKey(docId, nodeId);
-      return APP.suggestionCache[key];
+      const cached = APP.suggestionCache[key];
+      // Only return cache if content matches what was used to generate it
+      if (cached && cached.contentHash === hashContent(content)) {
+        return cached;
+      }
+      return null;
     };
 
     const queueSuggestionGeneration = (docId, nodeId, content, priority = false) => {
       if (!content || content.length < 10) return;
 
       const key = getCacheKey(docId, nodeId);
-      if (APP.suggestionCache[key]) return; // Already cached or generating
+      const contentHash = hashContent(content);
+      const existing = APP.suggestionCache[key];
+
+      // Skip if already cached/generating for this exact content
+      if (existing && existing.contentHash === contentHash) return;
 
       updateState(s => ({
         ...s,
         suggestionCache: {
           ...s.suggestionCache,
-          [key]: { suggestions: [], status: 'pending' },
+          [key]: { suggestions: [], status: 'pending', contentHash },
         },
         generationQueue: priority
-          ? [{ docId, nodeId, content, key }, ...s.generationQueue]
-          : [...s.generationQueue, { docId, nodeId, content, key }],
+          ? [{ docId, nodeId, content, key, contentHash }, ...s.generationQueue]
+          : [...s.generationQueue, { docId, nodeId, content, key, contentHash }],
       }));
 
       scheduleQueueProcessing();
@@ -932,13 +918,10 @@
     };
 
     const generateSingleSuggestion = async (content, index) => {
-      // Skip if settings are invalid
-      if (!isValidSettings(APP.settings)) {
-        console.warn('Skipping generation: invalid settings');
-        return null;
-      }
-
       try {
+        // Use last 1500 chars for context (enough for model to understand flow)
+        const contextWindow = content.length > 1500 ? content.slice(-1500) : content;
+
         const messages = [
           {
             role: 'system',
@@ -946,13 +929,13 @@
           },
           {
             role: 'user',
-            content: `Continue this text naturally:\n\n${content}`,
+            content: `Continue this text naturally:\n\n${contextWindow}`,
           },
         ];
 
-        let result = await llmComplete(APP.settings.completionModel, messages, {
+        let result = await llmComplete(COMPLETION_MODEL, messages, {
           temperature: 0.7 + (index * 0.15),
-          max_tokens: 40,
+          max_tokens: 60,
         });
 
         // Clean up common issues
@@ -1314,27 +1297,6 @@
       }));
     };
 
-    const persistSettings = () => {
-      localStorage.setItem('journal-settings', JSON.stringify(APP.settings));
-    };
-
-    const loadSettings = () => {
-      try {
-        const saved = localStorage.getItem('journal-settings');
-        let loadedSettings = saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : { ...DEFAULT_SETTINGS };
-
-        // Validate and fix if invalid
-        if (!isValidSettings(loadedSettings)) {
-          console.warn('Invalid settings detected, resetting to defaults');
-          loadedSettings = { ...DEFAULT_SETTINGS };
-        }
-
-        updateState(s => ({ ...s, settings: loadedSettings }));
-      } catch (e) {
-        console.error('Failed to load settings:', e);
-        updateState(s => ({ ...s, settings: { ...DEFAULT_SETTINGS } }));
-      }
-    };
 
     const loadPersistedState = () => {
       try {
@@ -1623,9 +1585,10 @@
           const classes = ['tree-node'];
           if (d.data.id === currentId) classes.push('current');
 
-          // Check cache status
+          // Check cache status (use raw content for tree - exact match not critical here)
           if (docId) {
-            const cached = getCachedSuggestions(docId, d.data.id);
+            const key = getCacheKey(docId, d.data.id);
+            const cached = APP.suggestionCache[key];
             if (cached?.status === 'ready') classes.push('cached');
             else if (cached?.status === 'generating') classes.push('generating');
           }
@@ -1690,21 +1653,14 @@
     // ============================================
 
     const complete = async (context) => {
-      // Validate model backend matches settings
-      const [modelBackend] = APP.settings.completionModel.split(':');
-      if (modelBackend !== APP.settings.backend) {
-        console.warn('Model backend mismatch, skipping completion');
-        return;
-      }
-
       const doc = getCurrentDoc(APP);
       if (!doc) return;
 
       const { currentId } = doc.history;
 
-      // Check cache first (only if we have a valid history node)
+      // Check cache first (only if we have a valid history node and content matches)
       if (currentId) {
-        const cached = getCachedSuggestions(doc.id, currentId);
+        const cached = getCachedSuggestions(doc.id, currentId, context);
         if (cached && cached.status === 'ready' && cached.suggestions.length > 0) {
           // Use cached suggestions instantly
           updateState(s => ({
@@ -1728,6 +1684,9 @@
       insertGhost('');
       render();
 
+      // Use last 1500 chars for context
+      const contextWindow = context.length > 1500 ? context.slice(-1500) : context;
+
       try {
         const messages = [
           {
@@ -1736,11 +1695,11 @@
           },
           {
             role: 'user',
-            content: `Continue this text naturally:\n\n${context}`,
+            content: `Continue this text naturally:\n\n${contextWindow}`,
           },
         ];
 
-        for await (const token of llmStream(APP.settings.completionModel, messages, { temperature: 0.8, max_tokens: 40 })) {
+        for await (const token of llmStream(COMPLETION_MODEL, messages, { temperature: 0.8, max_tokens: 60 })) {
           if (!APP.suggestion || APP.suggestion.mode !== 'complete') break;
           if (token) {
             appendToSuggestion(0, token);
@@ -1764,6 +1723,9 @@
     const generateMoreBranches = async (context, mode) => {
       if (!APP.suggestion || APP.suggestion.mode !== mode) return;
 
+      // Use last 1500 chars for context
+      const contextWindow = context.length > 1500 ? context.slice(-1500) : context;
+
       for (let i = 1; i < 3; i++) {
         if (!APP.suggestion || APP.suggestion.mode !== mode) break;
 
@@ -1779,11 +1741,11 @@
             },
             {
               role: 'user',
-              content: `Continue this text naturally:\n\n${context}`,
+              content: `Continue this text naturally:\n\n${contextWindow}`,
             },
           ];
 
-          for await (const token of llmStream(APP.settings.completionModel, messages, { temperature: 0.8 + (i * 0.15), max_tokens: 40 })) {
+          for await (const token of llmStream(COMPLETION_MODEL, messages, { temperature: 0.8 + (i * 0.15), max_tokens: 60 })) {
             if (!APP.suggestion || APP.suggestion.mode !== mode) break;
             if (token) {
               appendToSuggestion(i, token);
@@ -1860,14 +1822,47 @@
       updateState(s => ({ ...s, rewriteContext: null }));
     };
 
+    const getSelectionContext = (selection, windowSize = 300) => {
+      const range = selection.getRangeAt(0);
+      const editor = $('editor');
+      const selectedText = range.toString();
+
+      try {
+        // Get text before selection
+        const preRange = document.createRange();
+        preRange.setStart(editor, 0);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        const preText = preRange.toString();
+        const prefix = preText.length > windowSize
+          ? '...' + preText.slice(-windowSize)
+          : preText;
+
+        // Get text after selection
+        const postRange = document.createRange();
+        postRange.setStart(range.endContainer, range.endOffset);
+        postRange.setEnd(editor, editor.childNodes.length);
+        const postText = postRange.toString();
+        const suffix = postText.length > windowSize
+          ? postText.slice(0, windowSize) + '...'
+          : postText;
+
+        return { selectedText, prefix, suffix };
+      } catch (e) {
+        return { selectedText, prefix: '', suffix: '' };
+      }
+    };
+
     const showRewriteAnnotations = async (text, selection) => {
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       const editorRect = $('editor').getBoundingClientRect();
       const topOffset = rect.top - editorRect.top;
 
+      // Get surrounding context for better insights
+      const { selectedText, prefix, suffix } = getSelectionContext(selection);
+
       // Store context for applying later
-      updateState(s => ({ ...s, rewriteContext: { text, range: range.cloneRange() } }));
+      updateState(s => ({ ...s, rewriteContext: { text, range: range.cloneRange(), prefix, suffix } }));
 
       // Show initial bubble with actions and streaming area
       const container = $('annotations');
@@ -1890,7 +1885,7 @@
       // Streaming insights area
       const insightsArea = document.createElement('div');
       insightsArea.className = 'annotation-insights';
-      insightsArea.innerHTML = '<div class="annotation-loading">Pondering...</div>';
+      insightsArea.innerHTML = '<div class="annotation-loading model-loading-status">Pondering...</div>';
       bubble.appendChild(insightsArea);
 
       container.appendChild(bubble);
@@ -1899,10 +1894,26 @@
         // Check if selection changed
         if (!APP.rewriteContext || APP.rewriteContext.text !== text) return;
 
+        // Check if model needs to load - show loading status
+        const [, modelId] = THINKING_MODEL.split(':');
+        if (!engineCache[modelId]) {
+          insightsArea.innerHTML = '<div class="annotation-loading model-loading-status">Loading DeepSeek R1...</div>';
+        }
+
+        // Build context-aware prompt
+        const hasContext = prefix || suffix;
+        const contextBlock = hasContext
+          ? `CONTEXT (for understanding only):
+${prefix ? `[Before]: ${prefix}\n` : ''}[SELECTED TEXT - focus your analysis here]: ${selectedText}
+${suffix ? `[After]: ${suffix}` : ''}`
+          : selectedText;
+
         const messages = [
           {
             role: 'system',
-            content: `You are a thoughtful thinking partner. Given a passage, generate 2-3 probing questions or insights to help the writer think more deeply about what they wrote. Focus on:
+            content: `You are a thoughtful thinking partner helping a writer refine their work. You'll be given a selected passage along with surrounding context. Generate 2-3 probing questions or insights about the SELECTED TEXT to help the writer think more deeply. Use the surrounding context to understand the flow, but focus your questions on the selected portion.
+
+Focus on:
 - Assumptions that might be worth examining
 - Perspectives not yet considered
 - Implications or consequences
@@ -1911,13 +1922,15 @@
 
 Format: One question or insight per line. Be concise but thought-provoking. No numbering or bullets.`
           },
-          { role: 'user', content: text },
+          { role: 'user', content: contextBlock },
         ];
 
-        let streamedContent = '';
-        let processedLineCount = 0;
-        let currentStreamingEl = null;
+        let fullResponse = '';
         let hasStarted = false;
+        let thinkingIndicator = null;
+        let inThinkBlock = false;
+        let currentStreamingEl = null;
+        let processedContent = '';
 
         const createInsightElement = (isStreaming = false) => {
           const item = document.createElement('div');
@@ -1928,66 +1941,100 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
 
         const addFinalizedInsight = (text) => {
           const trimmed = text.trim();
-          if (trimmed.length <= 5) return;
+          if (trimmed.length <= 5) return null;
           const item = createInsightElement(false);
           item.textContent = trimmed;
           item.addEventListener('click', () => {
             generateInsightCompletion(trimmed);
           });
+          return item;
         };
 
-        for await (const token of llmStream(APP.settings.thinkingModel, messages, {
+        for await (const token of llmStream(THINKING_MODEL, messages, {
           temperature: 0.8,
-          max_tokens: 150,
+          max_tokens: 500,
         })) {
           if (!APP.rewriteContext || APP.rewriteContext.text !== text) break;
 
-          // Clear "Pondering..." on first token
+          fullResponse += token;
+
           if (!hasStarted) {
             insightsArea.innerHTML = '';
             hasStarted = true;
           }
 
-          streamedContent += token;
+          // Check if we're in a think block
+          const hasThinkOpen = fullResponse.includes('<think>');
+          const hasThinkClose = fullResponse.includes('</think>');
+          inThinkBlock = hasThinkOpen && !hasThinkClose;
 
-          // Split into lines
-          const lines = streamedContent.split('\n');
-          const currentLineIndex = lines.length - 1;
-          const currentLine = lines[currentLineIndex];
+          if (inThinkBlock) {
+            // Show thinking indicator
+            if (!thinkingIndicator) {
+              thinkingIndicator = document.createElement('div');
+              thinkingIndicator.className = 'annotation-loading';
+              thinkingIndicator.textContent = 'Reasoning...';
+              insightsArea.appendChild(thinkingIndicator);
+            }
+          } else {
+            // Remove thinking indicator when done thinking
+            if (thinkingIndicator) {
+              thinkingIndicator.remove();
+              thinkingIndicator = null;
+            }
 
-          // Process any newly completed lines
-          while (processedLineCount < currentLineIndex) {
-            const completedLine = lines[processedLineCount].trim();
-            // Remove current streaming element if it was showing this line
-            if (currentStreamingEl) {
-              currentStreamingEl.remove();
-              currentStreamingEl = null;
+            // Extract content after </think>
+            let content = fullResponse;
+            if (hasThinkClose) {
+              content = fullResponse.split('</think>').pop() || '';
             }
-            // Add as finalized
-            if (completedLine.length > 5) {
-              addFinalizedInsight(completedLine);
-            }
-            processedLineCount++;
-          }
 
-          // Update current streaming line
-          if (currentLine.trim()) {
-            if (!currentStreamingEl) {
-              currentStreamingEl = createInsightElement(true);
+            // Stream the content
+            const lines = content.split('\n');
+            const completedLines = lines.slice(0, -1);
+            const currentLine = lines[lines.length - 1] || '';
+
+            // Finalize completed lines we haven't processed yet
+            const newCompletedContent = completedLines.join('\n');
+            if (newCompletedContent.length > processedContent.length) {
+              const newPart = newCompletedContent.substring(processedContent.length);
+              const newLines = newPart.split('\n').filter(l => l.trim());
+
+              // Remove current streaming element before adding finalized
+              if (currentStreamingEl) {
+                currentStreamingEl.remove();
+                currentStreamingEl = null;
+              }
+
+              newLines.forEach(line => {
+                addFinalizedInsight(line);
+              });
+
+              processedContent = newCompletedContent;
             }
-            currentStreamingEl.textContent = currentLine.trim();
-          } else if (currentStreamingEl) {
-            currentStreamingEl.textContent = '';
+
+            // Update streaming element with current line
+            if (currentLine.trim()) {
+              if (!currentStreamingEl) {
+                currentStreamingEl = createInsightElement(true);
+              }
+              currentStreamingEl.textContent = currentLine.trim();
+            }
           }
         }
 
-        // Finalize any remaining content
+        // Finalize any remaining streaming content
         if (currentStreamingEl) {
           const finalText = currentStreamingEl.textContent.trim();
           currentStreamingEl.remove();
           if (finalText.length > 5) {
             addFinalizedInsight(finalText);
           }
+        }
+
+        // Clean up thinking indicator if still present
+        if (thinkingIndicator) {
+          thinkingIndicator.remove();
         }
 
         // If no insights were generated, show a message
@@ -2111,15 +2158,21 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
         const messages = [
           {
             role: 'system',
-            content: 'You are a writing assistant. Reword the given text according to the user\'s instruction. Output ONLY the reworded text - no quotes, no explanation, no preamble. Preserve the original meaning but apply the requested style change.',
+            content: `You are a skilled editor helping a writer revise their own work. Your job is to reword text while:
+- Preserving the author's authentic voice and tone
+- Understanding the SPIRIT of instructions (e.g., "thoughtful" means reflective/considered, NOT formal/academic)
+- Keeping it natural and human - never corporate, stiff, or AI-sounding
+- Maintaining roughly the same length unless asked otherwise
+
+Output ONLY the reworded text. No quotes, no explanation, no preamble.`,
           },
           {
             role: 'user',
-            content: `Original text: "${selectedText}"\n\n${instructionContext}\n\nReworded text:`,
+            content: `Reword this: "${selectedText}"\n\n${instructionContext}`,
           },
         ];
 
-        const reworded = await llmComplete(APP.settings.thinkingModel, messages, {
+        const reworded = await llmComplete(THINKING_MODEL, messages, {
           temperature: 0.7,
           max_tokens: 200,
         });
@@ -2262,7 +2315,7 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           },
         ];
 
-        for await (const token of llmStream(APP.settings.completionModel, messages, { temperature: 0.8, max_tokens: 100 })) {
+        for await (const token of llmStream(COMPLETION_MODEL, messages, { temperature: 0.8, max_tokens: 100 })) {
           if (!APP.suggestion || APP.suggestion.mode !== 'complete') break;
           if (token) {
             appendToSuggestion(0, token);
@@ -2393,14 +2446,6 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
     // ============================================
 
     const openSettings = () => {
-      // Populate current values
-      $('backendSelect').value = APP.settings.backend;
-      $('ollamaUrl').value = APP.settings.ollamaUrl;
-      $('completionModelSelect').value = APP.settings.completionModel;
-      $('thinkingModelSelect').value = APP.settings.thinkingModel;
-      $('ollamaUrlGroup').style.display = APP.settings.backend === 'ollama' ? 'block' : 'none';
-
-      updateBackendStatus();
       $('settingsOverlay').classList.add('open');
     };
 
@@ -2408,220 +2453,104 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
       $('settingsOverlay').classList.remove('open');
     };
 
-    const saveSettings = async () => {
-      updateState(s => ({
-        ...s,
-        settings: {
-          backend: $('backendSelect').value,
-          ollamaUrl: $('ollamaUrl').value,
-          completionModel: $('completionModelSelect').value,
-          thinkingModel: $('thinkingModelSelect').value,
-        },
-      }));
+    const clearModelCache = async () => {
+      if (!confirm('Clear all downloaded models? They will be re-downloaded when needed.')) return;
 
-      persistSettings();
-      closeSettings();
-
-      // Reload models
-      $('loading').classList.remove('hidden');
-      $('loadingText').textContent = 'Loading models...';
-      await loadModels();
-      $('loading').classList.add('hidden');
-    };
-
-    const updateBackendStatus = async () => {
-      const statusEl = $('backendStatus');
-      const backend = $('backendSelect').value;
-
-      if (backend === 'ollama') {
-        statusEl.innerHTML = '<span class="status-dot loading"></span>Checking...';
-        try {
-          const url = $('ollamaUrl').value;
-          const response = await fetch(`${url}/api/tags`);
-          if (response.ok) {
-            const data = await response.json();
-            const models = data.models || [];
-            populateOllamaModels(models);
-            statusEl.innerHTML = `<span class="status-dot connected"></span>Connected (${models.length} models)`;
-          } else {
-            statusEl.innerHTML = '<span class="status-dot disconnected"></span>Failed to connect';
+      // Clear WebLLM cache
+      try {
+        const caches = await window.caches.keys();
+        for (const cache of caches) {
+          if (cache.includes('webllm') || cache.includes('mlc')) {
+            await window.caches.delete(cache);
           }
-        } catch (e) {
-          statusEl.innerHTML = '<span class="status-dot disconnected"></span>Cannot reach Ollama (CORS?)';
         }
-      } else {
-        statusEl.innerHTML = '<span class="status-dot connected"></span>WebLLM ready';
+        // Clear engine cache
+        Object.keys(engineCache).forEach(k => delete engineCache[k]);
+        alert('Model cache cleared. Models will re-download on next use.');
+      } catch (e) {
+        console.error('Failed to clear cache:', e);
+        alert('Failed to clear cache: ' + e.message);
       }
     };
 
-    const populateOllamaModels = (models) => {
-      const completionGroup = $('ollamaCompletionModels');
-      const thinkingGroup = $('ollamaThinkingModels');
+    const clearAllData = () => {
+      if (!confirm('Clear ALL data including documents and history? This cannot be undone.')) return;
 
-      completionGroup.innerHTML = '';
-      thinkingGroup.innerHTML = '';
-
-      models.forEach(model => {
-        const name = model.name;
-        const opt1 = document.createElement('option');
-        opt1.value = `ollama:${name}`;
-        opt1.textContent = name;
-        completionGroup.appendChild(opt1);
-
-        const opt2 = document.createElement('option');
-        opt2.value = `ollama:${name}`;
-        opt2.textContent = name;
-        thinkingGroup.appendChild(opt2);
-      });
-
-      // Auto-select first Ollama model if current backend is Ollama and current model is WebLLM
-      if ($('backendSelect').value === 'ollama' && models.length > 0) {
-        const currentCompletion = $('completionModelSelect').value;
-        const currentThinking = $('thinkingModelSelect').value;
-
-        if (currentCompletion.startsWith('webllm:')) {
-          $('completionModelSelect').value = `ollama:${models[0].name}`;
-        }
-        if (currentThinking.startsWith('webllm:')) {
-          $('thinkingModelSelect').value = `ollama:${models[0].name}`;
-        }
-      }
-    };
-
-    const autoSelectModelForBackend = () => {
-      const backend = $('backendSelect').value;
-      const completionSelect = $('completionModelSelect');
-      const thinkingSelect = $('thinkingModelSelect');
-
-      if (backend === 'webllm') {
-        // Switch to WebLLM models if currently on Ollama
-        if (completionSelect.value.startsWith('ollama:')) {
-          completionSelect.value = 'webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC';
-        }
-        if (thinkingSelect.value.startsWith('ollama:')) {
-          thinkingSelect.value = 'webllm:gemma-2-2b-it-q4f16_1-MLC';
-        }
-      }
-      // Ollama auto-selection is handled in populateOllamaModels after fetching models
+      localStorage.removeItem('journal-state');
+      localStorage.removeItem('journal-settings');
+      location.reload();
     };
 
     // ============================================
     // UNIFIED LLM INTERFACE
     // ============================================
 
-    const getEngine = async (modelSpec) => {
-      const [backend, modelId] = modelSpec.split(':');
+    // Track model loading state for UI feedback
+    let modelLoadingStatus = null;
 
-      if (backend === 'ollama') {
-        // Return Ollama-compatible interface
-        return {
-          type: 'ollama',
-          model: modelId,
-          url: APP.settings.ollamaUrl,
-        };
-      } else {
-        // WebLLM
-        if (!engineCache[modelId]) {
-          $('loadingText').textContent = `Loading ${modelId}...`;
-          engineCache[modelId] = await webllm.CreateMLCEngine(modelId, {
-            initProgressCallback: (info) => {
-              $('loadingText').textContent = info.text || 'Loading...';
-            },
-          });
-        }
-        return { type: 'webllm', engine: engineCache[modelId] };
+    const getEngine = async (modelSpec) => {
+      const [, modelId] = modelSpec.split(':');
+
+      if (!engineCache[modelId]) {
+        modelLoadingStatus = { model: modelId, progress: 0 };
+        $('loadingText').textContent = `Loading ${modelId}...`;
+        engineCache[modelId] = await webllm.CreateMLCEngine(modelId, {
+          initProgressCallback: (info) => {
+            $('loadingText').textContent = info.text || 'Loading...';
+            modelLoadingStatus = { model: modelId, progress: info.progress || 0, text: info.text };
+            // Update any visible loading indicators
+            document.querySelectorAll('.model-loading-status').forEach(el => {
+              el.textContent = info.text || `Loading ${modelId}...`;
+            });
+          },
+        });
+        modelLoadingStatus = null;
       }
+      return engineCache[modelId];
     };
 
     const llmComplete = async (modelSpec, messages, options = {}) => {
-      const eng = await getEngine(modelSpec);
+      const engine = await getEngine(modelSpec);
+      const response = await engine.chat.completions.create({
+        messages,
+        temperature: options.temperature || 0.8,
+        max_tokens: options.max_tokens || 40,
+      });
+      let content = response.choices[0]?.message?.content || '';
+      // Filter out DeepSeek thinking tokens
+      content = filterThinkingTokens(content);
+      return content;
+    };
 
-      if (eng.type === 'ollama') {
-        // Use native Ollama API
-        const response = await fetch(`${eng.url}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: eng.model,
-            messages,
-            stream: false,
-            options: {
-              temperature: options.temperature || 0.8,
-              num_predict: options.max_tokens || 40,
-            },
-          }),
-        });
-        const data = await response.json();
-        return data.message?.content || '';
-      } else {
-        const response = await eng.engine.chat.completions.create({
-          messages,
-          temperature: options.temperature || 0.8,
-          max_tokens: options.max_tokens || 40,
-        });
-        return response.choices[0]?.message?.content || '';
-      }
+    // Filter out DeepSeek R1 thinking tokens like <think>...</think>
+    const filterThinkingTokens = (text) => {
+      // Remove <think>...</think> blocks (including partial)
+      return text
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<think>[\s\S]*/gi, '') // Partial opening
+        .replace(/[\s\S]*<\/think>/gi, '') // Partial closing
+        .trim();
     };
 
     const llmStream = async function* (modelSpec, messages, options = {}) {
-      const eng = await getEngine(modelSpec);
+      const engine = await getEngine(modelSpec);
+      const stream = await engine.chat.completions.create({
+        messages,
+        temperature: options.temperature || 0.8,
+        max_tokens: options.max_tokens || 40,
+        stream: true,
+      });
 
-      if (eng.type === 'ollama') {
-        // Use native Ollama streaming API
-        const response = await fetch(`${eng.url}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: eng.model,
-            messages,
-            stream: true,
-            options: {
-              temperature: options.temperature || 0.8,
-              num_predict: options.max_tokens || 40,
-            },
-          }),
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n').filter(l => l.trim());
-
-          for (const line of lines) {
-            try {
-              const data = JSON.parse(line);
-              if (data.message?.content) {
-                yield data.message.content;
-              }
-            } catch (e) {}
-          }
-        }
-      } else {
-        const stream = await eng.engine.chat.completions.create({
-          messages,
-          temperature: options.temperature || 0.8,
-          max_tokens: options.max_tokens || 40,
-          stream: true,
-        });
-
-        for await (const chunk of stream) {
-          const token = chunk.choices[0]?.delta?.content || '';
-          if (token) yield token;
-        }
+      for await (const chunk of stream) {
+        const token = chunk.choices[0]?.delta?.content || '';
+        if (token) yield token;
       }
     };
 
     const loadModels = async () => {
       try {
-        // Preload completion model
-        await getEngine(APP.settings.completionModel);
-        // Optionally preload thinking model too
-        // await getEngine(APP.settings.thinkingModel);
+        // Preload completion model (thinking model loads on demand)
+        await getEngine(COMPLETION_MODEL);
       } catch (e) {
         console.error('Failed to load models:', e);
         $('loadingText').textContent = 'Error: ' + e.message;
@@ -2633,8 +2562,7 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
     // ============================================
 
     const init = async () => {
-      // Load persisted state and settings
-      loadSettings();
+      // Load persisted state
       loadPersistedState();
 
       // Create first document if none exist
@@ -2657,16 +2585,11 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
       // Settings event listeners
       $('settingsBtn').addEventListener('click', openSettings);
       $('settingsCancel').addEventListener('click', closeSettings);
-      $('settingsSave').addEventListener('click', saveSettings);
+      $('clearModelsBtn').addEventListener('click', clearModelCache);
+      $('clearStorageBtn').addEventListener('click', clearAllData);
       $('settingsOverlay').addEventListener('click', (e) => {
         if (e.target === $('settingsOverlay')) closeSettings();
       });
-      $('backendSelect').addEventListener('change', () => {
-        $('ollamaUrlGroup').style.display = $('backendSelect').value === 'ollama' ? 'block' : 'none';
-        autoSelectModelForBackend();
-        updateBackendStatus();
-      });
-      $('ollamaUrl').addEventListener('change', updateBackendStatus);
 
       // Initial render (shows doc list while model loads)
       render();
