@@ -1,0 +1,2197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Branch Journal</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <script type="module" src="https://esm.run/@mlc-ai/web-llm"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Georgia, serif;
+      background: #faf9f7;
+      color: #2c2c2c;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    .tree-panel {
+      width: 120px;
+      min-width: 120px;
+      background: #f5f4f2;
+      border-right: 1px solid #e0ded8;
+      padding: 20px 10px;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      margin-bottom: 20px;
+    }
+
+    .panel-section h2 {
+      font-size: 10px;
+      font-weight: normal;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .doc-list {
+      list-style: none;
+    }
+
+    .doc-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .doc-item:hover {
+      background: #eee;
+    }
+
+    .doc-item.active {
+      background: #8b7355;
+      color: #fff;
+    }
+
+    .doc-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .doc-item-delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: 0 4px;
+      font-size: 14px;
+    }
+
+    .doc-item:hover .doc-item-delete {
+      opacity: 0.5;
+    }
+
+    .doc-item-delete:hover {
+      opacity: 1 !important;
+    }
+
+    .doc-item.active .doc-item-delete:hover {
+      color: #ffcccc;
+    }
+
+    .new-doc-btn {
+      display: block;
+      width: 100%;
+      background: none;
+      border: 1px dashed #d0cec8;
+      border-radius: 4px;
+      color: #aaa;
+      font-size: 11px;
+      padding: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .new-doc-btn:hover {
+      background: #fff;
+      border-color: #8b7355;
+      border-style: solid;
+      color: #8b7355;
+    }
+
+    .divider {
+      height: 1px;
+      background: #e0ded8;
+      margin: 15px 0;
+    }
+
+    .annotations {
+      position: absolute;
+      left: 100%;
+      margin-left: 15px;
+      width: 280px;
+      pointer-events: none;
+    }
+
+    .annotation-bubble {
+      position: absolute;
+      left: 0;
+      background: #fff;
+      border: 1px solid #e0ded8;
+      border-radius: 8px;
+      padding: 4px;
+      pointer-events: auto;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      width: 280px;
+    }
+
+    .annotation-bubble::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 16px;
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-left: 1px solid #e0ded8;
+      border-bottom: 1px solid #e0ded8;
+      transform: rotate(45deg);
+    }
+
+    .annotation-item {
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #444;
+    }
+
+    .annotation-item.insight {
+      color: #555;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .annotation-item.insight:hover {
+      background: #f5f4f2;
+    }
+
+    .annotation-item.insight::before {
+      content: '→ ';
+      color: #8b7355;
+    }
+
+    .annotation-item + .annotation-item {
+      border-top: 1px solid #eee;
+    }
+
+    .annotation-loading {
+      padding: 12px;
+      color: #999;
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    /* Settings */
+    .settings-btn {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: 1px solid #e0ded8;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.15s;
+      z-index: 50;
+    }
+
+    .settings-btn:hover {
+      background: #fff;
+      border-color: #8b7355;
+      color: #8b7355;
+    }
+
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .settings-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .settings-panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      width: 400px;
+      max-width: 90vw;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      transform: translateY(10px);
+      transition: transform 0.2s;
+    }
+
+    .settings-overlay.open .settings-panel {
+      transform: translateY(0);
+    }
+
+    .settings-panel h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .settings-group {
+      margin-bottom: 20px;
+    }
+
+    .settings-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .settings-group select,
+    .settings-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e0ded8;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #333;
+      background: #fff;
+    }
+
+    .settings-group select:focus,
+    .settings-group input:focus {
+      outline: none;
+      border-color: #8b7355;
+    }
+
+    .settings-group small {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: #999;
+    }
+
+    .settings-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .settings-row .settings-group {
+      flex: 1;
+    }
+
+    .settings-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+
+    .settings-actions button {
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-cancel {
+      background: none;
+      border: 1px solid #ddd;
+      color: #666;
+    }
+
+    .btn-cancel:hover {
+      background: #f5f5f5;
+    }
+
+    .btn-save {
+      background: #8b7355;
+      border: none;
+      color: #fff;
+    }
+
+    .btn-save:hover {
+      background: #6b5335;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    .status-dot.connected { background: #4a9; }
+    .status-dot.disconnected { background: #d55; }
+    .status-dot.loading { background: #da3; }
+
+    .tree-svg {
+      width: 100%;
+    }
+
+    .tree-node {
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tree-node circle {
+      fill: #e0ded8;
+      stroke: #ccc;
+      stroke-width: 1.5px;
+      transition: all 0.15s;
+    }
+
+    .tree-node:hover circle {
+      fill: #d0cec8;
+      stroke: #8b7355;
+    }
+
+    .tree-node.current circle {
+      fill: #8b7355;
+      stroke: #6b5335;
+    }
+
+    .tree-node.cached circle {
+      stroke: #6a9955;
+      stroke-width: 2px;
+    }
+
+    .tree-node.generating circle {
+      animation: genpulse 1s ease-in-out infinite;
+    }
+
+    @keyframes genpulse {
+      0%, 100% { stroke-opacity: 0.3; }
+      50% { stroke-opacity: 1; stroke: #8b7355; }
+    }
+
+    .tree-node text {
+      font-size: 8px;
+      fill: #888;
+      pointer-events: none;
+    }
+
+    .tree-node.current text {
+      fill: #fff;
+    }
+
+    .tree-link {
+      fill: none;
+      stroke: #d0cec8;
+      stroke-width: 1.5px;
+    }
+
+    .main-panel {
+      flex: 1;
+      padding: 40px 20px;
+      overflow-y: auto;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .editor-wrap {
+      position: relative;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: normal;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    .editor {
+      min-height: 400px;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #e0ded8;
+      border-radius: 4px;
+      font-size: 18px;
+      line-height: 1.7;
+      outline: none;
+      white-space: pre-wrap;
+    }
+
+    .editor:empty::before {
+      content: "Start writing...";
+      color: #bbb;
+      font-style: italic;
+    }
+
+    .ghost {
+      color: #aaa;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #999;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .loading {
+      position: fixed;
+      inset: 0;
+      background: #faf9f7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: opacity 0.3s;
+      z-index: 100;
+    }
+
+    .loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 30px;
+      height: 30px;
+      border: 2px solid #e0ded8;
+      border-top-color: #8b7355;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .dots {
+      display: inline-flex;
+      gap: 3px;
+    }
+
+    .dots span {
+      width: 4px;
+      height: 4px;
+      background: #8b7355;
+      border-radius: 50%;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div id="loadingText">Loading model...</div>
+  </div>
+
+  <button class="settings-btn" id="settingsBtn">⚙ Settings</button>
+
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-panel">
+      <h2>Settings</h2>
+
+      <div class="settings-group">
+        <label>Backend</label>
+        <select id="backendSelect">
+          <option value="webllm">WebLLM (Browser)</option>
+          <option value="ollama">Ollama (Local)</option>
+        </select>
+        <small id="backendStatus"><span class="status-dot disconnected"></span>Not connected</small>
+      </div>
+
+      <div class="settings-group" id="ollamaUrlGroup" style="display: none;">
+        <label>Ollama URL</label>
+        <input type="text" id="ollamaUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
+      </div>
+
+      <div class="settings-group">
+        <label>Completion Model</label>
+        <select id="completionModelSelect">
+          <optgroup label="WebLLM Models">
+            <option value="webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 1.7B (Fast)</option>
+            <option value="webllm:Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5 0.5B (Fastest)</option>
+            <option value="webllm:Qwen3-0.6B-q4f16_1-MLC">Qwen3 0.6B</option>
+            <option value="webllm:Qwen3-1.7B-q4f16_1-MLC">Qwen3 1.7B</option>
+            <option value="webllm:gemma-2-2b-it-q4f16_1-MLC">Gemma 2 2B</option>
+            <option value="webllm:Phi-3.5-mini-instruct-q4f16_1-MLC">Phi 3.5 Mini</option>
+          </optgroup>
+          <optgroup label="Ollama Models" id="ollamaCompletionModels">
+          </optgroup>
+        </select>
+        <small>Used for autocomplete suggestions</small>
+      </div>
+
+      <div class="settings-group">
+        <label>Thinking Model</label>
+        <select id="thinkingModelSelect">
+          <optgroup label="WebLLM Models">
+            <option value="webllm:gemma-2-2b-it-q4f16_1-MLC">Gemma 2 2B</option>
+            <option value="webllm:Phi-3.5-mini-instruct-q4f16_1-MLC">Phi 3.5 Mini (Best)</option>
+            <option value="webllm:Qwen3-1.7B-q4f16_1-MLC">Qwen3 1.7B</option>
+            <option value="webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 1.7B</option>
+          </optgroup>
+          <optgroup label="Ollama Models" id="ollamaThinkingModels">
+          </optgroup>
+        </select>
+        <small>Used for insights when highlighting text</small>
+      </div>
+
+      <div class="settings-actions">
+        <button class="btn-cancel" id="settingsCancel">Cancel</button>
+        <button class="btn-save" id="settingsSave">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tree-panel">
+    <div class="panel-section">
+      <h2>Documents</h2>
+      <ul class="doc-list" id="docList"></ul>
+      <button class="new-doc-btn" id="newDocBtn">+ New</button>
+    </div>
+    <div class="divider"></div>
+    <div class="panel-section">
+      <h2>History</h2>
+      <svg id="treeSvg" class="tree-svg"></svg>
+    </div>
+  </div>
+
+  <div class="main-panel">
+    <div class="container">
+      <header>
+        <h1>Branch Journal</h1>
+        <p class="subtitle">Write freely. Tab to accept, Esc to dismiss, ⌘Z to undo.</p>
+      </header>
+
+      <div class="editor-wrap">
+        <div class="annotations" id="annotations"></div>
+        <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
+      </div>
+
+      <div class="status">
+        <span id="historyStatus"></span>
+        <span id="generatingStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+    // ============================================
+    // STATE
+    // ============================================
+
+    const createNewDocument = (id, name) => ({
+      id,
+      name,
+      content: '',
+      history: { nodes: {}, currentId: null, nextId: 1 },
+      createdAt: Date.now(),
+    });
+
+    const createInitialState = () => ({
+      documents: {},
+      currentDocId: null,
+      nextDocId: 1,
+      suggestion: null,
+      isGenerating: false,
+    });
+
+    const defaultSettings = {
+      backend: 'webllm',
+      ollamaUrl: 'http://localhost:11434',
+      completionModel: 'webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC',
+      thinkingModel: 'webllm:gemma-2-2b-it-q4f16_1-MLC',
+    };
+
+    let state = createInitialState();
+    let settings = { ...defaultSettings };
+    let engines = {}; // Cache loaded WebLLM engines by model
+    let debounceTimer = null;
+
+    // Helper to get current document
+    const currentDoc = () => state.documents[state.currentDocId];
+    const currentHistory = () => currentDoc()?.history || { nodes: {}, currentId: null, nextId: 1 };
+
+    // ============================================
+    // SUGGESTION CACHE (in-memory only)
+    // ============================================
+
+    const suggestionCache = new Map(); // "docId:nodeId" -> { suggestions: string[], status: 'pending'|'generating'|'ready' }
+    const generationQueue = [];
+    let isProcessingQueue = false;
+    const MAX_CACHE_SIZE = 50;
+    const SUGGESTIONS_PER_NODE = 3;
+
+    const getCacheKey = (docId, nodeId) => `${docId}:${nodeId}`;
+
+    const getCachedSuggestions = (docId, nodeId) => {
+      const key = getCacheKey(docId, nodeId);
+      return suggestionCache.get(key);
+    };
+
+    const queueSuggestionGeneration = (docId, nodeId, content, priority = false) => {
+      if (!content || content.length < 10) return;
+
+      const key = getCacheKey(docId, nodeId);
+      if (suggestionCache.has(key)) return; // Already cached or generating
+
+      suggestionCache.set(key, { suggestions: [], status: 'pending' });
+
+      const task = { docId, nodeId, content, key };
+      if (priority) {
+        generationQueue.unshift(task);
+      } else {
+        generationQueue.push(task);
+      }
+
+      scheduleQueueProcessing();
+    };
+
+    const scheduleQueueProcessing = () => {
+      if (isProcessingQueue || generationQueue.length === 0) return;
+
+      // Use requestIdleCallback for background processing
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => processQueue(), { timeout: 2000 });
+      } else {
+        setTimeout(() => processQueue(), 100);
+      }
+    };
+
+    const processQueue = async () => {
+      if (isProcessingQueue || generationQueue.length === 0) return;
+
+      isProcessingQueue = true;
+
+      while (generationQueue.length > 0) {
+        const task = generationQueue.shift();
+        const cached = suggestionCache.get(task.key);
+
+        if (!cached || cached.status !== 'pending') continue;
+
+        cached.status = 'generating';
+        renderTree(); // Update visual indicator
+
+        try {
+          // Generate suggestions one at a time
+          for (let i = 0; i < SUGGESTIONS_PER_NODE; i++) {
+            if (!suggestionCache.has(task.key)) break; // Cache was cleared
+
+            const suggestion = await generateSingleSuggestion(task.content, i);
+            if (suggestion) {
+              cached.suggestions.push(suggestion);
+            }
+
+            // Yield to main thread between generations
+            await new Promise(r => setTimeout(r, 10));
+          }
+
+          cached.status = 'ready';
+          renderTree(); // Update visual indicator
+        } catch (e) {
+          console.error('Background generation error:', e);
+          suggestionCache.delete(task.key);
+        }
+
+        // Trim cache if too large
+        trimCache();
+      }
+
+      isProcessingQueue = false;
+    };
+
+    const generateSingleSuggestion = async (content, index) => {
+      // Skip if model backend doesn't match current settings backend
+      const [modelBackend] = settings.completionModel.split(':');
+      if (modelBackend !== settings.backend) {
+        console.warn(`Skipping generation: model backend (${modelBackend}) doesn't match settings backend (${settings.backend})`);
+        return null;
+      }
+
+      try {
+        const messages = [
+          {
+            role: 'system',
+            content: 'You are a text completion engine. The user will give you the beginning of a text. You must continue it naturally, writing ONLY the next few words or sentence. Do not repeat what was given. Do not add quotes. Do not explain. Just continue the text seamlessly.',
+          },
+          {
+            role: 'user',
+            content: `Continue this text naturally:\n\n${content}`,
+          },
+        ];
+
+        let result = await llmComplete(settings.completionModel, messages, {
+          temperature: 0.7 + (index * 0.15),
+          max_tokens: 40,
+        });
+
+        // Clean up common issues
+        if (result) {
+          result = result.replace(/^["']|["']$/g, '').trim();
+          // Remove if it starts by repeating the end of content
+          const lastWords = content.split(/\s+/).slice(-3).join(' ');
+          if (result.toLowerCase().startsWith(lastWords.toLowerCase())) {
+            result = result.slice(lastWords.length).trim();
+          }
+        }
+        return result;
+      } catch (e) {
+        console.error('Generation error:', e);
+        return null;
+      }
+    };
+
+    const trimCache = () => {
+      if (suggestionCache.size <= MAX_CACHE_SIZE) return;
+
+      // Remove oldest entries (Map maintains insertion order)
+      const keysToDelete = [];
+      let count = 0;
+      const deleteCount = suggestionCache.size - MAX_CACHE_SIZE;
+
+      for (const key of suggestionCache.keys()) {
+        if (count >= deleteCount) break;
+        keysToDelete.push(key);
+        count++;
+      }
+
+      keysToDelete.forEach(k => suggestionCache.delete(k));
+    };
+
+    const clearCacheForDoc = (docId) => {
+      for (const key of suggestionCache.keys()) {
+        if (key.startsWith(`${docId}:`)) {
+          suggestionCache.delete(key);
+        }
+      }
+    };
+
+    const prioritizeCurrentNode = () => {
+      const doc = currentDoc();
+      if (!doc) return;
+
+      const { currentId } = doc.history;
+      const node = doc.history.nodes[currentId];
+      if (!node) return;
+
+      // Move current node to front of queue if pending
+      const key = getCacheKey(doc.id, currentId);
+      const idx = generationQueue.findIndex(t => t.key === key);
+      if (idx > 0) {
+        const [task] = generationQueue.splice(idx, 1);
+        generationQueue.unshift(task);
+      }
+
+      // Queue if not already queued (use plain text)
+      if (!suggestionCache.has(key)) {
+        const plainText = normalizeForComparison(node.content);
+        queueSuggestionGeneration(doc.id, currentId, plainText, true);
+      }
+    };
+
+    const queueExistingNodes = () => {
+      // Queue current node first (priority)
+      prioritizeCurrentNode();
+
+      // Then queue other recent nodes from current doc
+      const doc = currentDoc();
+      if (!doc) return;
+
+      const nodes = Object.values(doc.history.nodes);
+      // Sort by timestamp descending (most recent first)
+      nodes.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      // Queue up to 10 most recent nodes (use plain text)
+      nodes.slice(0, 10).forEach(node => {
+        if (node.content && node.content.length >= 10) {
+          const plainText = normalizeForComparison(node.content);
+          queueSuggestionGeneration(doc.id, node.id, plainText, false);
+        }
+      });
+    };
+
+    // ============================================
+    // PURE STATE UPDATES
+    // ============================================
+
+    const startSuggestion = (mode, original = '') => {
+      state = {
+        ...state,
+        suggestion: { mode, branches: [''], selected: 0, original },
+        isGenerating: true,
+      };
+    };
+
+    const appendToSuggestion = (branchIndex, text) => {
+      if (!state.suggestion) return;
+      const branches = [...state.suggestion.branches];
+      branches[branchIndex] = (branches[branchIndex] || '') + text;
+      state = { ...state, suggestion: { ...state.suggestion, branches } };
+    };
+
+    const addSuggestionBranch = () => {
+      if (!state.suggestion) return;
+      state = {
+        ...state,
+        suggestion: {
+          ...state.suggestion,
+          branches: [...state.suggestion.branches, ''],
+        },
+      };
+    };
+
+    const selectSuggestion = (index) => {
+      if (!state.suggestion) return;
+      const len = state.suggestion.branches.length;
+      const selected = ((index % len) + len) % len;
+      state = { ...state, suggestion: { ...state.suggestion, selected } };
+    };
+
+    const clearSuggestion = () => {
+      state = { ...state, suggestion: null, isGenerating: false };
+    };
+
+    const setGenerating = (isGenerating) => {
+      state = { ...state, isGenerating };
+    };
+
+    // ============================================
+    // DOCUMENT MANAGEMENT
+    // ============================================
+
+    const addDocument = (name) => {
+      const id = state.nextDocId;
+      const doc = createNewDocument(id, name || `Untitled ${id}`);
+      state = {
+        ...state,
+        documents: { ...state.documents, [id]: doc },
+        currentDocId: id,
+        nextDocId: id + 1,
+      };
+      persistState();
+      return id;
+    };
+
+    const switchDocument = (docId) => {
+      if (!state.documents[docId]) return;
+
+      // Save current doc content first
+      if (state.currentDocId && state.documents[state.currentDocId]) {
+        const content = getEditorContent();
+        updateDocContent(content);
+      }
+
+      state = { ...state, currentDocId: docId, suggestion: null };
+      persistState();
+    };
+
+    const deleteDocument = (docId) => {
+      const docs = { ...state.documents };
+      delete docs[docId];
+
+      // If deleting current doc, switch to another
+      let newCurrentId = state.currentDocId;
+      if (docId === state.currentDocId) {
+        const remaining = Object.keys(docs);
+        newCurrentId = remaining.length > 0 ? parseInt(remaining[0]) : null;
+      }
+
+      state = { ...state, documents: docs, currentDocId: newCurrentId };
+      persistState();
+    };
+
+    const renameDocument = (docId, newName) => {
+      if (!state.documents[docId]) return;
+      state = {
+        ...state,
+        documents: {
+          ...state.documents,
+          [docId]: { ...state.documents[docId], name: newName },
+        },
+      };
+      persistState();
+    };
+
+    const updateDocContent = (content) => {
+      const doc = currentDoc();
+      if (!doc) return;
+      state = {
+        ...state,
+        documents: {
+          ...state.documents,
+          [doc.id]: { ...doc, content },
+        },
+      };
+    };
+
+    // ============================================
+    // HISTORY (Tree-based undo)
+    // ============================================
+
+    const normalizeForComparison = (html) => {
+      // Convert HTML to plain text and normalize whitespace for comparison
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      return (temp.textContent || '').trim().replace(/\s+/g, ' ');
+    };
+
+    const saveToHistory = (content, label = 'edit') => {
+      const doc = currentDoc();
+      if (!doc) return;
+
+      const { nodes, currentId, nextId } = doc.history;
+
+      // Don't save if semantically the same (normalized comparison)
+      if (currentId && nodes[currentId]) {
+        const currentNorm = normalizeForComparison(nodes[currentId].content);
+        const newNorm = normalizeForComparison(content);
+        if (currentNorm === newNorm) return;
+      }
+
+      const newNode = {
+        id: nextId,
+        content,
+        timestamp: Date.now(),
+        label,
+        parent: currentId,
+        children: [],
+      };
+
+      const newNodes = { ...nodes, [nextId]: newNode };
+
+      // Add to parent's children
+      if (currentId && newNodes[currentId]) {
+        newNodes[currentId] = {
+          ...newNodes[currentId],
+          children: [...newNodes[currentId].children, nextId],
+        };
+      }
+
+      const newHistory = { nodes: newNodes, currentId: nextId, nextId: nextId + 1 };
+
+      state = {
+        ...state,
+        documents: {
+          ...state.documents,
+          [doc.id]: { ...doc, history: newHistory, content },
+        },
+      };
+
+      // Queue background suggestion generation for this version (use plain text)
+      const plainText = normalizeForComparison(content);
+      queueSuggestionGeneration(doc.id, nextId, plainText, true);
+
+      persistState();
+    };
+
+    const undo = () => {
+      const doc = currentDoc();
+      if (!doc) return null;
+
+      const { nodes, currentId } = doc.history;
+      const current = nodes[currentId];
+      if (current?.parent && nodes[current.parent]) {
+        const newHistory = { ...doc.history, currentId: current.parent };
+        state = {
+          ...state,
+          documents: {
+            ...state.documents,
+            [doc.id]: { ...doc, history: newHistory },
+          },
+        };
+        return nodes[current.parent].content;
+      }
+      return null;
+    };
+
+    const redo = () => {
+      const doc = currentDoc();
+      if (!doc) return null;
+
+      const { nodes, currentId } = doc.history;
+      const current = nodes[currentId];
+      if (current?.children.length > 0) {
+        const childId = current.children[current.children.length - 1];
+        const newHistory = { ...doc.history, currentId: childId };
+        state = {
+          ...state,
+          documents: {
+            ...state.documents,
+            [doc.id]: { ...doc, history: newHistory },
+          },
+        };
+        return nodes[childId].content;
+      }
+      return null;
+    };
+
+    const switchBranch = (delta) => {
+      const doc = currentDoc();
+      if (!doc) return null;
+
+      const { nodes, currentId } = doc.history;
+      const current = nodes[currentId];
+      if (!current?.parent) return null;
+
+      const parent = nodes[current.parent];
+      const siblings = parent.children;
+      const myIndex = siblings.indexOf(currentId);
+      const newIndex = myIndex + delta;
+
+      if (newIndex >= 0 && newIndex < siblings.length) {
+        const siblingId = siblings[newIndex];
+        const newHistory = { ...doc.history, currentId: siblingId };
+        state = {
+          ...state,
+          documents: {
+            ...state.documents,
+            [doc.id]: { ...doc, history: newHistory },
+          },
+        };
+        return nodes[siblingId].content;
+      }
+      return null;
+    };
+
+    const getHistoryInfo = () => {
+      const history = currentHistory();
+      const { nodes, currentId } = history;
+      if (!currentId) return '';
+
+      const current = nodes[currentId];
+      let depth = 0;
+      let node = current;
+      while (node?.parent) {
+        depth++;
+        node = nodes[node.parent];
+      }
+
+      const hasSiblings = current?.parent && nodes[current.parent].children.length > 1;
+      const hasChildren = current?.children.length > 0;
+
+      let info = `v${currentId}`;
+      if (hasSiblings) info += ' ⑂';
+      if (hasChildren) info += ' →';
+      return info;
+    };
+
+    // ============================================
+    // PERSISTENCE
+    // ============================================
+
+    const persistState = () => {
+      localStorage.setItem('journal-state', JSON.stringify({
+        documents: state.documents,
+        currentDocId: state.currentDocId,
+        nextDocId: state.nextDocId,
+      }));
+    };
+
+    const persistSettings = () => {
+      localStorage.setItem('journal-settings', JSON.stringify(settings));
+    };
+
+    const loadSettings = () => {
+      try {
+        const saved = localStorage.getItem('journal-settings');
+        if (saved) {
+          settings = { ...defaultSettings, ...JSON.parse(saved) };
+        }
+
+        // Validate that model backends match settings backend
+        const [completionBackend] = settings.completionModel.split(':');
+        const [thinkingBackend] = settings.thinkingModel.split(':');
+
+        if (completionBackend !== settings.backend) {
+          console.warn(`Completion model backend (${completionBackend}) doesn't match settings backend (${settings.backend}). Resetting to defaults.`);
+          settings.backend = 'webllm';
+          settings.completionModel = defaultSettings.completionModel;
+        }
+        if (thinkingBackend !== settings.backend) {
+          console.warn(`Thinking model backend (${thinkingBackend}) doesn't match settings backend (${settings.backend}). Resetting thinking model.`);
+          settings.thinkingModel = defaultSettings.thinkingModel;
+        }
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+      }
+    };
+
+    const loadPersistedState = () => {
+      try {
+        const saved = localStorage.getItem('journal-state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          state = { ...state, ...parsed };
+        }
+
+        // Migrate old format
+        const oldContent = localStorage.getItem('journal-content');
+        const oldHistory = localStorage.getItem('journal-history');
+        if (oldContent || oldHistory) {
+          const id = addDocument('Imported');
+          if (oldContent) {
+            state.documents[id].content = oldContent;
+          }
+          if (oldHistory) {
+            state.documents[id].history = JSON.parse(oldHistory);
+          }
+          localStorage.removeItem('journal-content');
+          localStorage.removeItem('journal-history');
+          persistState();
+        }
+
+        return currentDoc()?.content || '';
+      } catch (e) {
+        console.error('Failed to load state:', e);
+        return '';
+      }
+    };
+
+    // ============================================
+    // DOM HELPERS
+    // ============================================
+
+    const $ = (id) => document.getElementById(id);
+
+    const getEditorContent = () => {
+      const clone = $('editor').cloneNode(true);
+      clone.querySelector('.ghost')?.remove();
+      return clone.innerHTML;
+    };
+
+    const getTextBeforeCursor = () => {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return '';
+
+      const range = sel.getRangeAt(0);
+      const preRange = document.createRange();
+      preRange.setStart($('editor'), 0);
+      preRange.setEnd(range.startContainer, range.startOffset);
+
+      const fragment = preRange.cloneContents();
+      fragment.querySelector('.ghost')?.remove();
+      return fragment.textContent || '';
+    };
+
+    const getPlainText = () => {
+      const editor = $('editor');
+      const clone = editor.cloneNode(true);
+      clone.querySelector('.ghost')?.remove();
+      // Convert <br> and block elements to newlines
+      clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+      clone.querySelectorAll('div, p').forEach(el => {
+        el.before('\n');
+        el.after('');
+      });
+      return (clone.textContent || '').trim();
+    };
+
+    const getSelectedText = () => {
+      const sel = window.getSelection();
+      return sel.toString().trim();
+    };
+
+    const insertGhost = (text) => {
+      removeGhost();
+
+      const ghost = document.createElement('span');
+      ghost.className = 'ghost';
+      ghost.contentEditable = 'false';
+      ghost.textContent = text || '\u200B';
+
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.collapse(false);
+        range.insertNode(ghost);
+        range.setStartBefore(ghost);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } else {
+        $('editor').appendChild(ghost);
+      }
+
+      return ghost;
+    };
+
+    const updateGhost = (text) => {
+      const ghost = $('editor').querySelector('.ghost');
+      if (ghost) {
+        ghost.textContent = text || '\u200B';
+      }
+    };
+
+    const removeGhost = () => {
+      $('editor').querySelector('.ghost')?.remove();
+    };
+
+    const acceptGhost = () => {
+      const ghost = $('editor').querySelector('.ghost');
+      if (ghost) {
+        ghost.classList.remove('ghost');
+        ghost.removeAttribute('contentEditable');
+      }
+    };
+
+    const setEditorContent = (html) => {
+      $('editor').innerHTML = html;
+      // Move cursor to end
+      const range = document.createRange();
+      range.selectNodeContents($('editor'));
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    };
+
+    const render = () => {
+      // History status
+      $('historyStatus').textContent = getHistoryInfo();
+
+      // Generating status
+      $('generatingStatus').innerHTML = state.isGenerating
+        ? '<span class="dots"><span></span><span></span><span></span></span>'
+        : '';
+
+      // Render document list
+      renderDocList();
+
+      // Render tree
+      renderTree();
+    };
+
+    const renderDocList = () => {
+      const list = $('docList');
+      list.innerHTML = '';
+
+      const docs = Object.values(state.documents).sort((a, b) => b.createdAt - a.createdAt);
+
+      docs.forEach(doc => {
+        const li = document.createElement('li');
+        li.className = `doc-item ${doc.id === state.currentDocId ? 'active' : ''}`;
+
+        const name = document.createElement('span');
+        name.className = 'doc-item-name';
+        name.textContent = doc.name;
+        name.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          const newName = prompt('Rename document:', doc.name);
+          if (newName && newName.trim()) {
+            renameDocument(doc.id, newName.trim());
+            render();
+          }
+        });
+
+        const del = document.createElement('button');
+        del.className = 'doc-item-delete';
+        del.textContent = '×';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`Delete "${doc.name}"?`)) {
+            deleteDocument(doc.id);
+            if (currentDoc()) {
+              setEditorContent(currentDoc().content);
+            } else {
+              $('editor').innerHTML = '';
+            }
+            render();
+          }
+        });
+
+        li.appendChild(name);
+        li.appendChild(del);
+
+        li.addEventListener('click', () => {
+          if (doc.id !== state.currentDocId) {
+            switchDocument(doc.id);
+            setEditorContent(currentDoc().content);
+            render();
+          }
+        });
+
+        list.appendChild(li);
+      });
+    };
+
+    // ============================================
+    // TREE VISUALIZATION
+    // ============================================
+
+    const renderTree = () => {
+      const svg = d3.select('#treeSvg');
+      svg.selectAll('*').remove();
+
+      const history = currentHistory();
+      const { nodes, currentId } = history;
+      const nodeList = Object.values(nodes);
+
+      if (nodeList.length === 0) return;
+
+      // Find root (node with no parent)
+      const root = nodeList.find(n => !n.parent);
+      if (!root) return;
+
+      // Build hierarchy
+      const buildHierarchy = (nodeId) => {
+        const node = nodes[nodeId];
+        if (!node) return null;
+        return {
+          id: node.id,
+          label: node.label,
+          children: node.children.map(buildHierarchy).filter(Boolean),
+        };
+      };
+
+      const hierarchyData = buildHierarchy(root.id);
+      if (!hierarchyData) return;
+
+      const hierarchy = d3.hierarchy(hierarchyData);
+
+      // Calculate dimensions
+      const nodeRadius = 8;
+      const levelHeight = 35;
+      const siblingSpacing = 25;
+
+      // Count max width at any level
+      const levels = [];
+      hierarchy.each(d => {
+        levels[d.depth] = (levels[d.depth] || 0) + 1;
+      });
+      const maxWidth = Math.max(...levels, 1);
+
+      const width = Math.max(100, maxWidth * siblingSpacing + 20);
+      const height = (hierarchy.height + 1) * levelHeight + 20;
+
+      svg.attr('viewBox', `0 0 ${width} ${height}`)
+         .attr('height', height);
+
+      // Create tree layout
+      const treeLayout = d3.tree()
+        .size([width - 20, height - 40])
+        .separation((a, b) => 1);
+
+      const treeData = treeLayout(hierarchy);
+
+      // Draw links
+      svg.selectAll('.tree-link')
+        .data(treeData.links())
+        .join('path')
+        .attr('class', 'tree-link')
+        .attr('d', d3.linkVertical()
+          .x(d => d.x + 10)
+          .y(d => d.y + 20));
+
+      // Draw nodes
+      const doc = currentDoc();
+      const docId = doc?.id;
+
+      const nodeGroups = svg.selectAll('.tree-node')
+        .data(treeData.descendants())
+        .join('g')
+        .attr('class', d => {
+          const classes = ['tree-node'];
+          if (d.data.id === currentId) classes.push('current');
+
+          // Check cache status
+          if (docId) {
+            const cached = getCachedSuggestions(docId, d.data.id);
+            if (cached?.status === 'ready') classes.push('cached');
+            else if (cached?.status === 'generating') classes.push('generating');
+          }
+
+          return classes.join(' ');
+        })
+        .attr('transform', d => `translate(${d.x + 10}, ${d.y + 20})`)
+        .on('click', (event, d) => {
+          navigateToNode(d.data.id);
+        });
+
+      nodeGroups.append('circle')
+        .attr('r', nodeRadius);
+
+      nodeGroups.append('text')
+        .attr('dy', 3)
+        .attr('text-anchor', 'middle')
+        .text(d => d.data.id);
+    };
+
+    const navigateToNode = (nodeId) => {
+      const doc = currentDoc();
+      if (!doc) return;
+
+      const { nodes } = doc.history;
+      if (!nodes[nodeId]) return;
+
+      const newHistory = { ...doc.history, currentId: nodeId };
+      state = {
+        ...state,
+        documents: {
+          ...state.documents,
+          [doc.id]: { ...doc, history: newHistory },
+        },
+      };
+
+      const content = nodes[nodeId].content;
+      setEditorContent(content);
+      updateDocContent(content);
+      persistState();
+      clearSuggestion();
+      removeGhost();
+      render();
+
+      // Prioritize generating suggestions for this node
+      prioritizeCurrentNode();
+    };
+
+    const handleNewDocument = () => {
+      // Save current content first
+      if (currentDoc()) {
+        const content = getEditorContent();
+        updateDocContent(content);
+      }
+
+      addDocument();
+      $('editor').innerHTML = '';
+      $('editor').focus();
+      render();
+    };
+
+    // ============================================
+    // LLM
+    // ============================================
+
+    const complete = async (context) => {
+      // Validate model backend matches settings
+      const [modelBackend] = settings.completionModel.split(':');
+      if (modelBackend !== settings.backend) {
+        console.warn('Model backend mismatch, skipping completion');
+        return;
+      }
+
+      const doc = currentDoc();
+      if (!doc) return;
+
+      const { currentId } = doc.history;
+
+      // Check cache first (only if we have a valid history node)
+      if (currentId) {
+        const cached = getCachedSuggestions(doc.id, currentId);
+        if (cached && cached.status === 'ready' && cached.suggestions.length > 0) {
+          // Use cached suggestions instantly
+          state = {
+            ...state,
+            suggestion: {
+              mode: 'complete',
+              branches: [...cached.suggestions],
+              selected: 0,
+              original: '',
+            },
+            isGenerating: false,
+          };
+          insertGhost(cached.suggestions[0]);
+          render();
+          return;
+        }
+      }
+
+      // Fall back to streaming generation
+      startSuggestion('complete');
+      insertGhost('');
+      render();
+
+      try {
+        const messages = [
+          {
+            role: 'system',
+            content: 'You are a text completion engine. Continue the text naturally, writing ONLY the next few words or sentence. Do not repeat what was given. Do not add quotes. Do not explain. Just continue seamlessly.',
+          },
+          {
+            role: 'user',
+            content: `Continue this text naturally:\n\n${context}`,
+          },
+        ];
+
+        for await (const token of llmStream(settings.completionModel, messages, { temperature: 0.8, max_tokens: 40 })) {
+          if (!state.suggestion || state.suggestion.mode !== 'complete') break;
+          if (token) {
+            appendToSuggestion(0, token);
+            updateGhost(state.suggestion.branches[state.suggestion.selected]);
+          }
+        }
+
+        // Start additional branches after a delay
+        setTimeout(() => generateMoreBranches(context, 'complete'), 1000);
+
+      } catch (e) {
+        console.error('Completion error:', e);
+        clearSuggestion();
+        removeGhost();
+      } finally {
+        setGenerating(false);
+        render();
+      }
+    };
+
+    const generateMoreBranches = async (context, mode) => {
+      if (!state.suggestion || state.suggestion.mode !== mode) return;
+
+      for (let i = 1; i < 3; i++) {
+        if (!state.suggestion || state.suggestion.mode !== mode) break;
+
+        addSuggestionBranch();
+        setGenerating(true);
+        render();
+
+        try {
+          const messages = [
+            {
+              role: 'system',
+              content: 'You are a text completion engine. Continue the text naturally, writing ONLY the next few words or sentence. Do not repeat what was given. Do not add quotes. Do not explain. Just continue seamlessly.',
+            },
+            {
+              role: 'user',
+              content: `Continue this text naturally:\n\n${context}`,
+            },
+          ];
+
+          for await (const token of llmStream(settings.completionModel, messages, { temperature: 0.8 + (i * 0.15), max_tokens: 40 })) {
+            if (!state.suggestion || state.suggestion.mode !== mode) break;
+            if (token) {
+              appendToSuggestion(i, token);
+              if (state.suggestion.selected === i) {
+                updateGhost(state.suggestion.branches[i]);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Branch error:', e);
+        }
+      }
+
+      setGenerating(false);
+      render();
+    };
+
+    // ============================================
+    // EVENT HANDLERS
+    // ============================================
+
+    const handleInput = () => {
+      clearSuggestion();
+      removeGhost();
+      clearAnnotations();
+
+      const content = getEditorContent();
+      updateDocContent(content);
+      persistState();
+
+      // Debounced completion
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const text = getTextBeforeCursor();
+        if (text.length >= 10) {
+          complete(text);
+        }
+      }, 300);
+
+      // Debounced history save
+      clearTimeout(window.historySaveTimer);
+      window.historySaveTimer = setTimeout(() => {
+        saveToHistory(content, 'typing');
+      }, 2000);
+    };
+
+    const handleSelectionChange = () => {
+      // Clear annotations if no selection or typing
+      const selected = getSelectedText();
+      if (selected.length < 5) {
+        clearAnnotations();
+        return;
+      }
+
+      // Don't interfere with existing suggestion
+      if (state.suggestion) return;
+
+      clearTimeout(window.selectionTimer);
+      window.selectionTimer = setTimeout(() => {
+        const sel = window.getSelection();
+        const currentSelected = sel.toString().trim();
+        if (currentSelected === selected && currentSelected.length >= 5) {
+          showRewriteAnnotations(selected, sel);
+        }
+      }, 600);
+    };
+
+    const clearAnnotations = () => {
+      $('annotations').innerHTML = '';
+      state = { ...state, rewriteContext: null };
+    };
+
+    const showRewriteAnnotations = async (text, selection) => {
+
+      // Get position of selection
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const editorRect = $('editor').getBoundingClientRect();
+      const topOffset = rect.top - editorRect.top;
+
+      // Store context for applying later
+      state = { ...state, rewriteContext: { text, range: range.cloneRange() } };
+
+      // Show loading annotation
+      const container = $('annotations');
+      container.innerHTML = `<div class="annotation-bubble" style="top: ${topOffset}px"><div class="annotation-loading">Pondering...</div></div>`;
+
+      try {
+        // Check if selection changed
+        if (!state.rewriteContext || state.rewriteContext.text !== text) return;
+
+        const messages = [
+          {
+            role: 'system',
+            content: `You are a thoughtful thinking partner. Given a passage, generate 2-3 probing questions or insights to help the writer think more deeply about what they wrote. Focus on:
+- Assumptions that might be worth examining
+- Perspectives not yet considered
+- Implications or consequences
+- Clarity of reasoning
+- What's left unsaid
+
+Format: One question or insight per line. Be concise but thought-provoking. No numbering or bullets.`
+          },
+          { role: 'user', content: text },
+        ];
+
+        const content = await llmComplete(settings.thinkingModel, messages, {
+          temperature: 0.8,
+          max_tokens: 150,
+        });
+
+        if (content) {
+          const insights = content.split('\n').filter(line => line.trim().length > 0);
+          renderAnnotations(insights, topOffset);
+        }
+      } catch (e) {
+        console.error('Insight error:', e);
+        clearAnnotations();
+      }
+    };
+
+    const renderAnnotations = (insights, topOffset) => {
+      const container = $('annotations');
+      container.innerHTML = '';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'annotation-bubble';
+      bubble.style.top = `${topOffset}px`;
+
+      insights.forEach((insight) => {
+        const item = document.createElement('div');
+        item.className = 'annotation-item insight';
+        item.textContent = insight;
+        item.addEventListener('click', () => {
+          generateInsightCompletion(insight);
+        });
+        bubble.appendChild(item);
+      });
+
+      container.appendChild(bubble);
+    };
+
+    const generateInsightCompletion = async (insight) => {
+      // Get plain text content for LLM
+      const editor = $('editor');
+      const textContent = getPlainText();
+
+      clearAnnotations();
+
+      // Add a paragraph break and move cursor to end
+      const br = document.createElement('br');
+      const br2 = document.createElement('br');
+      editor.appendChild(br);
+      editor.appendChild(br2);
+
+      // Move cursor to end
+      const range = document.createRange();
+      range.setStartAfter(br2);
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      startSuggestion('complete');
+      insertGhost('');
+      render();
+
+      try {
+        const messages = [
+          {
+            role: 'system',
+            content: `You are a writing assistant. The user has written some text and is exploring a particular angle or question about it. Continue their writing naturally in a way that addresses or weaves in the insight, without explicitly stating the insight. Write as if you are the author continuing their own train of thought. Just continue the text seamlessly - no quotes, no meta-commentary.`,
+          },
+          {
+            role: 'user',
+            content: `Here is what I've written:\n\n${textContent}\n\nI want to explore this angle: "${insight}"\n\nContinue my writing naturally:`,
+          },
+        ];
+
+        for await (const token of llmStream(settings.completionModel, messages, { temperature: 0.8, max_tokens: 100 })) {
+          if (!state.suggestion || state.suggestion.mode !== 'complete') break;
+          if (token) {
+            appendToSuggestion(0, token);
+            updateGhost(state.suggestion.branches[state.suggestion.selected]);
+          }
+        }
+
+      } catch (e) {
+        console.error('Insight completion error:', e);
+      } finally {
+        setGenerating(false);
+        render();
+      }
+    };
+
+    const applyRewrite = (newText) => {
+      if (!state.rewriteContext) return;
+
+      // Save to history before changing
+      saveToHistory(getEditorContent(), 'before-rewrite');
+
+      // Apply the rewrite
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(state.rewriteContext.range);
+
+      // Insert new text
+      document.execCommand('insertText', false, newText);
+
+      // Save after
+      const content = getEditorContent();
+      updateDocContent(content);
+      persistState();
+      saveToHistory(content, 'rewrite');
+
+      clearAnnotations();
+      render();
+    };
+
+    const handleKeydown = (e) => {
+      // Undo
+      if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault();
+        const content = undo();
+        if (content !== null) {
+          setEditorContent(content);
+          updateDocContent(content);
+          persistState();
+          clearSuggestion();
+          removeGhost();
+        }
+        render();
+        return;
+      }
+
+      // Redo
+      if ((e.key === 'z' && (e.metaKey || e.ctrlKey) && e.shiftKey) ||
+          (e.key === 'y' && (e.metaKey || e.ctrlKey))) {
+        e.preventDefault();
+        const content = redo();
+        if (content !== null) {
+          setEditorContent(content);
+          updateDocContent(content);
+          persistState();
+          clearSuggestion();
+          removeGhost();
+        }
+        render();
+        return;
+      }
+
+      // Branch navigation
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const content = switchBranch(e.key === 'ArrowLeft' ? -1 : 1);
+        if (content !== null) {
+          setEditorContent(content);
+          updateDocContent(content);
+          persistState();
+          clearSuggestion();
+          removeGhost();
+        }
+        render();
+        return;
+      }
+
+      // Suggestion navigation
+      if (state.suggestion && state.suggestion.branches.length > 1) {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          selectSuggestion(state.suggestion.selected + (e.key === 'ArrowUp' ? -1 : 1));
+          updateGhost(state.suggestion.branches[state.suggestion.selected]);
+          return;
+        }
+      }
+
+      // Accept suggestion
+      if (e.key === 'Tab' && state.suggestion) {
+        e.preventDefault();
+        acceptGhost();
+        const content = getEditorContent();
+        updateDocContent(content);
+        persistState();
+        saveToHistory(content, state.suggestion.mode);
+        clearSuggestion();
+        render();
+        return;
+      }
+
+      // Dismiss suggestion
+      if (e.key === 'Escape' && state.suggestion) {
+        e.preventDefault();
+        if (state.suggestion.mode === 'rewrite') {
+          // Restore original text
+          updateGhost(state.suggestion.original);
+          acceptGhost();
+        } else {
+          removeGhost();
+        }
+        clearSuggestion();
+        render();
+        return;
+      }
+    };
+
+    // ============================================
+    // SETTINGS UI
+    // ============================================
+
+    const openSettings = () => {
+      // Populate current values
+      $('backendSelect').value = settings.backend;
+      $('ollamaUrl').value = settings.ollamaUrl;
+      $('completionModelSelect').value = settings.completionModel;
+      $('thinkingModelSelect').value = settings.thinkingModel;
+      $('ollamaUrlGroup').style.display = settings.backend === 'ollama' ? 'block' : 'none';
+
+      updateBackendStatus();
+      $('settingsOverlay').classList.add('open');
+    };
+
+    const closeSettings = () => {
+      $('settingsOverlay').classList.remove('open');
+    };
+
+    const saveSettings = async () => {
+      settings.backend = $('backendSelect').value;
+      settings.ollamaUrl = $('ollamaUrl').value;
+      settings.completionModel = $('completionModelSelect').value;
+      settings.thinkingModel = $('thinkingModelSelect').value;
+
+      persistSettings();
+      closeSettings();
+
+      // Reload models
+      $('loading').classList.remove('hidden');
+      $('loadingText').textContent = 'Loading models...';
+      await loadModels();
+      $('loading').classList.add('hidden');
+    };
+
+    const updateBackendStatus = async () => {
+      const statusEl = $('backendStatus');
+      const backend = $('backendSelect').value;
+
+      if (backend === 'ollama') {
+        statusEl.innerHTML = '<span class="status-dot loading"></span>Checking...';
+        try {
+          const url = $('ollamaUrl').value;
+          const response = await fetch(`${url}/api/tags`);
+          if (response.ok) {
+            const data = await response.json();
+            const models = data.models || [];
+            populateOllamaModels(models);
+            statusEl.innerHTML = `<span class="status-dot connected"></span>Connected (${models.length} models)`;
+          } else {
+            statusEl.innerHTML = '<span class="status-dot disconnected"></span>Failed to connect';
+          }
+        } catch (e) {
+          statusEl.innerHTML = '<span class="status-dot disconnected"></span>Cannot reach Ollama (CORS?)';
+        }
+      } else {
+        statusEl.innerHTML = '<span class="status-dot connected"></span>WebLLM ready';
+      }
+    };
+
+    const populateOllamaModels = (models) => {
+      const completionGroup = $('ollamaCompletionModels');
+      const thinkingGroup = $('ollamaThinkingModels');
+
+      completionGroup.innerHTML = '';
+      thinkingGroup.innerHTML = '';
+
+      models.forEach(model => {
+        const name = model.name;
+        const opt1 = document.createElement('option');
+        opt1.value = `ollama:${name}`;
+        opt1.textContent = name;
+        completionGroup.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = `ollama:${name}`;
+        opt2.textContent = name;
+        thinkingGroup.appendChild(opt2);
+      });
+
+      // Auto-select first Ollama model if current backend is Ollama and current model is WebLLM
+      if ($('backendSelect').value === 'ollama' && models.length > 0) {
+        const currentCompletion = $('completionModelSelect').value;
+        const currentThinking = $('thinkingModelSelect').value;
+
+        if (currentCompletion.startsWith('webllm:')) {
+          $('completionModelSelect').value = `ollama:${models[0].name}`;
+        }
+        if (currentThinking.startsWith('webllm:')) {
+          $('thinkingModelSelect').value = `ollama:${models[0].name}`;
+        }
+      }
+    };
+
+    const autoSelectModelForBackend = () => {
+      const backend = $('backendSelect').value;
+      const completionSelect = $('completionModelSelect');
+      const thinkingSelect = $('thinkingModelSelect');
+
+      if (backend === 'webllm') {
+        // Switch to WebLLM models if currently on Ollama
+        if (completionSelect.value.startsWith('ollama:')) {
+          completionSelect.value = 'webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC';
+        }
+        if (thinkingSelect.value.startsWith('ollama:')) {
+          thinkingSelect.value = 'webllm:gemma-2-2b-it-q4f16_1-MLC';
+        }
+      }
+      // Ollama auto-selection is handled in populateOllamaModels after fetching models
+    };
+
+    // ============================================
+    // UNIFIED LLM INTERFACE
+    // ============================================
+
+    const getEngine = async (modelSpec) => {
+      const [backend, modelId] = modelSpec.split(':');
+
+      if (backend === 'ollama') {
+        // Return Ollama-compatible interface
+        return {
+          type: 'ollama',
+          model: modelId,
+          url: settings.ollamaUrl,
+        };
+      } else {
+        // WebLLM
+        if (!engines[modelId]) {
+          $('loadingText').textContent = `Loading ${modelId}...`;
+          engines[modelId] = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (info) => {
+              $('loadingText').textContent = info.text || 'Loading...';
+            },
+          });
+        }
+        return { type: 'webllm', engine: engines[modelId] };
+      }
+    };
+
+    const llmComplete = async (modelSpec, messages, options = {}) => {
+      const eng = await getEngine(modelSpec);
+
+      if (eng.type === 'ollama') {
+        // Use native Ollama API
+        const response = await fetch(`${eng.url}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: eng.model,
+            messages,
+            stream: false,
+            options: {
+              temperature: options.temperature || 0.8,
+              num_predict: options.max_tokens || 40,
+            },
+          }),
+        });
+        const data = await response.json();
+        return data.message?.content || '';
+      } else {
+        const response = await eng.engine.chat.completions.create({
+          messages,
+          temperature: options.temperature || 0.8,
+          max_tokens: options.max_tokens || 40,
+        });
+        return response.choices[0]?.message?.content || '';
+      }
+    };
+
+    const llmStream = async function* (modelSpec, messages, options = {}) {
+      const eng = await getEngine(modelSpec);
+
+      if (eng.type === 'ollama') {
+        // Use native Ollama streaming API
+        const response = await fetch(`${eng.url}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: eng.model,
+            messages,
+            stream: true,
+            options: {
+              temperature: options.temperature || 0.8,
+              num_predict: options.max_tokens || 40,
+            },
+          }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(l => l.trim());
+
+          for (const line of lines) {
+            try {
+              const data = JSON.parse(line);
+              if (data.message?.content) {
+                yield data.message.content;
+              }
+            } catch (e) {}
+          }
+        }
+      } else {
+        const stream = await eng.engine.chat.completions.create({
+          messages,
+          temperature: options.temperature || 0.8,
+          max_tokens: options.max_tokens || 40,
+          stream: true,
+        });
+
+        for await (const chunk of stream) {
+          const token = chunk.choices[0]?.delta?.content || '';
+          if (token) yield token;
+        }
+      }
+    };
+
+    const loadModels = async () => {
+      try {
+        // Preload completion model
+        await getEngine(settings.completionModel);
+        // Optionally preload thinking model too
+        // await getEngine(settings.thinkingModel);
+      } catch (e) {
+        console.error('Failed to load models:', e);
+        $('loadingText').textContent = 'Error: ' + e.message;
+      }
+    };
+
+    // ============================================
+    // INIT
+    // ============================================
+
+    const init = async () => {
+      // Load persisted state and settings
+      loadSettings();
+      loadPersistedState();
+
+      // Create first document if none exist
+      if (Object.keys(state.documents).length === 0) {
+        addDocument('Untitled');
+      }
+
+      // Load current doc content
+      const doc = currentDoc();
+      if (doc && doc.content) {
+        $('editor').innerHTML = doc.content;
+      }
+
+      // Setup event listeners
+      $('editor').addEventListener('input', handleInput);
+      $('editor').addEventListener('keydown', handleKeydown);
+      document.addEventListener('selectionchange', handleSelectionChange);
+      $('newDocBtn').addEventListener('click', handleNewDocument);
+
+      // Settings event listeners
+      $('settingsBtn').addEventListener('click', openSettings);
+      $('settingsCancel').addEventListener('click', closeSettings);
+      $('settingsSave').addEventListener('click', saveSettings);
+      $('settingsOverlay').addEventListener('click', (e) => {
+        if (e.target === $('settingsOverlay')) closeSettings();
+      });
+      $('backendSelect').addEventListener('change', () => {
+        $('ollamaUrlGroup').style.display = $('backendSelect').value === 'ollama' ? 'block' : 'none';
+        autoSelectModelForBackend();
+        updateBackendStatus();
+      });
+      $('ollamaUrl').addEventListener('change', updateBackendStatus);
+
+      // Initial render (shows doc list while model loads)
+      render();
+
+      // Load LLM
+      try {
+        await loadModels();
+
+        $('loading').classList.add('hidden');
+        $('editor').focus();
+        render();
+
+        // Start background generation for existing nodes
+        queueExistingNodes();
+
+      } catch (e) {
+        $('loadingText').textContent = 'Error: ' + e.message;
+        console.error(e);
+      }
+    };
+
+    init();
+  </script>
+</body>
+</html>
