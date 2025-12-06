@@ -175,6 +175,15 @@
       color: #8b7355;
     }
 
+    .annotation-item.insight.streaming {
+      opacity: 0.7;
+      cursor: default;
+    }
+
+    .annotation-item.insight.streaming:hover {
+      background: transparent;
+    }
+
     .annotation-item + .annotation-item {
       border-top: 1px solid #eee;
     }
@@ -184,6 +193,142 @@
       color: #999;
       font-style: italic;
       font-size: 13px;
+    }
+
+    .annotation-actions {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .annotation-action-btn {
+      padding: 6px 12px;
+      border: 1px solid #e0ded8;
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .annotation-action-btn:hover {
+      border-color: #8b7355;
+      color: #8b7355;
+    }
+
+    .reword-input-wrap {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .reword-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #e0ded8;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+    }
+
+    .reword-input:focus {
+      outline: none;
+      border-color: #8b7355;
+    }
+
+    .reword-input::placeholder {
+      color: #aaa;
+    }
+
+    .reword-submit {
+      margin-top: 8px;
+      padding: 6px 12px;
+      background: #8b7355;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .reword-submit:hover {
+      background: #6b5335;
+    }
+
+    .reword-submit:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .reword-preview {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .reword-suggestion {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #333;
+      padding: 10px 12px;
+      background: #f8f7f5;
+      border-radius: 6px;
+      border-left: 3px solid #8b7355;
+      margin-bottom: 10px;
+    }
+
+    .reword-preview-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .reword-accept {
+      padding: 6px 14px;
+      background: #8b7355;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .reword-accept:hover {
+      background: #6b5335;
+    }
+
+    .reword-refine {
+      padding: 6px 14px;
+      background: #fff;
+      border: 1px solid #8b7355;
+      border-radius: 4px;
+      color: #8b7355;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .reword-refine:hover {
+      background: #8b7355;
+      color: #fff;
+    }
+
+    .reword-cancel {
+      padding: 6px 14px;
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      color: #888;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .reword-cancel:hover {
+      border-color: #aaa;
+      color: #666;
     }
 
     /* Settings */
@@ -677,9 +822,9 @@
     const getCacheKey = (docId, nodeId) => `${docId}:${nodeId}`;
 
     const isValidSettings = (settings) => {
-      const [completionBackend] = APP.settings.completionModel.split(':');
-      const [thinkingBackend] = APP.settings.thinkingModel.split(':');
-      return completionBackend === APP.settings.backend && thinkingBackend === APP.settings.backend;
+      const [completionBackend] = settings.completionModel.split(':');
+      const [thinkingBackend] = settings.thinkingModel.split(':');
+      return completionBackend === settings.backend && thinkingBackend === settings.backend;
     };
 
     // ============================================
@@ -1686,6 +1831,10 @@
     };
 
     const handleSelectionChange = () => {
+      // Don't clear if we're interacting with the annotation bubble (e.g., reword input)
+      const activeEl = document.activeElement;
+      if (activeEl?.closest('.annotation-bubble')) return;
+
       // Clear annotations if no selection or typing
       const selected = getSelectedText();
       if (selected.length < 5) {
@@ -1720,9 +1869,31 @@
       // Store context for applying later
       updateState(s => ({ ...s, rewriteContext: { text, range: range.cloneRange() } }));
 
-      // Show loading annotation
+      // Show initial bubble with actions and streaming area
       const container = $('annotations');
-      container.innerHTML = `<div class="annotation-bubble" style="top: ${topOffset}px"><div class="annotation-loading">Pondering...</div></div>`;
+      container.innerHTML = '';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'annotation-bubble';
+      bubble.style.top = `${topOffset}px`;
+
+      // Action buttons (always visible at top)
+      const actions = document.createElement('div');
+      actions.className = 'annotation-actions';
+      const rewordBtn = document.createElement('button');
+      rewordBtn.className = 'annotation-action-btn';
+      rewordBtn.textContent = 'Reword';
+      rewordBtn.addEventListener('click', () => showRewordInput(bubble));
+      actions.appendChild(rewordBtn);
+      bubble.appendChild(actions);
+
+      // Streaming insights area
+      const insightsArea = document.createElement('div');
+      insightsArea.className = 'annotation-insights';
+      insightsArea.innerHTML = '<div class="annotation-loading">Pondering...</div>';
+      bubble.appendChild(insightsArea);
+
+      container.appendChild(bubble);
 
       try {
         // Check if selection changed
@@ -1743,18 +1914,90 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           { role: 'user', content: text },
         ];
 
-        const content = await llmComplete(APP.settings.thinkingModel, messages, {
+        let streamedContent = '';
+        let processedLineCount = 0;
+        let currentStreamingEl = null;
+        let hasStarted = false;
+
+        const createInsightElement = (isStreaming = false) => {
+          const item = document.createElement('div');
+          item.className = 'annotation-item insight' + (isStreaming ? ' streaming' : '');
+          insightsArea.appendChild(item);
+          return item;
+        };
+
+        const addFinalizedInsight = (text) => {
+          const trimmed = text.trim();
+          if (trimmed.length <= 5) return;
+          const item = createInsightElement(false);
+          item.textContent = trimmed;
+          item.addEventListener('click', () => {
+            generateInsightCompletion(trimmed);
+          });
+        };
+
+        for await (const token of llmStream(APP.settings.thinkingModel, messages, {
           temperature: 0.8,
           max_tokens: 150,
-        });
+        })) {
+          if (!APP.rewriteContext || APP.rewriteContext.text !== text) break;
 
-        if (content) {
-          const insights = content.split('\n').filter(line => line.trim().length > 0);
-          renderAnnotations(insights, topOffset);
+          // Clear "Pondering..." on first token
+          if (!hasStarted) {
+            insightsArea.innerHTML = '';
+            hasStarted = true;
+          }
+
+          streamedContent += token;
+
+          // Split into lines
+          const lines = streamedContent.split('\n');
+          const currentLineIndex = lines.length - 1;
+          const currentLine = lines[currentLineIndex];
+
+          // Process any newly completed lines
+          while (processedLineCount < currentLineIndex) {
+            const completedLine = lines[processedLineCount].trim();
+            // Remove current streaming element if it was showing this line
+            if (currentStreamingEl) {
+              currentStreamingEl.remove();
+              currentStreamingEl = null;
+            }
+            // Add as finalized
+            if (completedLine.length > 5) {
+              addFinalizedInsight(completedLine);
+            }
+            processedLineCount++;
+          }
+
+          // Update current streaming line
+          if (currentLine.trim()) {
+            if (!currentStreamingEl) {
+              currentStreamingEl = createInsightElement(true);
+            }
+            currentStreamingEl.textContent = currentLine.trim();
+          } else if (currentStreamingEl) {
+            currentStreamingEl.textContent = '';
+          }
         }
+
+        // Finalize any remaining content
+        if (currentStreamingEl) {
+          const finalText = currentStreamingEl.textContent.trim();
+          currentStreamingEl.remove();
+          if (finalText.length > 5) {
+            addFinalizedInsight(finalText);
+          }
+        }
+
+        // If no insights were generated, show a message
+        if (insightsArea.children.length === 0) {
+          insightsArea.innerHTML = '<div class="annotation-item" style="color: #999; font-style: italic;">No insights generated</div>';
+        }
+
       } catch (e) {
         console.error('Insight error:', e);
-        clearAnnotations();
+        insightsArea.innerHTML = '<div class="annotation-item" style="color: #c55;">Failed to generate insights</div>';
       }
     };
 
@@ -1766,6 +2009,19 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
       bubble.className = 'annotation-bubble';
       bubble.style.top = `${topOffset}px`;
 
+      // Action buttons
+      const actions = document.createElement('div');
+      actions.className = 'annotation-actions';
+
+      const rewordBtn = document.createElement('button');
+      rewordBtn.className = 'annotation-action-btn';
+      rewordBtn.textContent = 'Reword';
+      rewordBtn.addEventListener('click', () => showRewordInput(bubble, topOffset));
+      actions.appendChild(rewordBtn);
+
+      bubble.appendChild(actions);
+
+      // Insights
       insights.forEach((insight) => {
         const item = document.createElement('div');
         item.className = 'annotation-item insight';
@@ -1777,6 +2033,196 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
       });
 
       container.appendChild(bubble);
+    };
+
+    const showRewordInput = (bubble, placeholder = 'How should it be reworded? (e.g., "make it more casual")') => {
+      // Remove existing reword input if any
+      bubble.querySelector('.reword-input-wrap')?.remove();
+      bubble.querySelector('.reword-preview')?.remove();
+
+      const wrap = document.createElement('div');
+      wrap.className = 'reword-input-wrap';
+
+      const input = document.createElement('textarea');
+      input.className = 'reword-input';
+      input.placeholder = placeholder;
+      input.rows = 2;
+
+      const submit = document.createElement('button');
+      submit.className = 'reword-submit';
+      submit.textContent = 'Reword';
+
+      submit.addEventListener('click', () => {
+        if (input.value.trim()) {
+          applyReword(input.value.trim(), bubble);
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (input.value.trim()) {
+            applyReword(input.value.trim(), bubble);
+          }
+        }
+      });
+
+      wrap.appendChild(input);
+      wrap.appendChild(submit);
+
+      // Insert after actions
+      const actions = bubble.querySelector('.annotation-actions');
+      actions.after(wrap);
+
+      input.focus();
+    };
+
+    const applyReword = async (instruction, bubble) => {
+      const context = APP.rewriteContext;
+      if (!context) return;
+
+      const selectedText = context.text;
+
+      // Store instruction history for refinements
+      if (!context.instructions) {
+        updateState(s => ({
+          ...s,
+          rewriteContext: { ...s.rewriteContext, instructions: [instruction] },
+        }));
+      } else {
+        updateState(s => ({
+          ...s,
+          rewriteContext: {
+            ...s.rewriteContext,
+            instructions: [...s.rewriteContext.instructions, instruction]
+          },
+        }));
+      }
+
+      // Show loading state in bubble
+      showRewordLoading(bubble);
+
+      try {
+        const allInstructions = APP.rewriteContext.instructions || [instruction];
+        const instructionContext = allInstructions.length > 1
+          ? `Previous instructions: ${allInstructions.slice(0, -1).join(' → ')}\nLatest instruction: ${allInstructions[allInstructions.length - 1]}`
+          : `Instruction: ${instruction}`;
+
+        const messages = [
+          {
+            role: 'system',
+            content: 'You are a writing assistant. Reword the given text according to the user\'s instruction. Output ONLY the reworded text - no quotes, no explanation, no preamble. Preserve the original meaning but apply the requested style change.',
+          },
+          {
+            role: 'user',
+            content: `Original text: "${selectedText}"\n\n${instructionContext}\n\nReworded text:`,
+          },
+        ];
+
+        const reworded = await llmComplete(APP.settings.thinkingModel, messages, {
+          temperature: 0.7,
+          max_tokens: 200,
+        });
+
+        if (reworded) {
+          // Clean up the result
+          const cleaned = reworded.trim().replace(/^["']|["']$/g, '');
+
+          // Show preview in bubble instead of applying directly
+          showRewordPreview(bubble, selectedText, cleaned);
+        }
+      } catch (e) {
+        console.error('Reword error:', e);
+        showRewordError(bubble);
+      }
+    };
+
+    const showRewordLoading = (bubble) => {
+      const wrap = bubble.querySelector('.reword-input-wrap');
+      if (wrap) {
+        wrap.innerHTML = '<div class="annotation-loading">Thinking...</div>';
+      }
+    };
+
+    const showRewordError = (bubble) => {
+      const wrap = bubble.querySelector('.reword-input-wrap');
+      if (wrap) {
+        wrap.innerHTML = '<div class="annotation-item" style="color: #c55;">Something went wrong. Try again.</div>';
+        setTimeout(() => showRewordInput(bubble), 2000);
+      }
+    };
+
+    const showRewordPreview = (bubble, original, reworded) => {
+      // Remove existing preview/input
+      bubble.querySelector('.reword-input-wrap')?.remove();
+      bubble.querySelector('.reword-preview')?.remove();
+
+      const preview = document.createElement('div');
+      preview.className = 'reword-preview';
+
+      // Show the suggestion
+      const suggestion = document.createElement('div');
+      suggestion.className = 'reword-suggestion';
+      suggestion.textContent = reworded;
+      preview.appendChild(suggestion);
+
+      // Action buttons
+      const actions = document.createElement('div');
+      actions.className = 'reword-preview-actions';
+
+      const acceptBtn = document.createElement('button');
+      acceptBtn.className = 'reword-accept';
+      acceptBtn.textContent = 'Accept';
+      acceptBtn.addEventListener('click', () => {
+        acceptReword(reworded);
+      });
+
+      const refineBtn = document.createElement('button');
+      refineBtn.className = 'reword-refine';
+      refineBtn.textContent = 'Refine';
+      refineBtn.addEventListener('click', () => {
+        preview.remove();
+        showRewordInput(bubble, 'Refine further...');
+      });
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'reword-cancel';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.addEventListener('click', () => {
+        clearAnnotations();
+      });
+
+      actions.appendChild(acceptBtn);
+      actions.appendChild(refineBtn);
+      actions.appendChild(cancelBtn);
+      preview.appendChild(actions);
+
+      // Insert after actions bar
+      const actionsBar = bubble.querySelector('.annotation-actions');
+      actionsBar.after(preview);
+    };
+
+    const acceptReword = (rewordedText) => {
+      const context = APP.rewriteContext;
+      if (!context) return;
+
+      // Save to history before changing
+      saveToHistory(getEditorContent(), 'before-reword');
+
+      // Apply the rewrite
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(context.range);
+      document.execCommand('insertText', false, rewordedText);
+
+      // Save after
+      const content = getEditorContent();
+      updateDocContent(content);
+      persistState();
+      saveToHistory(content, 'reword');
+
+      clearAnnotations();
+      render();
     };
 
     const generateInsightCompletion = async (insight) => {
