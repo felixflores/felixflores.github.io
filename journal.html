@@ -612,80 +612,133 @@
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
     // ============================================
-    // STATE
+    // CONSTANTS
     // ============================================
 
-    const createNewDocument = (id, name) => ({
-      id,
-      name,
-      content: '',
-      history: { nodes: {}, currentId: null, nextId: 1 },
-      createdAt: Date.now(),
-    });
+    const MAX_CACHE_SIZE = 50;
+    const SUGGESTIONS_PER_NODE = 3;
+    const DEBOUNCE_MS = 300;
+    const HISTORY_SAVE_MS = 2000;
 
-    const createInitialState = () => ({
-      documents: {},
-      currentDocId: null,
-      nextDocId: 1,
-      suggestion: null,
-      isGenerating: false,
-    });
-
-    const defaultSettings = {
+    const DEFAULT_SETTINGS = Object.freeze({
       backend: 'webllm',
       ollamaUrl: 'http://localhost:11434',
       completionModel: 'webllm:SmolLM2-1.7B-Instruct-q4f16_1-MLC',
       thinkingModel: 'webllm:gemma-2-2b-it-q4f16_1-MLC',
+    });
+
+    // ============================================
+    // STATE - Single source of truth
+    // ============================================
+
+    const createDocument = (id, name) => Object.freeze({
+      id,
+      name,
+      content: '',
+      history: Object.freeze({ nodes: {}, currentId: null, nextId: 1 }),
+      createdAt: Date.now(),
+    });
+
+    const createAppState = () => ({
+      // Persisted
+      documents: {},
+      currentDocId: null,
+      nextDocId: 1,
+      settings: { ...DEFAULT_SETTINGS },
+
+      // Ephemeral (not persisted)
+      suggestion: null,
+      isGenerating: false,
+      rewriteContext: null,
+      suggestionCache: {},  // { [key]: { suggestions: [], status: 'pending'|'generating'|'ready' } }
+      generationQueue: [],
+      isProcessingQueue: false,
+    });
+
+    // Single mutable reference - all updates go through updateState
+    let APP = createAppState();
+
+    // Timers (kept separate as they're not serializable)
+    const timers = {
+      debounce: null,
+      historySave: null,
+      selection: null,
     };
 
-    let state = createInitialState();
-    let settings = { ...defaultSettings };
-    let engines = {}; // Cache loaded WebLLM engines by model
-    let debounceTimer = null;
-
-    // Helper to get current document
-    const currentDoc = () => state.documents[state.currentDocId];
-    const currentHistory = () => currentDoc()?.history || { nodes: {}, currentId: null, nextId: 1 };
+    // WebLLM engine cache (not part of state - external resource)
+    const engineCache = {};
 
     // ============================================
-    // SUGGESTION CACHE (in-memory only)
+    // STATE SELECTORS (pure functions)
     // ============================================
 
-    const suggestionCache = new Map(); // "docId:nodeId" -> { suggestions: string[], status: 'pending'|'generating'|'ready' }
-    const generationQueue = [];
-    let isProcessingQueue = false;
-    const MAX_CACHE_SIZE = 50;
-    const SUGGESTIONS_PER_NODE = 3;
-
+    const getCurrentDoc = (state) => state.documents[state.currentDocId] || null;
+    const getCurrentHistory = (state) => getCurrentDoc(state)?.history || { nodes: {}, currentId: null, nextId: 1 };
     const getCacheKey = (docId, nodeId) => `${docId}:${nodeId}`;
+
+    const isValidSettings = (settings) => {
+      const [completionBackend] = APP.settings.completionModel.split(':');
+      const [thinkingBackend] = APP.settings.thinkingModel.split(':');
+      return completionBackend === APP.settings.backend && thinkingBackend === APP.settings.backend;
+    };
+
+    // ============================================
+    // STATE UPDATERS (immutable)
+    // ============================================
+
+    const updateState = (updater) => {
+      APP = updater(APP);
+    };
+
+    const updateCache = (key, updates) => {
+      updateState(s => ({
+        ...s,
+        suggestionCache: {
+          ...s.suggestionCache,
+          [key]: { ...s.suggestionCache[key], ...updates },
+        },
+      }));
+    };
+
+    const deleteFromCache = (key) => {
+      updateState(s => {
+        const { [key]: _, ...rest } = s.suggestionCache;
+        return { ...s, suggestionCache: rest };
+      });
+    };
+
+    // ============================================
+    // SUGGESTION CACHE (uses state immutably)
+    // ============================================
 
     const getCachedSuggestions = (docId, nodeId) => {
       const key = getCacheKey(docId, nodeId);
-      return suggestionCache.get(key);
+      return APP.suggestionCache[key];
     };
 
     const queueSuggestionGeneration = (docId, nodeId, content, priority = false) => {
       if (!content || content.length < 10) return;
 
       const key = getCacheKey(docId, nodeId);
-      if (suggestionCache.has(key)) return; // Already cached or generating
+      if (APP.suggestionCache[key]) return; // Already cached or generating
 
-      suggestionCache.set(key, { suggestions: [], status: 'pending' });
-
-      const task = { docId, nodeId, content, key };
-      if (priority) {
-        generationQueue.unshift(task);
-      } else {
-        generationQueue.push(task);
-      }
+      updateState(s => ({
+        ...s,
+        suggestionCache: {
+          ...s.suggestionCache,
+          [key]: { suggestions: [], status: 'pending' },
+        },
+        generationQueue: priority
+          ? [{ docId, nodeId, content, key }, ...s.generationQueue]
+          : [...s.generationQueue, { docId, nodeId, content, key }],
+      }));
 
       scheduleQueueProcessing();
     };
 
     const scheduleQueueProcessing = () => {
-      if (isProcessingQueue || generationQueue.length === 0) return;
+      if (APP.isProcessingQueue || APP.generationQueue.length === 0) return;
 
-      // Use requestIdleCallback for background processing
       if ('requestIdleCallback' in window) {
         requestIdleCallback(() => processQueue(), { timeout: 2000 });
       } else {
@@ -694,52 +747,49 @@
     };
 
     const processQueue = async () => {
-      if (isProcessingQueue || generationQueue.length === 0) return;
+      if (APP.isProcessingQueue || APP.generationQueue.length === 0) return;
 
-      isProcessingQueue = true;
+      updateState(s => ({ ...s, isProcessingQueue: true }));
 
-      while (generationQueue.length > 0) {
-        const task = generationQueue.shift();
-        const cached = suggestionCache.get(task.key);
+      while (APP.generationQueue.length > 0) {
+        // Dequeue task
+        const task = APP.generationQueue[0];
+        updateState(s => ({ ...s, generationQueue: s.generationQueue.slice(1) }));
 
+        const cached = APP.suggestionCache[task.key];
         if (!cached || cached.status !== 'pending') continue;
 
-        cached.status = 'generating';
-        renderTree(); // Update visual indicator
+        updateCache(task.key, { status: 'generating' });
+        renderTree();
 
         try {
-          // Generate suggestions one at a time
+          const suggestions = [];
           for (let i = 0; i < SUGGESTIONS_PER_NODE; i++) {
-            if (!suggestionCache.has(task.key)) break; // Cache was cleared
+            if (!APP.suggestionCache[task.key]) break;
 
             const suggestion = await generateSingleSuggestion(task.content, i);
-            if (suggestion) {
-              cached.suggestions.push(suggestion);
-            }
+            if (suggestion) suggestions.push(suggestion);
 
-            // Yield to main thread between generations
             await new Promise(r => setTimeout(r, 10));
           }
 
-          cached.status = 'ready';
-          renderTree(); // Update visual indicator
+          updateCache(task.key, { suggestions, status: 'ready' });
+          renderTree();
         } catch (e) {
           console.error('Background generation error:', e);
-          suggestionCache.delete(task.key);
+          deleteFromCache(task.key);
         }
 
-        // Trim cache if too large
         trimCache();
       }
 
-      isProcessingQueue = false;
+      updateState(s => ({ ...s, isProcessingQueue: false }));
     };
 
     const generateSingleSuggestion = async (content, index) => {
-      // Skip if model backend doesn't match current settings backend
-      const [modelBackend] = settings.completionModel.split(':');
-      if (modelBackend !== settings.backend) {
-        console.warn(`Skipping generation: model backend (${modelBackend}) doesn't match settings backend (${settings.backend})`);
+      // Skip if settings are invalid
+      if (!isValidSettings(APP.settings)) {
+        console.warn('Skipping generation: invalid settings');
         return null;
       }
 
@@ -755,7 +805,7 @@
           },
         ];
 
-        let result = await llmComplete(settings.completionModel, messages, {
+        let result = await llmComplete(APP.settings.completionModel, messages, {
           temperature: 0.7 + (index * 0.15),
           max_tokens: 40,
         });
@@ -777,67 +827,68 @@
     };
 
     const trimCache = () => {
-      if (suggestionCache.size <= MAX_CACHE_SIZE) return;
+      const keys = Object.keys(APP.suggestionCache);
+      if (keys.length <= MAX_CACHE_SIZE) return;
 
-      // Remove oldest entries (Map maintains insertion order)
-      const keysToDelete = [];
-      let count = 0;
-      const deleteCount = suggestionCache.size - MAX_CACHE_SIZE;
-
-      for (const key of suggestionCache.keys()) {
-        if (count >= deleteCount) break;
-        keysToDelete.push(key);
-        count++;
-      }
-
-      keysToDelete.forEach(k => suggestionCache.delete(k));
+      // Remove oldest entries
+      const keysToDelete = keys.slice(0, keys.length - MAX_CACHE_SIZE);
+      updateState(s => {
+        const newCache = { ...s.suggestionCache };
+        keysToDelete.forEach(k => delete newCache[k]);
+        return { ...s, suggestionCache: newCache };
+      });
     };
 
     const clearCacheForDoc = (docId) => {
-      for (const key of suggestionCache.keys()) {
-        if (key.startsWith(`${docId}:`)) {
-          suggestionCache.delete(key);
-        }
-      }
+      updateState(s => {
+        const newCache = {};
+        Object.entries(s.suggestionCache).forEach(([key, value]) => {
+          if (!key.startsWith(`${docId}:`)) {
+            newCache[key] = value;
+          }
+        });
+        return { ...s, suggestionCache: newCache };
+      });
     };
 
     const prioritizeCurrentNode = () => {
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return;
 
       const { currentId } = doc.history;
       const node = doc.history.nodes[currentId];
       if (!node) return;
 
-      // Move current node to front of queue if pending
       const key = getCacheKey(doc.id, currentId);
-      const idx = generationQueue.findIndex(t => t.key === key);
+
+      // Move current node to front of queue if pending
+      const idx = APP.generationQueue.findIndex(t => t.key === key);
       if (idx > 0) {
-        const [task] = generationQueue.splice(idx, 1);
-        generationQueue.unshift(task);
+        updateState(s => {
+          const queue = [...s.generationQueue];
+          const [task] = queue.splice(idx, 1);
+          return { ...s, generationQueue: [task, ...queue] };
+        });
       }
 
       // Queue if not already queued (use plain text)
-      if (!suggestionCache.has(key)) {
+      if (!APP.suggestionCache[key]) {
         const plainText = normalizeForComparison(node.content);
         queueSuggestionGeneration(doc.id, currentId, plainText, true);
       }
     };
 
     const queueExistingNodes = () => {
-      // Queue current node first (priority)
       prioritizeCurrentNode();
 
-      // Then queue other recent nodes from current doc
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return;
 
-      const nodes = Object.values(doc.history.nodes);
-      // Sort by timestamp descending (most recent first)
-      nodes.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      const nodes = Object.values(doc.history.nodes)
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        .slice(0, 10);
 
-      // Queue up to 10 most recent nodes (use plain text)
-      nodes.slice(0, 10).forEach(node => {
+      nodes.forEach(node => {
         if (node.content && node.content.length >= 10) {
           const plainText = normalizeForComparison(node.content);
           queueSuggestionGeneration(doc.id, node.id, plainText, false);
@@ -846,48 +897,50 @@
     };
 
     // ============================================
-    // PURE STATE UPDATES
+    // SUGGESTION STATE UPDATES
     // ============================================
 
     const startSuggestion = (mode, original = '') => {
-      state = {
-        ...state,
+      updateState(s => ({
+        ...s,
         suggestion: { mode, branches: [''], selected: 0, original },
         isGenerating: true,
-      };
+      }));
     };
 
     const appendToSuggestion = (branchIndex, text) => {
-      if (!state.suggestion) return;
-      const branches = [...state.suggestion.branches];
-      branches[branchIndex] = (branches[branchIndex] || '') + text;
-      state = { ...state, suggestion: { ...state.suggestion, branches } };
+      if (!APP.suggestion) return;
+      updateState(s => {
+        const branches = [...s.suggestion.branches];
+        branches[branchIndex] = (branches[branchIndex] || '') + text;
+        return { ...s, suggestion: { ...s.suggestion, branches } };
+      });
     };
 
     const addSuggestionBranch = () => {
-      if (!state.suggestion) return;
-      state = {
-        ...state,
+      if (!APP.suggestion) return;
+      updateState(s => ({
+        ...s,
         suggestion: {
-          ...state.suggestion,
-          branches: [...state.suggestion.branches, ''],
+          ...s.suggestion,
+          branches: [...s.suggestion.branches, ''],
         },
-      };
+      }));
     };
 
     const selectSuggestion = (index) => {
-      if (!state.suggestion) return;
-      const len = state.suggestion.branches.length;
+      if (!APP.suggestion) return;
+      const len = APP.suggestion.branches.length;
       const selected = ((index % len) + len) % len;
-      state = { ...state, suggestion: { ...state.suggestion, selected } };
+      updateState(s => ({ ...s, suggestion: { ...s.suggestion, selected } }));
     };
 
     const clearSuggestion = () => {
-      state = { ...state, suggestion: null, isGenerating: false };
+      updateState(s => ({ ...s, suggestion: null, isGenerating: false }));
     };
 
     const setGenerating = (isGenerating) => {
-      state = { ...state, isGenerating };
+      updateState(s => ({ ...s, isGenerating }));
     };
 
     // ============================================
@@ -895,68 +948,66 @@
     // ============================================
 
     const addDocument = (name) => {
-      const id = state.nextDocId;
-      const doc = createNewDocument(id, name || `Untitled ${id}`);
-      state = {
-        ...state,
-        documents: { ...state.documents, [id]: doc },
+      const id = APP.nextDocId;
+      const doc = createDocument(id, name || `Untitled ${id}`);
+      updateState(s => ({
+        ...s,
+        documents: { ...s.documents, [id]: doc },
         currentDocId: id,
         nextDocId: id + 1,
-      };
+      }));
       persistState();
       return id;
     };
 
     const switchDocument = (docId) => {
-      if (!state.documents[docId]) return;
+      if (!APP.documents[docId]) return;
 
       // Save current doc content first
-      if (state.currentDocId && state.documents[state.currentDocId]) {
+      if (APP.currentDocId && APP.documents[APP.currentDocId]) {
         const content = getEditorContent();
         updateDocContent(content);
       }
 
-      state = { ...state, currentDocId: docId, suggestion: null };
+      updateState(s => ({ ...s, currentDocId: docId, suggestion: null }));
       persistState();
     };
 
     const deleteDocument = (docId) => {
-      const docs = { ...state.documents };
-      delete docs[docId];
-
-      // If deleting current doc, switch to another
-      let newCurrentId = state.currentDocId;
-      if (docId === state.currentDocId) {
-        const remaining = Object.keys(docs);
-        newCurrentId = remaining.length > 0 ? parseInt(remaining[0]) : null;
-      }
-
-      state = { ...state, documents: docs, currentDocId: newCurrentId };
+      updateState(s => {
+        const { [docId]: _, ...docs } = s.documents;
+        let newCurrentId = s.currentDocId;
+        if (docId === s.currentDocId) {
+          const remaining = Object.keys(docs);
+          newCurrentId = remaining.length > 0 ? parseInt(remaining[0]) : null;
+        }
+        return { ...s, documents: docs, currentDocId: newCurrentId };
+      });
       persistState();
     };
 
     const renameDocument = (docId, newName) => {
-      if (!state.documents[docId]) return;
-      state = {
-        ...state,
+      if (!APP.documents[docId]) return;
+      updateState(s => ({
+        ...s,
         documents: {
-          ...state.documents,
-          [docId]: { ...state.documents[docId], name: newName },
+          ...s.documents,
+          [docId]: { ...s.documents[docId], name: newName },
         },
-      };
+      }));
       persistState();
     };
 
     const updateDocContent = (content) => {
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return;
-      state = {
-        ...state,
+      updateState(s => ({
+        ...s,
         documents: {
-          ...state.documents,
-          [doc.id]: { ...doc, content },
+          ...s.documents,
+          [doc.id]: { ...s.documents[doc.id], content },
         },
-      };
+      }));
     };
 
     // ============================================
@@ -971,12 +1022,12 @@
     };
 
     const saveToHistory = (content, label = 'edit') => {
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return;
 
       const { nodes, currentId, nextId } = doc.history;
 
-      // Don't save if semantically the same (normalized comparison)
+      // Don't save if semantically the same
       if (currentId && nodes[currentId]) {
         const currentNorm = normalizeForComparison(nodes[currentId].content);
         const newNorm = normalizeForComparison(content);
@@ -994,7 +1045,6 @@
 
       const newNodes = { ...nodes, [nextId]: newNode };
 
-      // Add to parent's children
       if (currentId && newNodes[currentId]) {
         newNodes[currentId] = {
           ...newNodes[currentId],
@@ -1004,15 +1054,15 @@
 
       const newHistory = { nodes: newNodes, currentId: nextId, nextId: nextId + 1 };
 
-      state = {
-        ...state,
+      updateState(s => ({
+        ...s,
         documents: {
-          ...state.documents,
+          ...s.documents,
           [doc.id]: { ...doc, history: newHistory, content },
         },
-      };
+      }));
 
-      // Queue background suggestion generation for this version (use plain text)
+      // Queue background suggestion generation
       const plainText = normalizeForComparison(content);
       queueSuggestionGeneration(doc.id, nextId, plainText, true);
 
@@ -1020,48 +1070,46 @@
     };
 
     const undo = () => {
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return null;
 
       const { nodes, currentId } = doc.history;
       const current = nodes[currentId];
       if (current?.parent && nodes[current.parent]) {
-        const newHistory = { ...doc.history, currentId: current.parent };
-        state = {
-          ...state,
+        updateState(s => ({
+          ...s,
           documents: {
-            ...state.documents,
-            [doc.id]: { ...doc, history: newHistory },
+            ...s.documents,
+            [doc.id]: { ...doc, history: { ...doc.history, currentId: current.parent } },
           },
-        };
+        }));
         return nodes[current.parent].content;
       }
       return null;
     };
 
     const redo = () => {
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return null;
 
       const { nodes, currentId } = doc.history;
       const current = nodes[currentId];
       if (current?.children.length > 0) {
         const childId = current.children[current.children.length - 1];
-        const newHistory = { ...doc.history, currentId: childId };
-        state = {
-          ...state,
+        updateState(s => ({
+          ...s,
           documents: {
-            ...state.documents,
-            [doc.id]: { ...doc, history: newHistory },
+            ...s.documents,
+            [doc.id]: { ...doc, history: { ...doc.history, currentId: childId } },
           },
-        };
+        }));
         return nodes[childId].content;
       }
       return null;
     };
 
     const switchBranch = (delta) => {
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return null;
 
       const { nodes, currentId } = doc.history;
@@ -1075,21 +1123,20 @@
 
       if (newIndex >= 0 && newIndex < siblings.length) {
         const siblingId = siblings[newIndex];
-        const newHistory = { ...doc.history, currentId: siblingId };
-        state = {
-          ...state,
+        updateState(s => ({
+          ...s,
           documents: {
-            ...state.documents,
-            [doc.id]: { ...doc, history: newHistory },
+            ...s.documents,
+            [doc.id]: { ...doc, history: { ...doc.history, currentId: siblingId } },
           },
-        };
+        }));
         return nodes[siblingId].content;
       }
       return null;
     };
 
     const getHistoryInfo = () => {
-      const history = currentHistory();
+      const history = getCurrentHistory(APP);
       const { nodes, currentId } = history;
       if (!currentId) return '';
 
@@ -1116,38 +1163,31 @@
 
     const persistState = () => {
       localStorage.setItem('journal-state', JSON.stringify({
-        documents: state.documents,
-        currentDocId: state.currentDocId,
-        nextDocId: state.nextDocId,
+        documents: APP.documents,
+        currentDocId: APP.currentDocId,
+        nextDocId: APP.nextDocId,
       }));
     };
 
     const persistSettings = () => {
-      localStorage.setItem('journal-settings', JSON.stringify(settings));
+      localStorage.setItem('journal-settings', JSON.stringify(APP.settings));
     };
 
     const loadSettings = () => {
       try {
         const saved = localStorage.getItem('journal-settings');
-        if (saved) {
-          settings = { ...defaultSettings, ...JSON.parse(saved) };
+        let loadedSettings = saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : { ...DEFAULT_SETTINGS };
+
+        // Validate and fix if invalid
+        if (!isValidSettings(loadedSettings)) {
+          console.warn('Invalid settings detected, resetting to defaults');
+          loadedSettings = { ...DEFAULT_SETTINGS };
         }
 
-        // Validate that model backends match settings backend
-        const [completionBackend] = settings.completionModel.split(':');
-        const [thinkingBackend] = settings.thinkingModel.split(':');
-
-        if (completionBackend !== settings.backend) {
-          console.warn(`Completion model backend (${completionBackend}) doesn't match settings backend (${settings.backend}). Resetting to defaults.`);
-          settings.backend = 'webllm';
-          settings.completionModel = defaultSettings.completionModel;
-        }
-        if (thinkingBackend !== settings.backend) {
-          console.warn(`Thinking model backend (${thinkingBackend}) doesn't match settings backend (${settings.backend}). Resetting thinking model.`);
-          settings.thinkingModel = defaultSettings.thinkingModel;
-        }
+        updateState(s => ({ ...s, settings: loadedSettings }));
       } catch (e) {
         console.error('Failed to load settings:', e);
+        updateState(s => ({ ...s, settings: { ...DEFAULT_SETTINGS } }));
       }
     };
 
@@ -1156,7 +1196,12 @@
         const saved = localStorage.getItem('journal-state');
         if (saved) {
           const parsed = JSON.parse(saved);
-          state = { ...state, ...parsed };
+          updateState(s => ({
+            ...s,
+            documents: parsed.documents || {},
+            currentDocId: parsed.currentDocId,
+            nextDocId: parsed.nextDocId || 1,
+          }));
         }
 
         // Migrate old format
@@ -1164,18 +1209,23 @@
         const oldHistory = localStorage.getItem('journal-history');
         if (oldContent || oldHistory) {
           const id = addDocument('Imported');
-          if (oldContent) {
-            state.documents[id].content = oldContent;
-          }
-          if (oldHistory) {
-            state.documents[id].history = JSON.parse(oldHistory);
-          }
+          updateState(s => ({
+            ...s,
+            documents: {
+              ...s.documents,
+              [id]: {
+                ...s.documents[id],
+                content: oldContent || '',
+                history: oldHistory ? JSON.parse(oldHistory) : s.documents[id].history,
+              },
+            },
+          }));
           localStorage.removeItem('journal-content');
           localStorage.removeItem('journal-history');
           persistState();
         }
 
-        return currentDoc()?.content || '';
+        return getCurrentDoc(APP)?.content || '';
       } catch (e) {
         console.error('Failed to load state:', e);
         return '';
@@ -1285,7 +1335,7 @@
       $('historyStatus').textContent = getHistoryInfo();
 
       // Generating status
-      $('generatingStatus').innerHTML = state.isGenerating
+      $('generatingStatus').innerHTML = APP.isGenerating
         ? '<span class="dots"><span></span><span></span><span></span></span>'
         : '';
 
@@ -1300,11 +1350,11 @@
       const list = $('docList');
       list.innerHTML = '';
 
-      const docs = Object.values(state.documents).sort((a, b) => b.createdAt - a.createdAt);
+      const docs = Object.values(APP.documents).sort((a, b) => b.createdAt - a.createdAt);
 
       docs.forEach(doc => {
         const li = document.createElement('li');
-        li.className = `doc-item ${doc.id === state.currentDocId ? 'active' : ''}`;
+        li.className = `doc-item ${doc.id === APP.currentDocId ? 'active' : ''}`;
 
         const name = document.createElement('span');
         name.className = 'doc-item-name';
@@ -1325,8 +1375,8 @@
           e.stopPropagation();
           if (confirm(`Delete "${doc.name}"?`)) {
             deleteDocument(doc.id);
-            if (currentDoc()) {
-              setEditorContent(currentDoc().content);
+            if (getCurrentDoc(APP)) {
+              setEditorContent(getCurrentDoc(APP).content);
             } else {
               $('editor').innerHTML = '';
             }
@@ -1338,9 +1388,9 @@
         li.appendChild(del);
 
         li.addEventListener('click', () => {
-          if (doc.id !== state.currentDocId) {
+          if (doc.id !== APP.currentDocId) {
             switchDocument(doc.id);
-            setEditorContent(currentDoc().content);
+            setEditorContent(getCurrentDoc(APP).content);
             render();
           }
         });
@@ -1357,7 +1407,7 @@
       const svg = d3.select('#treeSvg');
       svg.selectAll('*').remove();
 
-      const history = currentHistory();
+      const history = getCurrentHistory(APP);
       const { nodes, currentId } = history;
       const nodeList = Object.values(nodes);
 
@@ -1418,7 +1468,7 @@
           .y(d => d.y + 20));
 
       // Draw nodes
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       const docId = doc?.id;
 
       const nodeGroups = svg.selectAll('.tree-node')
@@ -1452,20 +1502,19 @@
     };
 
     const navigateToNode = (nodeId) => {
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return;
 
       const { nodes } = doc.history;
       if (!nodes[nodeId]) return;
 
-      const newHistory = { ...doc.history, currentId: nodeId };
-      state = {
-        ...state,
+      updateState(s => ({
+        ...s,
         documents: {
-          ...state.documents,
-          [doc.id]: { ...doc, history: newHistory },
+          ...s.documents,
+          [doc.id]: { ...doc, history: { ...doc.history, currentId: nodeId } },
         },
-      };
+      }));
 
       const content = nodes[nodeId].content;
       setEditorContent(content);
@@ -1475,13 +1524,12 @@
       removeGhost();
       render();
 
-      // Prioritize generating suggestions for this node
       prioritizeCurrentNode();
     };
 
     const handleNewDocument = () => {
       // Save current content first
-      if (currentDoc()) {
+      if (getCurrentDoc(APP)) {
         const content = getEditorContent();
         updateDocContent(content);
       }
@@ -1498,13 +1546,13 @@
 
     const complete = async (context) => {
       // Validate model backend matches settings
-      const [modelBackend] = settings.completionModel.split(':');
-      if (modelBackend !== settings.backend) {
+      const [modelBackend] = APP.settings.completionModel.split(':');
+      if (modelBackend !== APP.settings.backend) {
         console.warn('Model backend mismatch, skipping completion');
         return;
       }
 
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (!doc) return;
 
       const { currentId } = doc.history;
@@ -1514,8 +1562,8 @@
         const cached = getCachedSuggestions(doc.id, currentId);
         if (cached && cached.status === 'ready' && cached.suggestions.length > 0) {
           // Use cached suggestions instantly
-          state = {
-            ...state,
+          updateState(s => ({
+            ...s,
             suggestion: {
               mode: 'complete',
               branches: [...cached.suggestions],
@@ -1523,7 +1571,7 @@
               original: '',
             },
             isGenerating: false,
-          };
+          }));
           insertGhost(cached.suggestions[0]);
           render();
           return;
@@ -1547,11 +1595,11 @@
           },
         ];
 
-        for await (const token of llmStream(settings.completionModel, messages, { temperature: 0.8, max_tokens: 40 })) {
-          if (!state.suggestion || state.suggestion.mode !== 'complete') break;
+        for await (const token of llmStream(APP.settings.completionModel, messages, { temperature: 0.8, max_tokens: 40 })) {
+          if (!APP.suggestion || APP.suggestion.mode !== 'complete') break;
           if (token) {
             appendToSuggestion(0, token);
-            updateGhost(state.suggestion.branches[state.suggestion.selected]);
+            updateGhost(APP.suggestion.branches[APP.suggestion.selected]);
           }
         }
 
@@ -1569,10 +1617,10 @@
     };
 
     const generateMoreBranches = async (context, mode) => {
-      if (!state.suggestion || state.suggestion.mode !== mode) return;
+      if (!APP.suggestion || APP.suggestion.mode !== mode) return;
 
       for (let i = 1; i < 3; i++) {
-        if (!state.suggestion || state.suggestion.mode !== mode) break;
+        if (!APP.suggestion || APP.suggestion.mode !== mode) break;
 
         addSuggestionBranch();
         setGenerating(true);
@@ -1590,12 +1638,12 @@
             },
           ];
 
-          for await (const token of llmStream(settings.completionModel, messages, { temperature: 0.8 + (i * 0.15), max_tokens: 40 })) {
-            if (!state.suggestion || state.suggestion.mode !== mode) break;
+          for await (const token of llmStream(APP.settings.completionModel, messages, { temperature: 0.8 + (i * 0.15), max_tokens: 40 })) {
+            if (!APP.suggestion || APP.suggestion.mode !== mode) break;
             if (token) {
               appendToSuggestion(i, token);
-              if (state.suggestion.selected === i) {
-                updateGhost(state.suggestion.branches[i]);
+              if (APP.suggestion.selected === i) {
+                updateGhost(APP.suggestion.branches[i]);
               }
             }
           }
@@ -1622,8 +1670,8 @@
       persistState();
 
       // Debounced completion
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
+      clearTimeout(timers.debounce);
+      timers.debounce = setTimeout(() => {
         const text = getTextBeforeCursor();
         if (text.length >= 10) {
           complete(text);
@@ -1631,8 +1679,8 @@
       }, 300);
 
       // Debounced history save
-      clearTimeout(window.historySaveTimer);
-      window.historySaveTimer = setTimeout(() => {
+      clearTimeout(timers.historySave);
+      timers.historySave = setTimeout(() => {
         saveToHistory(content, 'typing');
       }, 2000);
     };
@@ -1646,10 +1694,10 @@
       }
 
       // Don't interfere with existing suggestion
-      if (state.suggestion) return;
+      if (APP.suggestion) return;
 
-      clearTimeout(window.selectionTimer);
-      window.selectionTimer = setTimeout(() => {
+      clearTimeout(timers.selection);
+      timers.selection = setTimeout(() => {
         const sel = window.getSelection();
         const currentSelected = sel.toString().trim();
         if (currentSelected === selected && currentSelected.length >= 5) {
@@ -1660,19 +1708,17 @@
 
     const clearAnnotations = () => {
       $('annotations').innerHTML = '';
-      state = { ...state, rewriteContext: null };
+      updateState(s => ({ ...s, rewriteContext: null }));
     };
 
     const showRewriteAnnotations = async (text, selection) => {
-
-      // Get position of selection
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       const editorRect = $('editor').getBoundingClientRect();
       const topOffset = rect.top - editorRect.top;
 
       // Store context for applying later
-      state = { ...state, rewriteContext: { text, range: range.cloneRange() } };
+      updateState(s => ({ ...s, rewriteContext: { text, range: range.cloneRange() } }));
 
       // Show loading annotation
       const container = $('annotations');
@@ -1680,7 +1726,7 @@
 
       try {
         // Check if selection changed
-        if (!state.rewriteContext || state.rewriteContext.text !== text) return;
+        if (!APP.rewriteContext || APP.rewriteContext.text !== text) return;
 
         const messages = [
           {
@@ -1697,7 +1743,7 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           { role: 'user', content: text },
         ];
 
-        const content = await llmComplete(settings.thinkingModel, messages, {
+        const content = await llmComplete(APP.settings.thinkingModel, messages, {
           temperature: 0.8,
           max_tokens: 150,
         });
@@ -1770,11 +1816,11 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           },
         ];
 
-        for await (const token of llmStream(settings.completionModel, messages, { temperature: 0.8, max_tokens: 100 })) {
-          if (!state.suggestion || state.suggestion.mode !== 'complete') break;
+        for await (const token of llmStream(APP.settings.completionModel, messages, { temperature: 0.8, max_tokens: 100 })) {
+          if (!APP.suggestion || APP.suggestion.mode !== 'complete') break;
           if (token) {
             appendToSuggestion(0, token);
-            updateGhost(state.suggestion.branches[state.suggestion.selected]);
+            updateGhost(APP.suggestion.branches[APP.suggestion.selected]);
           }
         }
 
@@ -1787,7 +1833,7 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
     };
 
     const applyRewrite = (newText) => {
-      if (!state.rewriteContext) return;
+      if (!APP.rewriteContext) return;
 
       // Save to history before changing
       saveToHistory(getEditorContent(), 'before-rewrite');
@@ -1795,7 +1841,7 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
       // Apply the rewrite
       const sel = window.getSelection();
       sel.removeAllRanges();
-      sel.addRange(state.rewriteContext.range);
+      sel.addRange(APP.rewriteContext.range);
 
       // Insert new text
       document.execCommand('insertText', false, newText);
@@ -1858,34 +1904,34 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
       }
 
       // Suggestion navigation
-      if (state.suggestion && state.suggestion.branches.length > 1) {
+      if (APP.suggestion && APP.suggestion.branches.length > 1) {
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
           e.preventDefault();
-          selectSuggestion(state.suggestion.selected + (e.key === 'ArrowUp' ? -1 : 1));
-          updateGhost(state.suggestion.branches[state.suggestion.selected]);
+          selectSuggestion(APP.suggestion.selected + (e.key === 'ArrowUp' ? -1 : 1));
+          updateGhost(APP.suggestion.branches[APP.suggestion.selected]);
           return;
         }
       }
 
       // Accept suggestion
-      if (e.key === 'Tab' && state.suggestion) {
+      if (e.key === 'Tab' && APP.suggestion) {
         e.preventDefault();
         acceptGhost();
         const content = getEditorContent();
         updateDocContent(content);
         persistState();
-        saveToHistory(content, state.suggestion.mode);
+        saveToHistory(content, APP.suggestion.mode);
         clearSuggestion();
         render();
         return;
       }
 
       // Dismiss suggestion
-      if (e.key === 'Escape' && state.suggestion) {
+      if (e.key === 'Escape' && APP.suggestion) {
         e.preventDefault();
-        if (state.suggestion.mode === 'rewrite') {
+        if (APP.suggestion.mode === 'rewrite') {
           // Restore original text
-          updateGhost(state.suggestion.original);
+          updateGhost(APP.suggestion.original);
           acceptGhost();
         } else {
           removeGhost();
@@ -1902,11 +1948,11 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
 
     const openSettings = () => {
       // Populate current values
-      $('backendSelect').value = settings.backend;
-      $('ollamaUrl').value = settings.ollamaUrl;
-      $('completionModelSelect').value = settings.completionModel;
-      $('thinkingModelSelect').value = settings.thinkingModel;
-      $('ollamaUrlGroup').style.display = settings.backend === 'ollama' ? 'block' : 'none';
+      $('backendSelect').value = APP.settings.backend;
+      $('ollamaUrl').value = APP.settings.ollamaUrl;
+      $('completionModelSelect').value = APP.settings.completionModel;
+      $('thinkingModelSelect').value = APP.settings.thinkingModel;
+      $('ollamaUrlGroup').style.display = APP.settings.backend === 'ollama' ? 'block' : 'none';
 
       updateBackendStatus();
       $('settingsOverlay').classList.add('open');
@@ -1917,10 +1963,15 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
     };
 
     const saveSettings = async () => {
-      settings.backend = $('backendSelect').value;
-      settings.ollamaUrl = $('ollamaUrl').value;
-      settings.completionModel = $('completionModelSelect').value;
-      settings.thinkingModel = $('thinkingModelSelect').value;
+      updateState(s => ({
+        ...s,
+        settings: {
+          backend: $('backendSelect').value,
+          ollamaUrl: $('ollamaUrl').value,
+          completionModel: $('completionModelSelect').value,
+          thinkingModel: $('thinkingModelSelect').value,
+        },
+      }));
 
       persistSettings();
       closeSettings();
@@ -2020,19 +2071,19 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
         return {
           type: 'ollama',
           model: modelId,
-          url: settings.ollamaUrl,
+          url: APP.settings.ollamaUrl,
         };
       } else {
         // WebLLM
-        if (!engines[modelId]) {
+        if (!engineCache[modelId]) {
           $('loadingText').textContent = `Loading ${modelId}...`;
-          engines[modelId] = await webllm.CreateMLCEngine(modelId, {
+          engineCache[modelId] = await webllm.CreateMLCEngine(modelId, {
             initProgressCallback: (info) => {
               $('loadingText').textContent = info.text || 'Loading...';
             },
           });
         }
-        return { type: 'webllm', engine: engines[modelId] };
+        return { type: 'webllm', engine: engineCache[modelId] };
       }
     };
 
@@ -2122,9 +2173,9 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
     const loadModels = async () => {
       try {
         // Preload completion model
-        await getEngine(settings.completionModel);
+        await getEngine(APP.settings.completionModel);
         // Optionally preload thinking model too
-        // await getEngine(settings.thinkingModel);
+        // await getEngine(APP.settings.thinkingModel);
       } catch (e) {
         console.error('Failed to load models:', e);
         $('loadingText').textContent = 'Error: ' + e.message;
@@ -2141,12 +2192,12 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
       loadPersistedState();
 
       // Create first document if none exist
-      if (Object.keys(state.documents).length === 0) {
+      if (Object.keys(APP.documents).length === 0) {
         addDocument('Untitled');
       }
 
       // Load current doc content
-      const doc = currentDoc();
+      const doc = getCurrentDoc(APP);
       if (doc && doc.content) {
         $('editor').innerHTML = doc.content;
       }
