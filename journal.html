@@ -200,6 +200,17 @@
       word-break: break-word;
     }
 
+    .annotation-thinking {
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #aaa;
+      font-style: italic;
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+      border-bottom: 1px solid #eee;
+    }
+
     .annotation-actions {
       display: flex;
       gap: 6px;
@@ -574,6 +585,28 @@
       margin-bottom: 4px;
     }
 
+    .doc-title {
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: background 0.15s;
+      display: inline-block;
+    }
+
+    .doc-title:hover {
+      background: rgba(139, 115, 85, 0.1);
+    }
+
+    .doc-title:focus {
+      outline: none;
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(139, 115, 85, 0.3);
+    }
+
+    .doc-title.generating {
+      color: #999;
+    }
+
     .subtitle {
       color: #888;
       font-size: 13px;
@@ -712,7 +745,7 @@
   <div class="main-panel">
     <div class="container">
       <header>
-        <h1>Branch Journal</h1>
+        <h1 id="docTitle" class="doc-title" contenteditable="false">Untitled</h1>
         <p class="subtitle">Write freely. Tab to accept, Esc to dismiss, ⌘Z to undo.</p>
       </header>
 
@@ -779,6 +812,7 @@
       debounce: null,
       historySave: null,
       selection: null,
+      titleGen: null,
     };
 
     // WebLLM engine cache (not part of state - external resource)
@@ -883,6 +917,9 @@
       updateState(s => ({ ...s, isProcessingQueue: true }));
 
       while (APP.generationQueue.length > 0) {
+        // Capture current generation ID - if cursor completion starts, this will change
+        const bgGenId = completionGenerationId;
+
         // Dequeue task
         const task = APP.generationQueue[0];
         updateState(s => ({ ...s, generationQueue: s.generationQueue.slice(1) }));
@@ -897,14 +934,22 @@
           const suggestions = [];
           for (let i = 0; i < SUGGESTIONS_PER_NODE; i++) {
             if (!APP.suggestionCache[task.key]) break;
+            // Check if cursor completion interrupted us
+            if (bgGenId !== completionGenerationId) break;
 
-            const suggestion = await generateSingleSuggestion(task.content, i);
+            const suggestion = await generateSingleSuggestion(task.content, i, bgGenId);
             if (suggestion) suggestions.push(suggestion);
 
             await new Promise(r => setTimeout(r, 10));
           }
 
-          updateCache(task.key, { suggestions, status: 'ready' });
+          // Only save if we weren't interrupted
+          if (bgGenId === completionGenerationId && suggestions.length > 0) {
+            updateCache(task.key, { suggestions, status: 'ready' });
+          } else if (bgGenId !== completionGenerationId) {
+            // Re-queue the task since we were interrupted
+            updateCache(task.key, { status: 'pending' });
+          }
           renderTree();
         } catch (e) {
           console.error('Background generation error:', e);
@@ -917,8 +962,11 @@
       updateState(s => ({ ...s, isProcessingQueue: false }));
     };
 
-    const generateSingleSuggestion = async (content, index) => {
+    const generateSingleSuggestion = async (content, index, bgGenId) => {
       try {
+        // Check if a cursor completion has taken priority
+        if (bgGenId !== completionGenerationId) return null;
+
         // Use last 1500 chars for context (enough for model to understand flow)
         const contextWindow = content.length > 1500 ? content.slice(-1500) : content;
 
@@ -933,10 +981,15 @@
           },
         ];
 
+        isBackgroundGenerating = true;
         let result = await llmComplete(COMPLETION_MODEL, messages, {
           temperature: 0.7 + (index * 0.15),
           max_tokens: 60,
         });
+        isBackgroundGenerating = false;
+
+        // Check again after generation
+        if (bgGenId !== completionGenerationId) return null;
 
         // Clean up common issues
         if (result) {
@@ -949,6 +1002,7 @@
         }
         return result;
       } catch (e) {
+        isBackgroundGenerating = false;
         console.error('Generation error:', e);
         return null;
       }
@@ -1077,7 +1131,7 @@
 
     const addDocument = (name) => {
       const id = APP.nextDocId;
-      const doc = createDocument(id, name || `Untitled ${id}`);
+      const doc = createDocument(id, name || 'Untitled');
       updateState(s => ({
         ...s,
         documents: { ...s.documents, [id]: doc },
@@ -1438,6 +1492,13 @@
     };
 
     const render = () => {
+      // Document title
+      const doc = getCurrentDoc(APP);
+      const titleEl = $('docTitle');
+      if (doc && titleEl.contentEditable !== 'true') {
+        titleEl.textContent = doc.name || 'Untitled';
+      }
+
       // History status
       $('historyStatus').textContent = getHistoryInfo();
 
@@ -1649,12 +1710,116 @@
     };
 
     // ============================================
+    // TITLE HANDLING
+    // ============================================
+
+    let titleGenerationPending = false;
+
+    const startTitleEdit = () => {
+      const titleEl = $('docTitle');
+      titleEl.contentEditable = 'true';
+      titleEl.focus();
+      // Select all text
+      const range = document.createRange();
+      range.selectNodeContents(titleEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    };
+
+    const finishTitleEdit = () => {
+      const titleEl = $('docTitle');
+      titleEl.contentEditable = 'false';
+      const newName = titleEl.textContent.trim() || 'Untitled';
+
+      const doc = getCurrentDoc(APP);
+      if (doc && doc.name !== newName) {
+        updateState(s => ({
+          ...s,
+          documents: {
+            ...s.documents,
+            [doc.id]: { ...doc, name: newName },
+          },
+        }));
+        persistState();
+        render();
+      }
+    };
+
+    const maybeGenerateTitle = async () => {
+      const doc = getCurrentDoc(APP);
+      if (!doc) return;
+
+      // Only auto-generate if still "Untitled"
+      if (doc.name !== 'Untitled') return;
+
+      // Need at least 100 chars of content
+      const content = getPlainText();
+      if (content.length < 100) return;
+
+      // Don't generate if already pending
+      if (titleGenerationPending) return;
+      titleGenerationPending = true;
+
+      const titleEl = $('docTitle');
+      titleEl.classList.add('generating');
+
+      try {
+        const messages = [
+          {
+            role: 'system',
+            content: 'Generate a short, evocative title (2-5 words) for this piece of writing. Output ONLY the title - no quotes, no explanation, no punctuation at the end.',
+          },
+          {
+            role: 'user',
+            content: content.slice(0, 500),
+          },
+        ];
+
+        const title = await llmComplete(THINKING_MODEL, messages, {
+          temperature: 0.7,
+          max_tokens: 20,
+        });
+
+        // Filter out think tokens and clean up
+        let cleanTitle = title
+          .replace(/<think>[\s\S]*?<\/think>/gi, '')
+          .replace(/<think>[\s\S]*/gi, '')
+          .replace(/^["']|["']$/g, '')
+          .replace(/[.!?]$/, '')
+          .trim();
+
+        // Only update if still Untitled and title is reasonable
+        const currentDoc = getCurrentDoc(APP);
+        if (currentDoc && currentDoc.name === 'Untitled' && cleanTitle && cleanTitle.length > 0 && cleanTitle.length < 50) {
+          updateState(s => ({
+            ...s,
+            documents: {
+              ...s.documents,
+              [currentDoc.id]: { ...currentDoc, name: cleanTitle },
+            },
+          }));
+          persistState();
+          render();
+        }
+      } catch (e) {
+        console.error('Title generation error:', e);
+      } finally {
+        titleEl.classList.remove('generating');
+        titleGenerationPending = false;
+      }
+    };
+
+    // ============================================
     // LLM
     // ============================================
 
     const complete = async (context) => {
       const doc = getCurrentDoc(APP);
       if (!doc) return;
+
+      // Current cursor completion always takes priority - increment ID to cancel stale generations
+      const currentGenId = ++completionGenerationId;
 
       const { currentId } = doc.history;
 
@@ -1679,6 +1844,20 @@
         }
       }
 
+      // Interrupt any ongoing completion generation (background or previous cursor)
+      const [, modelId] = COMPLETION_MODEL.split(':');
+      if (engineCache[modelId]) {
+        try {
+          await engineCache[modelId].interruptGenerate();
+          await new Promise(r => setTimeout(r, 30));
+        } catch (e) {
+          // Ignore interrupt errors
+        }
+      }
+
+      // Check if we're still the current generation after interrupt
+      if (currentGenId !== completionGenerationId) return;
+
       // Fall back to streaming generation
       startSuggestion('complete');
       insertGhost('');
@@ -1699,16 +1878,63 @@
           },
         ];
 
-        for await (const token of llmStream(COMPLETION_MODEL, messages, { temperature: 0.8, max_tokens: 60 })) {
-          if (!APP.suggestion || APP.suggestion.mode !== 'complete') break;
-          if (token) {
-            appendToSuggestion(0, token);
-            updateGhost(APP.suggestion.branches[APP.suggestion.selected]);
+        // Try up to 2 times with timeout
+        let success = false;
+        for (let attempt = 0; attempt < 2 && !success; attempt++) {
+          if (currentGenId !== completionGenerationId) break;
+
+          let hasReceivedToken = false;
+          let timedOut = false;
+
+          // Timeout if no tokens received within 5 seconds
+          const timeoutId = setTimeout(() => {
+            if (!hasReceivedToken && currentGenId === completionGenerationId) {
+              console.warn(`Completion timeout attempt ${attempt + 1}`);
+              timedOut = true;
+            }
+          }, 5000);
+
+          try {
+            for await (const token of llmStream(COMPLETION_MODEL, messages, { temperature: 0.8, max_tokens: 60 })) {
+              if (timedOut) break;
+              hasReceivedToken = true;
+              success = true;
+              // Abort if a newer completion started
+              if (currentGenId !== completionGenerationId) break;
+              if (!APP.suggestion || APP.suggestion.mode !== 'complete') break;
+              if (token) {
+                appendToSuggestion(0, token);
+                updateGhost(APP.suggestion.branches[APP.suggestion.selected]);
+              }
+            }
+          } catch (streamErr) {
+            console.warn(`Stream error attempt ${attempt + 1}:`, streamErr);
+          }
+
+          clearTimeout(timeoutId);
+
+          // If timed out and we'll retry, interrupt engine first
+          if (timedOut && attempt < 1 && currentGenId === completionGenerationId) {
+            try {
+              const [, modelId] = COMPLETION_MODEL.split(':');
+              if (engineCache[modelId]) {
+                await engineCache[modelId].interruptGenerate();
+                await new Promise(r => setTimeout(r, 100));
+              }
+            } catch (e) {}
           }
         }
 
-        // Start additional branches after a delay
-        setTimeout(() => generateMoreBranches(context, 'complete'), 1000);
+        if (!success && currentGenId === completionGenerationId) {
+          console.warn('Completion failed after retries');
+          clearSuggestion();
+          removeGhost();
+        }
+
+        // Start additional branches after a delay (only if still current)
+        if (currentGenId === completionGenerationId) {
+          setTimeout(() => generateMoreBranches(context, 'complete', currentGenId), 1000);
+        }
 
       } catch (e) {
         console.error('Completion error:', e);
@@ -1720,14 +1946,16 @@
       }
     };
 
-    const generateMoreBranches = async (context, mode) => {
+    const generateMoreBranches = async (context, mode, genId) => {
       if (!APP.suggestion || APP.suggestion.mode !== mode) return;
+      if (genId !== completionGenerationId) return;
 
       // Use last 1500 chars for context
       const contextWindow = context.length > 1500 ? context.slice(-1500) : context;
 
       for (let i = 1; i < 3; i++) {
         if (!APP.suggestion || APP.suggestion.mode !== mode) break;
+        if (genId !== completionGenerationId) break;
 
         addSuggestionBranch();
         setGenerating(true);
@@ -1746,6 +1974,7 @@
           ];
 
           for await (const token of llmStream(COMPLETION_MODEL, messages, { temperature: 0.8 + (i * 0.15), max_tokens: 60 })) {
+            if (genId !== completionGenerationId) break;
             if (!APP.suggestion || APP.suggestion.mode !== mode) break;
             if (token) {
               appendToSuggestion(i, token);
@@ -1785,6 +2014,12 @@
         }
       }, 300);
 
+      // Debounced title generation (wait 2s after typing stops)
+      clearTimeout(timers.titleGen);
+      timers.titleGen = setTimeout(() => {
+        maybeGenerateTitle();
+      }, 2000);
+
       // Debounced history save
       clearTimeout(timers.historySave);
       timers.historySave = setTimeout(() => {
@@ -1804,8 +2039,11 @@
         return;
       }
 
-      // Don't interfere with existing suggestion
-      if (APP.suggestion) return;
+      // If user makes a deliberate selection, clear any existing completion suggestion
+      if (APP.suggestion && APP.suggestion.mode === 'complete') {
+        clearSuggestion();
+        removeGhost();
+      }
 
       clearTimeout(timers.selection);
       timers.selection = setTimeout(() => {
@@ -1821,6 +2059,13 @@
       $('annotations').innerHTML = '';
       updateState(s => ({ ...s, rewriteContext: null }));
     };
+
+    // Track insight generation to cancel stale requests
+    let insightGenerationId = 0;
+
+    // Track completion generation - current cursor always takes priority
+    let completionGenerationId = 0;
+    let isBackgroundGenerating = false;
 
     const getSelectionContext = (selection, windowSize = 300) => {
       const range = selection.getRangeAt(0);
@@ -1853,6 +2098,9 @@
     };
 
     const showRewriteAnnotations = async (text, selection) => {
+      // Increment generation ID to cancel any previous pending generation
+      const currentGenId = ++insightGenerationId;
+
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       const editorRect = $('editor').getBoundingClientRect();
@@ -1891,12 +2139,22 @@
       container.appendChild(bubble);
 
       try {
-        // Check if selection changed
-        if (!APP.rewriteContext || APP.rewriteContext.text !== text) return;
+        // Check if this generation is still current
+        if (currentGenId !== insightGenerationId) return;
 
         // Check if model needs to load - show loading status
         const [, modelId] = THINKING_MODEL.split(':');
-        if (!engineCache[modelId]) {
+
+        // Interrupt any ongoing generation on this engine
+        if (engineCache[modelId]) {
+          try {
+            await engineCache[modelId].interruptGenerate();
+            // Small delay to let the engine reset
+            await new Promise(r => setTimeout(r, 50));
+          } catch (e) {
+            // Ignore interrupt errors
+          }
+        } else {
           insightsArea.innerHTML = '<div class="annotation-loading model-loading-status">Loading DeepSeek R1...</div>';
         }
 
@@ -1911,23 +2169,14 @@ ${suffix ? `[After]: ${suffix}` : ''}`
         const messages = [
           {
             role: 'system',
-            content: `You are a thoughtful thinking partner helping a writer refine their work. You'll be given a selected passage along with surrounding context. Generate 2-3 probing questions or insights about the SELECTED TEXT to help the writer think more deeply. Use the surrounding context to understand the flow, but focus your questions on the selected portion.
-
-Focus on:
-- Assumptions that might be worth examining
-- Perspectives not yet considered
-- Implications or consequences
-- Clarity of reasoning
-- What's left unsaid
-
-Format: One question or insight per line. Be concise but thought-provoking. No numbering or bullets.`
+            content: `Generate exactly 3 thought-provoking questions about the given text. Output each question on its own line. No numbers, no bullets, no formatting. Under 12 words each.`
           },
           { role: 'user', content: contextBlock },
         ];
 
         let fullResponse = '';
         let hasStarted = false;
-        let thinkingIndicator = null;
+        let thinkingEl = null;
         let inThinkBlock = false;
         let currentStreamingEl = null;
         let processedContent = '';
@@ -1939,8 +2188,30 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           return item;
         };
 
+        const updateThinkingDisplay = (thinkContent) => {
+          if (!thinkingEl) {
+            thinkingEl = document.createElement('div');
+            thinkingEl.className = 'annotation-thinking';
+            insightsArea.appendChild(thinkingEl);
+          }
+          // Show last ~200 chars of thinking, clean up tags
+          const cleaned = thinkContent
+            .replace(/<think>/gi, '')
+            .replace(/<\/think>/gi, '')
+            .trim();
+          const display = cleaned.length > 200 ? '...' + cleaned.slice(-200) : cleaned;
+          thinkingEl.textContent = display;
+          thinkingEl.scrollTop = thinkingEl.scrollHeight;
+        };
+
         const addFinalizedInsight = (text) => {
-          const trimmed = text.trim();
+          let trimmed = text.trim();
+          // Strip leading numbers, bullets, markdown
+          trimmed = trimmed
+            .replace(/^\d+\.\s*/, '')        // "1. "
+            .replace(/^[-•*]\s*/, '')         // "- " or "• "
+            .replace(/\*\*/g, '')             // **bold**
+            .trim();
           if (trimmed.length <= 5) return null;
           const item = createInsightElement(false);
           item.textContent = trimmed;
@@ -1954,7 +2225,8 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           temperature: 0.8,
           max_tokens: 500,
         })) {
-          if (!APP.rewriteContext || APP.rewriteContext.text !== text) break;
+          // Abort if a newer generation started
+          if (currentGenId !== insightGenerationId) break;
 
           fullResponse += token;
 
@@ -1969,18 +2241,16 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           inThinkBlock = hasThinkOpen && !hasThinkClose;
 
           if (inThinkBlock) {
-            // Show thinking indicator
-            if (!thinkingIndicator) {
-              thinkingIndicator = document.createElement('div');
-              thinkingIndicator.className = 'annotation-loading';
-              thinkingIndicator.textContent = 'Reasoning...';
-              insightsArea.appendChild(thinkingIndicator);
+            // Extract thinking content and display it
+            const thinkMatch = fullResponse.match(/<think>([\s\S]*)/i);
+            if (thinkMatch) {
+              updateThinkingDisplay(thinkMatch[1]);
             }
           } else {
-            // Remove thinking indicator when done thinking
-            if (thinkingIndicator) {
-              thinkingIndicator.remove();
-              thinkingIndicator = null;
+            // Remove thinking display when done thinking
+            if (thinkingEl) {
+              thinkingEl.remove();
+              thinkingEl = null;
             }
 
             // Extract content after </think>
@@ -2018,7 +2288,12 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
               if (!currentStreamingEl) {
                 currentStreamingEl = createInsightElement(true);
               }
-              currentStreamingEl.textContent = currentLine.trim();
+              // Strip formatting from streaming text too
+              let displayText = currentLine.trim()
+                .replace(/^\d+\.\s*/, '')
+                .replace(/^[-•*]\s*/, '')
+                .replace(/\*\*/g, '');
+              currentStreamingEl.textContent = displayText;
             }
           }
         }
@@ -2032,9 +2307,9 @@ Format: One question or insight per line. Be concise but thought-provoking. No n
           }
         }
 
-        // Clean up thinking indicator if still present
-        if (thinkingIndicator) {
-          thinkingIndicator.remove();
+        // Clean up thinking display if still present
+        if (thinkingEl) {
+          thinkingEl.remove();
         }
 
         // If no insights were generated, show a message
@@ -2581,6 +2856,22 @@ Output ONLY the reworded text. No quotes, no explanation, no preamble.`,
       $('editor').addEventListener('keydown', handleKeydown);
       document.addEventListener('selectionchange', handleSelectionChange);
       $('newDocBtn').addEventListener('click', handleNewDocument);
+
+      // Title event listeners
+      $('docTitle').addEventListener('click', startTitleEdit);
+      $('docTitle').addEventListener('blur', finishTitleEdit);
+      $('docTitle').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          $('docTitle').blur();
+        }
+        if (e.key === 'Escape') {
+          // Restore original name
+          const doc = getCurrentDoc(APP);
+          $('docTitle').textContent = doc?.name || 'Untitled';
+          $('docTitle').blur();
+        }
+      });
 
       // Settings event listeners
       $('settingsBtn').addEventListener('click', openSettings);
