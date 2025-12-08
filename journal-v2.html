@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Branch Journal</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <script type="module" src="https://esm.run/@mlc-ai/web-llm"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Georgia, serif;
+      background: #faf9f7;
+      color: #2c2c2c;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ============================================
+       LEFT PANEL - Documents & History Tree
+       ============================================ */
+
+    .tree-panel {
+      width: 120px;
+      min-width: 120px;
+      background: #f5f4f2;
+      border-right: 1px solid #e0ded8;
+      padding: 20px 10px;
+      overflow-y: auto;
+    }
+
+    .panel-section { margin-bottom: 20px; }
+
+    .panel-section h2 {
+      font-size: 10px;
+      font-weight: normal;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .doc-list { list-style: none; }
+
+    .doc-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .doc-item:hover { background: #eee; }
+    .doc-item.active { background: #8b7355; color: #fff; }
+
+    .doc-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .doc-item-delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: 0 4px;
+      font-size: 14px;
+    }
+
+    .doc-item:hover .doc-item-delete { opacity: 0.5; }
+    .doc-item-delete:hover { opacity: 1 !important; }
+    .doc-item.active .doc-item-delete:hover { color: #ffcccc; }
+
+    .new-doc-btn {
+      display: block;
+      width: 100%;
+      background: none;
+      border: 1px dashed #d0cec8;
+      border-radius: 4px;
+      color: #aaa;
+      font-size: 11px;
+      padding: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .new-doc-btn:hover {
+      background: #fff;
+      border-color: #8b7355;
+      border-style: solid;
+      color: #8b7355;
+    }
+
+    .divider {
+      height: 1px;
+      background: #e0ded8;
+      margin: 15px 0;
+    }
+
+    /* Tree visualization */
+    .tree-svg { width: 100%; }
+
+    .tree-node {
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tree-node circle {
+      fill: #e0ded8;
+      stroke: #ccc;
+      stroke-width: 1.5px;
+      transition: all 0.15s;
+    }
+
+    .tree-node:hover circle { fill: #d0cec8; stroke: #8b7355; }
+    .tree-node.current circle { fill: #8b7355; stroke: #6b5335; }
+    .tree-node.cached circle { stroke: #6a9955; stroke-width: 2px; }
+    .tree-node.computing circle { animation: pulse-computing 1s ease-in-out infinite; }
+
+    @keyframes pulse-computing {
+      0%, 100% { stroke-opacity: 0.3; }
+      50% { stroke-opacity: 1; stroke: #8b7355; }
+    }
+
+    .tree-node text {
+      font-size: 8px;
+      fill: #888;
+      pointer-events: none;
+    }
+
+    .tree-node.current text { fill: #fff; }
+
+    .tree-link {
+      fill: none;
+      stroke: #d0cec8;
+      stroke-width: 1.5px;
+    }
+
+    /* ============================================
+       MAIN PANEL - Editor
+       ============================================ */
+
+    .main-panel {
+      flex: 1;
+      padding: 40px 20px;
+      overflow-y: auto;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+    .editor-wrap { position: relative; }
+
+    header { text-align: center; margin-bottom: 30px; }
+
+    h1 { font-size: 24px; font-weight: normal; margin-bottom: 4px; }
+
+    .doc-title {
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: background 0.15s;
+      display: inline-block;
+    }
+
+    .doc-title:hover { background: rgba(139, 115, 85, 0.1); }
+
+    .doc-title:focus {
+      outline: none;
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(139, 115, 85, 0.3);
+    }
+
+    .doc-title.generating { color: #999; }
+
+    .subtitle {
+      color: #888;
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    .editor {
+      min-height: 400px;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #e0ded8;
+      border-radius: 4px;
+      font-size: 18px;
+      line-height: 1.7;
+      outline: none;
+      white-space: pre-wrap;
+    }
+
+    .editor:empty::before {
+      content: "Start writing...";
+      color: #bbb;
+      font-style: italic;
+    }
+
+    .ghost { color: #aaa; }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #999;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ============================================
+       ANNOTATIONS PANEL - Pondering & Refine
+       ============================================ */
+
+    .annotations {
+      position: absolute;
+      left: 100%;
+      margin-left: 15px;
+      width: 280px;
+      pointer-events: none;
+    }
+
+    .annotation-bubble {
+      position: absolute;
+      left: 0;
+      background: #fff;
+      border: 1px solid #e0ded8;
+      border-radius: 8px;
+      padding: 4px;
+      pointer-events: auto;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      width: 280px;
+    }
+
+    .annotation-bubble::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 16px;
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-left: 1px solid #e0ded8;
+      border-bottom: 1px solid #e0ded8;
+      transform: rotate(45deg);
+    }
+
+    .annotation-actions {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .annotation-action-btn {
+      padding: 6px 12px;
+      border: 1px solid #e0ded8;
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .annotation-action-btn:hover {
+      border-color: #8b7355;
+      color: #8b7355;
+    }
+
+    /* Pondering */
+    .annotation-thinking {
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #aaa;
+      font-style: italic;
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+      border-bottom: 1px solid #eee;
+    }
+
+    .annotation-item {
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #444;
+    }
+
+    .annotation-item.insight {
+      color: #555;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .annotation-item.insight:hover { background: #f5f4f2; }
+    .annotation-item.insight::before { content: '→ '; color: #8b7355; }
+
+    .annotation-item.insight.streaming {
+      opacity: 0.7;
+      cursor: default;
+    }
+
+    .annotation-item.insight.streaming:hover { background: transparent; }
+    .annotation-item + .annotation-item { border-top: 1px solid #eee; }
+
+    .annotation-loading {
+      padding: 12px;
+      color: #999;
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    /* Refine */
+    .refine-input-wrap {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .refine-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #e0ded8;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+    }
+
+    .refine-input:focus { outline: none; border-color: #8b7355; }
+    .refine-input::placeholder { color: #aaa; }
+
+    .refine-submit {
+      margin-top: 8px;
+      padding: 6px 12px;
+      background: #8b7355;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .refine-submit:hover { background: #6b5335; }
+    .refine-submit:disabled { background: #ccc; cursor: not-allowed; }
+
+    .refine-preview {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .refine-suggestion {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #333;
+      padding: 10px 12px;
+      background: #f8f7f5;
+      border-radius: 6px;
+      border-left: 3px solid #8b7355;
+      margin-bottom: 10px;
+    }
+
+    .refine-preview-actions { display: flex; gap: 8px; }
+
+    .refine-accept {
+      padding: 6px 14px;
+      background: #8b7355;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .refine-accept:hover { background: #6b5335; }
+
+    .refine-iterate {
+      padding: 6px 14px;
+      background: #fff;
+      border: 1px solid #8b7355;
+      border-radius: 4px;
+      color: #8b7355;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .refine-iterate:hover { background: #8b7355; color: #fff; }
+
+    .refine-cancel {
+      padding: 6px 14px;
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      color: #888;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .refine-cancel:hover { border-color: #aaa; color: #666; }
+
+    /* ============================================
+       SETTINGS MODAL
+       ============================================ */
+
+    .settings-btn {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: 1px solid #e0ded8;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.15s;
+      z-index: 50;
+    }
+
+    .settings-btn:hover {
+      background: #fff;
+      border-color: #8b7355;
+      color: #8b7355;
+    }
+
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .settings-overlay.open { opacity: 1; pointer-events: auto; }
+
+    .settings-panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      width: 400px;
+      max-width: 90vw;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      transform: translateY(10px);
+      transition: transform 0.2s;
+    }
+
+    .settings-overlay.open .settings-panel { transform: translateY(0); }
+
+    .settings-panel h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .settings-group { margin-bottom: 20px; }
+
+    .settings-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .settings-group small {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: #999;
+    }
+
+    .settings-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+
+    .settings-actions button {
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-secondary {
+      background: none;
+      border: 1px solid #ddd;
+      color: #666;
+    }
+
+    .btn-secondary:hover { background: #f5f5f5; }
+
+    .btn-primary {
+      background: #8b7355;
+      border: none;
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #6b5335; }
+
+    /* ============================================
+       LOADING OVERLAY
+       ============================================ */
+
+    .loading {
+      position: fixed;
+      inset: 0;
+      background: #faf9f7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: opacity 0.3s;
+      z-index: 100;
+    }
+
+    .loading.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 30px;
+      height: 30px;
+      border: 2px solid #e0ded8;
+      border-top-color: #8b7355;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Status dots */
+    .dots { display: inline-flex; gap: 3px; }
+
+    .dots span {
+      width: 4px;
+      height: 4px;
+      background: #8b7355;
+      border-radius: 50%;
+      animation: pulse-dot 1s ease-in-out infinite;
+    }
+
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div id="loadingText">Loading model...</div>
+  </div>
+
+  <!-- Settings Button -->
+  <button class="settings-btn" id="settingsBtn">Settings</button>
+
+  <!-- Settings Modal -->
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-panel">
+      <h2>Settings</h2>
+      <div class="settings-group">
+        <label>Models</label>
+        <small style="color: #666;">
+          <strong>Completion:</strong> Phi 3.5 Mini (3.8B)<br>
+          <strong>Thinking:</strong> DeepSeek R1 8B
+        </small>
+      </div>
+      <div class="settings-group">
+        <label>Storage</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-secondary" id="clearModelsBtn">Clear Model Cache</button>
+          <button class="btn-secondary" id="clearStorageBtn">Clear All Data</button>
+        </div>
+        <small>Model cache ~2GB. Clear to re-download.</small>
+      </div>
+      <div class="settings-actions">
+        <button class="btn-secondary" id="settingsClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Left Panel -->
+  <div class="tree-panel">
+    <div class="panel-section">
+      <h2>Documents</h2>
+      <ul class="doc-list" id="docList"></ul>
+      <button class="new-doc-btn" id="newDocBtn">+ New</button>
+    </div>
+    <div class="divider"></div>
+    <div class="panel-section">
+      <h2>History</h2>
+      <svg id="treeSvg" class="tree-svg"></svg>
+    </div>
+  </div>
+
+  <!-- Main Panel -->
+  <div class="main-panel">
+    <div class="container">
+      <header>
+        <h1 id="docTitle" class="doc-title" contenteditable="false">Untitled</h1>
+        <p class="subtitle">Tab to accept, Esc to dismiss, Cmd+Z to undo</p>
+      </header>
+
+      <div class="editor-wrap">
+        <div class="annotations" id="annotations"></div>
+        <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
+      </div>
+
+      <div class="status">
+        <span id="historyStatus"></span>
+        <span id="generatingStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+    // ============================================
+    // CONSTANTS
+    // ============================================
+
+    const COMPLETION_MODEL = 'webllm:Phi-3.5-mini-instruct-q4f16_1-MLC';
+    const THINKING_MODEL = 'webllm:DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC';
+
+    const DEBOUNCE_COMPLETION_MS = 300;
+    const DEBOUNCE_HISTORY_MS = 2000;
+    const DEBOUNCE_TITLE_MS = 2000;
+    const DEBOUNCE_SELECTION_MS = 600;
+    const COMPLETION_TIMEOUT_MS = 5000;
+    const CONTEXT_WINDOW = 1500;
+    const SELECTION_CONTEXT_WINDOW = 300;
+    const MAX_VERSIONS = 100;
+
+    // ============================================
+    // UTILITIES
+    // ============================================
+
+    const $ = id => document.getElementById(id);
+    const generateId = () => Math.random().toString(36).slice(2, 10);
+
+    const hashContent = (content) => {
+      const normalized = normalizeContent(content);
+      let hash = 0;
+      const str = normalized.slice(-500);
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return 'v' + Math.abs(hash).toString(36);
+    };
+
+    const normalizeContent = (html) => {
+      const div = document.createElement('div');
+      div.innerHTML = html || '';
+      return (div.textContent || '').trim().replace(/\s+/g, ' ');
+    };
+
+    const getPlainText = (html) => {
+      const div = document.createElement('div');
+      div.innerHTML = html || '';
+      div.querySelectorAll('.ghost').forEach(el => el.remove());
+      return (div.textContent || '').trim();
+    };
+
+    // ============================================
+    // INITIAL STATE
+    // ============================================
+
+    const createInitialState = () => ({
+      // Documents (persisted)
+      documents: new Map(),
+      currentDocId: null,
+      nextDocId: 1,
+
+      // Versions (content-addressable completion cache)
+      versions: new Map(),
+
+      // Editor
+      editor: {
+        versionId: null,
+        selection: null,
+      },
+
+      // Completion (simplified - just current version)
+      completion: {
+        status: 'idle', // 'idle' | 'loading' | 'streaming'
+        requestId: null,
+        versionId: null,
+        streamingText: '',
+        selectedBranch: 0,
+      },
+
+      // Pondering
+      pondering: {
+        status: 'idle',
+        requestId: null,
+        selection: null,
+        thinkingText: '',
+        insights: [],
+        streamingInsight: '',
+      },
+
+      // Refine
+      refine: {
+        status: 'idle',
+        requestId: null,
+        selection: null,
+        instructions: [],
+        suggestion: null,
+      },
+
+      // UI
+      ui: {
+        settingsOpen: false,
+        titleEditing: false,
+        titleGenerating: false,
+        modelLoading: null,
+        loadingComplete: false,
+      },
+    });
+
+    // ============================================
+    // PURE HELPERS
+    // ============================================
+
+    const getCurrentDoc = (state) => state.documents.get(state.currentDocId);
+
+    const getOrCreateVersion = (state, content) => {
+      const versionId = hashContent(content);
+      if (state.versions.has(versionId)) {
+        return { state, versionId };
+      }
+      const newVersions = new Map(state.versions);
+      newVersions.set(versionId, {
+        content,
+        versionId,
+        completions: null,
+        createdAt: Date.now(),
+      });
+      return {
+        state: { ...state, versions: newVersions },
+        versionId,
+      };
+    };
+
+    const cleanInsight = (text) => {
+      return text.trim()
+        .replace(/^\d+\.\s*/, '')
+        .replace(/^[-•*]\s*/, '')
+        .replace(/\*\*/g, '')
+        .trim();
+    };
+
+    const filterThinkingTokens = (text) => {
+      return text
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<think>[\s\S]*/gi, '')
+        .replace(/[\s\S]*<\/think>/gi, '')
+        .trim();
+    };
+
+    const cleanCompletionText = (text) => {
+      return text
+        .replace(/^\.{2,}\s*/g, '')  // Remove leading dots (... or ..)
+        .replace(/^…\s*/g, '')        // Remove leading ellipsis character
+        .replace(/^\s+/, '')          // Remove leading whitespace
+        .trim();
+    };
+
+    // ============================================
+    // REDUCER
+    // ============================================
+
+    const reduce = (state, action) => {
+      switch (action.type) {
+        // ----------------------------------------
+        // INITIALIZATION
+        // ----------------------------------------
+        case 'INIT': {
+          let newState = state;
+
+          // Load persisted state
+          if (action.persisted) {
+            const docs = new Map();
+            Object.entries(action.persisted.documents || {}).forEach(([id, doc]) => {
+              docs.set(parseInt(id), doc);
+            });
+            newState = {
+              ...newState,
+              documents: docs,
+              currentDocId: action.persisted.currentDocId,
+              nextDocId: action.persisted.nextDocId || 1,
+            };
+          }
+
+          // Create first document if none exist
+          if (newState.documents.size === 0) {
+            const id = newState.nextDocId;
+            const doc = {
+              id,
+              name: 'Untitled',
+              content: '',
+              history: { nodes: new Map(), currentId: null, nextId: 1 },
+              createdAt: Date.now(),
+            };
+            const docs = new Map(newState.documents);
+            docs.set(id, doc);
+            newState = {
+              ...newState,
+              documents: docs,
+              currentDocId: id,
+              nextDocId: id + 1,
+            };
+          }
+
+          // Set up editor version for current doc
+          const currentDoc = newState.documents.get(newState.currentDocId);
+          if (currentDoc && currentDoc.content) {
+            const { state: s, versionId } = getOrCreateVersion(newState, currentDoc.content);
+            newState = { ...s, editor: { ...s.editor, versionId } };
+          }
+
+          return [newState, [
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+            { type: 'SET_EDITOR_CONTENT', content: currentDoc?.content || '' },
+            { type: 'LLM_PRELOAD', model: COMPLETION_MODEL },
+          ]];
+        }
+
+        case 'MODEL_LOADING': {
+          return [{
+            ...state,
+            ui: { ...state.ui, modelLoading: { model: action.model, progress: action.progress, text: action.text } },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'MODEL_LOADED': {
+          const effects = [];
+          if (action.model === COMPLETION_MODEL.split(':')[1]) {
+            effects.push({ type: 'HIDE_LOADING' });
+            effects.push({ type: 'FOCUS', selector: '#editor' });
+          }
+          return [{
+            ...state,
+            ui: { ...state.ui, modelLoading: null, loadingComplete: true },
+          }, [...effects, { type: 'RENDER' }]];
+        }
+
+        // ----------------------------------------
+        // EDITOR INPUT
+        // ----------------------------------------
+        case 'EDITOR_INPUT': {
+          const doc = getCurrentDoc(state);
+          if (!doc) return [state, []];
+
+          // Update document content
+          const newDocs = new Map(state.documents);
+          newDocs.set(doc.id, { ...doc, content: action.content });
+
+          // Create or get version
+          const { state: stateWithVersion, versionId } = getOrCreateVersion(
+            { ...state, documents: newDocs },
+            action.content
+          );
+          console.log('EDITOR_INPUT:', { contentLength: action.content.length, versionId, versionsSize: stateWithVersion.versions.size });
+
+          // Cancel any in-progress completion for different version
+          const cancelEffects = state.completion.requestId && state.completion.versionId !== versionId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          const newState = {
+            ...stateWithVersion,
+            editor: { ...stateWithVersion.editor, versionId, selection: null },
+            // Reset completion state when content changes
+            completion: {
+              status: 'idle',
+              requestId: null,
+              versionId: null,
+              streamingText: '',
+              selectedBranch: 0,
+            },
+            // Clear pondering/refine on input
+            pondering: { ...stateWithVersion.pondering, status: 'idle', insights: [] },
+            refine: { ...stateWithVersion.refine, status: 'idle' },
+          };
+
+          return [newState, [
+            ...cancelEffects,
+            { type: 'PERSIST' },
+            { type: 'CANCEL_DEBOUNCE', timer: 'completion' },
+            { type: 'CANCEL_DEBOUNCE', timer: 'moreBranches' },
+            { type: 'DEBOUNCE', timer: 'completion', ms: DEBOUNCE_COMPLETION_MS, action: { type: 'REQUEST_COMPLETION' } },
+            { type: 'DEBOUNCE', timer: 'history', ms: DEBOUNCE_HISTORY_MS, action: { type: 'SAVE_HISTORY' } },
+            { type: 'DEBOUNCE', timer: 'title', ms: DEBOUNCE_TITLE_MS, action: { type: 'MAYBE_GENERATE_TITLE' } },
+            { type: 'RENDER' },
+          ]];
+        }
+
+        // ----------------------------------------
+        // COMPLETION (simplified - no queue, just current version)
+        // ----------------------------------------
+        case 'REQUEST_COMPLETION': {
+          const doc = getCurrentDoc(state);
+          const versionId = state.editor.versionId;
+
+          if (!doc || !versionId) return [state, []];
+
+          const version = state.versions.get(versionId);
+          if (!version) return [state, []];
+
+          // If we already have cached completions for this version, show them
+          if (Array.isArray(version.completions) && version.completions.length > 0) {
+            return [{
+              ...state,
+              completion: {
+                ...state.completion,
+                status: 'idle',
+                versionId,
+                selectedBranch: 0,
+              },
+            }, [{ type: 'RENDER' }]];
+          }
+
+          // Check if content is long enough
+          const context = getPlainText(version.content).slice(-CONTEXT_WINDOW);
+          if (context.length < 10) return [state, []];
+
+          // Cancel any existing completion request
+          const cancelEffects = state.completion.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          const requestId = generateId();
+
+          return [{
+            ...state,
+            completion: {
+              status: 'loading',
+              requestId,
+              versionId,
+              streamingText: '',
+              selectedBranch: 0,
+            },
+          }, [
+            ...cancelEffects,
+            { type: 'RENDER' },
+            {
+              type: 'LLM_STREAM',
+              model: COMPLETION_MODEL,
+              messages: [
+                { role: 'system', content: 'Continue the text naturally. Write only the next phrase or sentence. Do not repeat what was given. No quotes or explanation.' },
+                { role: 'user', content: context },
+              ],
+              options: { temperature: 0.8, max_tokens: 50 },
+              requestId,
+              tokenAction: 'COMPLETION_TOKEN',
+              doneAction: 'COMPLETION_DONE',
+              errorAction: 'COMPLETION_ERROR',
+            },
+          ]];
+        }
+
+        case 'COMPLETION_TOKEN': {
+          if (action.requestId !== state.completion.requestId) return [state, []];
+
+          const streamingText = state.completion.streamingText + action.token;
+          return [{
+            ...state,
+            completion: { ...state.completion, status: 'streaming', streamingText },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'COMPLETION_DONE': {
+          if (action.requestId !== state.completion.requestId) return [state, []];
+
+          const versionId = state.completion.versionId;
+          const version = state.versions.get(versionId);
+          if (!version) return [state, []];
+
+          // Store completion in version cache (cleaned of leading ellipsis etc)
+          const completionText = cleanCompletionText(state.completion.streamingText);
+          const completions = completionText ? [{ text: completionText, temperature: 0.8 }] : [];
+
+          const newVersions = new Map(state.versions);
+          newVersions.set(versionId, { ...version, completions });
+
+          // Schedule generation of additional branches
+          const effects = [{ type: 'RENDER' }];
+          if (completionText && state.editor.versionId === versionId) {
+            effects.push({ type: 'DEBOUNCE', timer: 'moreBranches', ms: 500, action: { type: 'GENERATE_MORE_BRANCHES', versionId } });
+          }
+
+          return [{
+            ...state,
+            versions: newVersions,
+            completion: {
+              status: 'idle',
+              requestId: null,
+              versionId,
+              streamingText: '',
+              selectedBranch: 0,
+            },
+          }, effects];
+        }
+
+        case 'GENERATE_MORE_BRANCHES': {
+          // Only generate if still on the same version and we have room for more branches
+          const version = state.versions.get(action.versionId);
+          if (!version || !Array.isArray(version.completions)) return [state, []];
+          if (state.editor.versionId !== action.versionId) return [state, []];
+          if (version.completions.length >= 3) return [state, []];
+
+          const branchIndex = version.completions.length;
+          const requestId = generateId();
+          const context = getPlainText(version.content).slice(-CONTEXT_WINDOW);
+
+          return [{
+            ...state,
+            completion: {
+              status: 'loading',
+              requestId,
+              versionId: action.versionId,
+              streamingText: '',
+              selectedBranch: state.completion.selectedBranch,
+              branchIndex, // Track which branch we're generating
+            },
+          }, [
+            {
+              type: 'LLM_STREAM',
+              model: COMPLETION_MODEL,
+              messages: [
+                { role: 'system', content: 'Continue the text naturally. Write only the next phrase or sentence. Do not repeat what was given. No quotes or explanation.' },
+                { role: 'user', content: context },
+              ],
+              options: { temperature: 0.8 + (branchIndex * 0.15), max_tokens: 50 },
+              requestId,
+              tokenAction: 'BRANCH_TOKEN',
+              doneAction: 'BRANCH_DONE',
+              errorAction: 'BRANCH_ERROR',
+            },
+          ]];
+        }
+
+        case 'BRANCH_TOKEN': {
+          if (action.requestId !== state.completion.requestId) return [state, []];
+          const streamingText = state.completion.streamingText + action.token;
+          return [{
+            ...state,
+            completion: { ...state.completion, status: 'streaming', streamingText },
+          }, []]; // Don't render on every token for background branches
+        }
+
+        case 'BRANCH_DONE': {
+          if (action.requestId !== state.completion.requestId) return [state, []];
+
+          const versionId = state.completion.versionId;
+          const version = state.versions.get(versionId);
+          if (!version || !Array.isArray(version.completions)) return [state, []];
+
+          const branchText = cleanCompletionText(state.completion.streamingText);
+          if (!branchText) {
+            // Try next branch
+            return [{
+              ...state,
+              completion: { ...state.completion, status: 'idle', requestId: null, streamingText: '' },
+            }, [{ type: 'DEBOUNCE', timer: 'moreBranches', ms: 100, action: { type: 'GENERATE_MORE_BRANCHES', versionId } }]];
+          }
+
+          // Add new branch to version's completions
+          const newCompletions = [...version.completions, { text: branchText, temperature: 0.8 + (version.completions.length * 0.15) }];
+          const newVersions = new Map(state.versions);
+          newVersions.set(versionId, { ...version, completions: newCompletions });
+
+          // Schedule next branch if we have room
+          const effects = [{ type: 'RENDER' }];
+          if (newCompletions.length < 3 && state.editor.versionId === versionId) {
+            effects.push({ type: 'DEBOUNCE', timer: 'moreBranches', ms: 300, action: { type: 'GENERATE_MORE_BRANCHES', versionId } });
+          }
+
+          return [{
+            ...state,
+            versions: newVersions,
+            completion: { ...state.completion, status: 'idle', requestId: null, streamingText: '' },
+          }, effects];
+        }
+
+        case 'BRANCH_ERROR': {
+          if (action.requestId !== state.completion.requestId) return [state, []];
+          // Just stop generating more branches on error
+          return [{
+            ...state,
+            completion: { ...state.completion, status: 'idle', requestId: null, streamingText: '' },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'COMPLETION_ERROR': {
+          if (action.requestId !== state.completion.requestId) return [state, []];
+
+          return [{
+            ...state,
+            completion: {
+              status: 'idle',
+              requestId: null,
+              versionId: null,
+              streamingText: '',
+              selectedBranch: 0,
+            },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'COMPLETION_ACCEPT': {
+          const versionId = state.completion.versionId || state.editor.versionId;
+          const version = state.versions.get(versionId);
+          if (!version) return [state, []];
+
+          const completions = Array.isArray(version.completions) ? version.completions : [];
+          const text = completions[state.completion.selectedBranch]?.text ||
+                       cleanCompletionText(state.completion.streamingText);
+          if (!text) return [state, []];
+
+          return [state, [
+            { type: 'ACCEPT_GHOST' },
+            { type: 'DEBOUNCE', timer: 'history', ms: 0, action: { type: 'SAVE_HISTORY', label: 'completion' } },
+          ]];
+        }
+
+        case 'COMPLETION_DISMISS': {
+          // Cancel any in-progress completion
+          const cancelEffects = state.completion.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          return [{
+            ...state,
+            completion: {
+              status: 'idle',
+              requestId: null,
+              versionId: null,
+              streamingText: '',
+              selectedBranch: 0,
+            },
+          }, [
+            ...cancelEffects,
+            { type: 'REMOVE_GHOST' },
+            { type: 'RENDER' },
+          ]];
+        }
+
+        case 'COMPLETION_CYCLE': {
+          const version = state.versions.get(state.editor.versionId);
+          if (!version || !Array.isArray(version.completions)) return [state, []];
+
+          const len = version.completions.length;
+          if (len <= 1) return [state, []];
+
+          const current = state.completion.selectedBranch;
+          const next = ((current + action.delta) % len + len) % len;
+
+          return [{
+            ...state,
+            completion: { ...state.completion, selectedBranch: next },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        // ----------------------------------------
+        // SELECTION & PONDERING
+        // ----------------------------------------
+        case 'EDITOR_SELECTION_CHANGE': {
+          if (!action.selection || action.selection.text.length < 5) {
+            if (state.pondering.status !== 'idle' || state.refine.status !== 'idle') {
+              return [{
+                ...state,
+                editor: { ...state.editor, selection: null },
+                pondering: { status: 'idle', requestId: null, selection: null, thinkingText: '', insights: [], streamingInsight: '' },
+                refine: { status: 'idle', requestId: null, selection: null, instructions: [], suggestion: null },
+              }, [
+                { type: 'CANCEL_DEBOUNCE', timer: 'selection' },
+                { type: 'LLM_CANCEL', requestId: state.pondering.requestId },
+                { type: 'LLM_CANCEL', requestId: state.refine.requestId },
+                { type: 'RENDER' },
+              ]];
+            }
+            return [state, []];
+          }
+
+          // Clear completion ghost if showing
+          let effects = [];
+          if (state.completion.versionId || state.completion.streamingText) {
+            effects.push({ type: 'REMOVE_GHOST' });
+          }
+
+          // Cancel any in-progress completion
+          if (state.completion.requestId) {
+            effects.push({ type: 'LLM_CANCEL', requestId: state.completion.requestId });
+          }
+
+          return [{
+            ...state,
+            editor: { ...state.editor, selection: action.selection },
+            completion: { status: 'idle', requestId: null, versionId: null, streamingText: '', selectedBranch: 0 },
+          }, [
+            ...effects,
+            { type: 'DEBOUNCE', timer: 'selection', ms: DEBOUNCE_SELECTION_MS, action: { type: 'START_PONDERING' } },
+            { type: 'RENDER' },
+          ]];
+        }
+
+        case 'START_PONDERING': {
+          const selection = state.editor.selection;
+          if (!selection) return [state, []];
+
+          // Cancel any existing pondering
+          const cancelEffects = state.pondering.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.pondering.requestId }]
+            : [];
+
+          const requestId = generateId();
+
+          const contextBlock = selection.prefix || selection.suffix
+            ? `CONTEXT:\n${selection.prefix ? `[Before]: ...${selection.prefix}\n` : ''}[SELECTED]: ${selection.text}\n${selection.suffix ? `[After]: ${selection.suffix}...` : ''}`
+            : selection.text;
+
+          return [{
+            ...state,
+            pondering: {
+              status: 'loading',
+              requestId,
+              selection,
+              thinkingText: '',
+              rawText: '',
+              insights: [],
+              streamingInsight: '',
+            },
+          }, [
+            ...cancelEffects,
+            { type: 'RENDER' },
+            {
+              type: 'LLM_STREAM',
+              model: COMPLETION_MODEL,  // Use Phi - better at following instructions
+              messages: [
+                { role: 'system', content: `You generate thought-provoking questions about text. Output exactly 5 questions, one per line. Each question must:
+- End with a question mark (?)
+- Be under 12 words
+- Dig deeper than surface level - explore hidden assumptions, paradoxes, unstated beliefs
+- Be specific to the text, not generic
+
+Output ONLY the 5 questions. No numbering, no explanation, no other text.` },
+                { role: 'user', content: `Text to question:\n\n${contextBlock}\n\nQuestions:` },
+              ],
+              options: { temperature: 0.9, max_tokens: 200 },
+              requestId,
+              tokenAction: 'PONDERING_TOKEN',
+              doneAction: 'PONDERING_DONE',
+              errorAction: 'PONDERING_ERROR',
+            },
+          ]];
+        }
+
+        case 'PONDERING_TOKEN': {
+          if (action.requestId !== state.pondering.requestId) return [state, []];
+
+          // Accumulate raw text
+          const rawText = (state.pondering.rawText || '') + action.token;
+
+          // Parse lines - extract questions (lines ending with ?)
+          const lines = rawText.split('\n');
+          const isQuestion = (line) => {
+            const cleaned = cleanInsight(line);
+            return cleaned.length > 10 && cleaned.length < 100 && cleaned.endsWith('?');
+          };
+
+          // Completed questions (full lines that end with ?)
+          const completedInsights = lines
+            .slice(0, -1)
+            .map(cleanInsight)
+            .filter(isQuestion);
+
+          // Last line being typed - show if it's building toward a question
+          const lastLine = cleanInsight(lines[lines.length - 1] || '');
+          const streamingInsight = lastLine.length > 3 ? lastLine : '';
+
+          return [{
+            ...state,
+            pondering: {
+              ...state.pondering,
+              status: 'streaming',
+              rawText,
+              thinkingText: '',
+              insights: completedInsights,
+              streamingInsight,
+            },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'PONDERING_DONE': {
+          if (action.requestId !== state.pondering.requestId) return [state, []];
+
+          // Final extraction - get all questions from the full response
+          const rawText = state.pondering.rawText || '';
+          const allText = rawText.replace(/<\/?think>/gi, '\n');
+
+          const isQuestion = (line) => {
+            const cleaned = cleanInsight(line);
+            return cleaned.length > 10 && cleaned.length < 100 && cleaned.endsWith('?');
+          };
+
+          const finalInsights = allText
+            .split('\n')
+            .map(cleanInsight)
+            .filter(isQuestion)
+            .slice(0, 6);  // Cap at 6 questions
+
+          return [{
+            ...state,
+            pondering: {
+              ...state.pondering,
+              status: 'ready',
+              insights: finalInsights,
+              streamingInsight: '',
+              thinkingText: '',
+              rawText: '',
+            },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'PONDERING_ERROR': {
+          if (action.requestId !== state.pondering.requestId) return [state, []];
+          return [{
+            ...state,
+            pondering: { ...state.pondering, status: 'idle', insights: [] },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'INSIGHT_CLICK': {
+          // TODO: Generate continuation based on insight
+          return [state, []];
+        }
+
+        // ----------------------------------------
+        // REFINE
+        // ----------------------------------------
+        case 'REFINE_OPEN': {
+          if (!state.editor.selection) return [state, []];
+          return [{
+            ...state,
+            refine: {
+              status: 'input',
+              requestId: null,
+              selection: state.editor.selection,
+              instructions: [],
+              suggestion: null,
+            },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'REFINE_SUBMIT': {
+          if (!state.refine.selection) return [state, []];
+
+          const requestId = generateId();
+          const allInstructions = [...state.refine.instructions, action.instruction];
+
+          const instructionContext = allInstructions.length > 1
+            ? `Previous: ${allInstructions.slice(0, -1).join(' -> ')}\nNow: ${allInstructions[allInstructions.length - 1]}`
+            : `Instruction: ${action.instruction}`;
+
+          return [{
+            ...state,
+            refine: {
+              ...state.refine,
+              status: 'loading',
+              requestId,
+              instructions: allInstructions,
+            },
+          }, [
+            { type: 'RENDER' },
+            {
+              type: 'LLM_COMPLETE',
+              model: THINKING_MODEL,
+              messages: [
+                { role: 'system', content: `You are a skilled editor helping refine text. Preserve the author's voice. Interpret intent (e.g., "thoughtful" = reflective, NOT formal). Keep it natural. Maintain similar length unless asked otherwise. Output ONLY the refined text. No quotes, no explanation.` },
+                { role: 'user', content: `Refine this: "${state.refine.selection.text}"\n\n${instructionContext}` },
+              ],
+              options: { temperature: 0.7, max_tokens: 200 },
+              requestId,
+            },
+          ]];
+        }
+
+        case 'REFINE_DONE': {
+          if (action.requestId !== state.refine.requestId) return [state, []];
+          return [{
+            ...state,
+            refine: {
+              ...state.refine,
+              status: 'preview',
+              suggestion: filterThinkingTokens(action.result).replace(/^["']|["']$/g, '').trim(),
+            },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'REFINE_ERROR': {
+          if (action.requestId !== state.refine.requestId) return [state, []];
+          return [{
+            ...state,
+            refine: { ...state.refine, status: 'input' },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'REFINE_ACCEPT': {
+          if (!state.refine.suggestion || !state.refine.selection) return [state, []];
+          return [{
+            ...state,
+            refine: { status: 'idle', requestId: null, selection: null, instructions: [], suggestion: null },
+            pondering: { status: 'idle', requestId: null, selection: null, thinkingText: '', insights: [], streamingInsight: '' },
+            editor: { ...state.editor, selection: null },
+          }, [
+            { type: 'APPLY_REFINE', text: state.refine.suggestion, range: state.refine.selection.range },
+            { type: 'DEBOUNCE', timer: 'history', ms: 0, action: { type: 'SAVE_HISTORY', label: 'refine' } },
+            { type: 'RENDER' },
+          ]];
+        }
+
+        case 'REFINE_ITERATE': {
+          return [{
+            ...state,
+            refine: { ...state.refine, status: 'input', suggestion: null },
+          }, [{ type: 'RENDER' }]];
+        }
+
+        case 'REFINE_CLOSE': {
+          return [{
+            ...state,
+            refine: { status: 'idle', requestId: null, selection: null, instructions: [], suggestion: null },
+          }, [
+            { type: 'LLM_CANCEL', requestId: state.refine.requestId },
+            { type: 'RENDER' },
+          ]];
+        }
+
+        // ----------------------------------------
+        // HISTORY
+        // ----------------------------------------
+        case 'SAVE_HISTORY': {
+          const doc = getCurrentDoc(state);
+          if (!doc) return [state, []];
+
+          const content = doc.content;
+          const normalized = normalizeContent(content);
+
+          // Don't save if same as current
+          const currentNode = doc.history.nodes.get(doc.history.currentId);
+          if (currentNode && normalizeContent(currentNode.content) === normalized) {
+            return [state, []];
+          }
+
+          const nodeId = doc.history.nextId;
+          const newNode = {
+            id: nodeId,
+            content,
+            timestamp: Date.now(),
+            label: action.label || 'edit',
+            parent: doc.history.currentId,
+            children: [],
+          };
+
+          const newNodes = new Map(doc.history.nodes);
+          newNodes.set(nodeId, newNode);
+
+          // Update parent's children
+          if (doc.history.currentId !== null) {
+            const parent = newNodes.get(doc.history.currentId);
+            if (parent) {
+              newNodes.set(doc.history.currentId, {
+                ...parent,
+                children: [...parent.children, nodeId],
+              });
+            }
+          }
+
+          const newDocs = new Map(state.documents);
+          newDocs.set(doc.id, {
+            ...doc,
+            history: {
+              nodes: newNodes,
+              currentId: nodeId,
+              nextId: nodeId + 1,
+            },
+          });
+
+          // Create version for this content
+          const { state: stateWithVersion, versionId } = getOrCreateVersion(
+            { ...state, documents: newDocs },
+            content
+          );
+
+          return [stateWithVersion, [
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+          ]];
+        }
+
+        case 'HISTORY_UNDO': {
+          const doc = getCurrentDoc(state);
+          if (!doc) return [state, []];
+
+          const currentNode = doc.history.nodes.get(doc.history.currentId);
+          if (!currentNode?.parent) return [state, []];
+
+          const parentNode = doc.history.nodes.get(currentNode.parent);
+          if (!parentNode) return [state, []];
+
+          const newDocs = new Map(state.documents);
+          newDocs.set(doc.id, {
+            ...doc,
+            content: parentNode.content,
+            history: { ...doc.history, currentId: currentNode.parent },
+          });
+
+          const { state: stateWithVersion, versionId } = getOrCreateVersion(
+            { ...state, documents: newDocs },
+            parentNode.content
+          );
+
+          // Cancel any in-progress completion
+          const cancelEffects = state.completion.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          return [{
+            ...stateWithVersion,
+            editor: { ...stateWithVersion.editor, versionId },
+            completion: { status: 'idle', requestId: null, versionId: null, streamingText: '', selectedBranch: 0 },
+          }, [
+            ...cancelEffects,
+            { type: 'SET_EDITOR_CONTENT', content: parentNode.content },
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+            { type: 'REQUEST_COMPLETION' },
+          ]];
+        }
+
+        case 'HISTORY_REDO': {
+          const doc = getCurrentDoc(state);
+          if (!doc) return [state, []];
+
+          const currentNode = doc.history.nodes.get(doc.history.currentId);
+          if (!currentNode?.children.length) return [state, []];
+
+          const childId = currentNode.children[currentNode.children.length - 1];
+          const childNode = doc.history.nodes.get(childId);
+          if (!childNode) return [state, []];
+
+          const newDocs = new Map(state.documents);
+          newDocs.set(doc.id, {
+            ...doc,
+            content: childNode.content,
+            history: { ...doc.history, currentId: childId },
+          });
+
+          const { state: stateWithVersion, versionId } = getOrCreateVersion(
+            { ...state, documents: newDocs },
+            childNode.content
+          );
+
+          const cancelEffects = state.completion.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          return [{
+            ...stateWithVersion,
+            editor: { ...stateWithVersion.editor, versionId },
+            completion: { status: 'idle', requestId: null, versionId: null, streamingText: '', selectedBranch: 0 },
+          }, [
+            ...cancelEffects,
+            { type: 'SET_EDITOR_CONTENT', content: childNode.content },
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+            { type: 'REQUEST_COMPLETION' },
+          ]];
+        }
+
+        case 'HISTORY_NAVIGATE': {
+          const doc = getCurrentDoc(state);
+          if (!doc) return [state, []];
+
+          const node = doc.history.nodes.get(action.nodeId);
+          if (!node) return [state, []];
+
+          const newDocs = new Map(state.documents);
+          newDocs.set(doc.id, {
+            ...doc,
+            content: node.content,
+            history: { ...doc.history, currentId: action.nodeId },
+          });
+
+          const { state: stateWithVersion, versionId } = getOrCreateVersion(
+            { ...state, documents: newDocs },
+            node.content
+          );
+
+          const cancelEffects = state.completion.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          return [{
+            ...stateWithVersion,
+            editor: { ...stateWithVersion.editor, versionId },
+            completion: { status: 'idle', requestId: null, versionId: null, streamingText: '', selectedBranch: 0 },
+          }, [
+            ...cancelEffects,
+            { type: 'SET_EDITOR_CONTENT', content: node.content },
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+            { type: 'REQUEST_COMPLETION' },
+          ]];
+        }
+
+        // ----------------------------------------
+        // DOCUMENTS
+        // ----------------------------------------
+        case 'DOC_CREATE': {
+          const id = state.nextDocId;
+          const doc = {
+            id,
+            name: action.name || 'Untitled',
+            content: '',
+            history: { nodes: new Map(), currentId: null, nextId: 1 },
+            createdAt: Date.now(),
+          };
+          const newDocs = new Map(state.documents);
+          newDocs.set(id, doc);
+
+          const cancelEffects = state.completion.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          return [{
+            ...state,
+            documents: newDocs,
+            currentDocId: id,
+            nextDocId: id + 1,
+            editor: { versionId: null, selection: null },
+            completion: { status: 'idle', requestId: null, versionId: null, streamingText: '', selectedBranch: 0 },
+          }, [
+            ...cancelEffects,
+            { type: 'SET_EDITOR_CONTENT', content: '' },
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+            { type: 'FOCUS', selector: '#editor' },
+          ]];
+        }
+
+        case 'DOC_SWITCH': {
+          if (action.docId === state.currentDocId) return [state, []];
+
+          const doc = state.documents.get(action.docId);
+          if (!doc) return [state, []];
+
+          const { state: stateWithVersion, versionId } = doc.content
+            ? getOrCreateVersion(state, doc.content)
+            : { state, versionId: null };
+
+          const cancelEffects = state.completion.requestId
+            ? [{ type: 'LLM_CANCEL', requestId: state.completion.requestId }]
+            : [];
+
+          return [{
+            ...stateWithVersion,
+            currentDocId: action.docId,
+            editor: { versionId, selection: null },
+            completion: { status: 'idle', requestId: null, versionId: null, streamingText: '', selectedBranch: 0 },
+            pondering: { status: 'idle', requestId: null, selection: null, thinkingText: '', insights: [], streamingInsight: '' },
+            refine: { status: 'idle', requestId: null, selection: null, instructions: [], suggestion: null },
+          }, [
+            ...cancelEffects,
+            { type: 'SET_EDITOR_CONTENT', content: doc.content },
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+            { type: 'REQUEST_COMPLETION' },
+          ]];
+        }
+
+        case 'DOC_DELETE': {
+          if (!state.documents.has(action.docId)) return [state, []];
+
+          const newDocs = new Map(state.documents);
+          newDocs.delete(action.docId);
+
+          let newCurrentId = state.currentDocId;
+          if (action.docId === state.currentDocId) {
+            newCurrentId = newDocs.size > 0 ? newDocs.keys().next().value : null;
+          }
+
+          const newDoc = newDocs.get(newCurrentId);
+
+          return [{
+            ...state,
+            documents: newDocs,
+            currentDocId: newCurrentId,
+            editor: { versionId: null, selection: null },
+          }, [
+            { type: 'SET_EDITOR_CONTENT', content: newDoc?.content || '' },
+            { type: 'PERSIST' },
+            { type: 'RENDER' },
+          ]];
+        }
+
+        case 'DOC_RENAME': {
+          const doc = state.documents.get(action.docId);
+          if (!doc) return [state, []];
+
+          const newDocs = new Map(state.documents);
+          newDocs.set(action.docId, { ...doc, name: action.name });
+
+          return [{ ...state, documents: newDocs }, [{ type: 'PERSIST' }, { type: 'RENDER' }]];
+        }
+
+        case 'DOC_TITLE_EDIT_START': {
+          return [{ ...state, ui: { ...state.ui, titleEditing: true } }, [{ type: 'RENDER' }]];
+        }
+
+        case 'DOC_TITLE_EDIT_END': {
+          const doc = getCurrentDoc(state);
+          if (!doc) return [{ ...state, ui: { ...state.ui, titleEditing: false } }, [{ type: 'RENDER' }]];
+
+          const newName = action.name.trim() || 'Untitled';
+          const newDocs = new Map(state.documents);
+          newDocs.set(doc.id, { ...doc, name: newName });
+
+          return [{
+            ...state,
+            documents: newDocs,
+            ui: { ...state.ui, titleEditing: false },
+          }, [{ type: 'PERSIST' }, { type: 'RENDER' }]];
+        }
+
+        case 'MAYBE_GENERATE_TITLE': {
+          const doc = getCurrentDoc(state);
+          if (!doc || doc.name !== 'Untitled') return [state, []];
+
+          const content = getPlainText(doc.content);
+          if (content.length < 100) return [state, []];
+          if (state.ui.titleGenerating) return [state, []];
+
+          const requestId = generateId();
+
+          return [{
+            ...state,
+            ui: { ...state.ui, titleGenerating: true },
+          }, [
+            { type: 'RENDER' },
+            {
+              type: 'LLM_COMPLETE',
+              model: THINKING_MODEL,
+              messages: [
+                { role: 'system', content: 'Generate a short, evocative title (2-5 words) for this writing. Output ONLY the title - no quotes, no explanation, no punctuation at the end.' },
+                { role: 'user', content: content.slice(0, 500) },
+              ],
+              options: { temperature: 0.7, max_tokens: 20 },
+              requestId,
+              onDone: 'TITLE_GENERATED',
+            },
+          ]];
+        }
+
+        case 'TITLE_GENERATED': {
+          const doc = getCurrentDoc(state);
+          if (!doc || doc.name !== 'Untitled') {
+            return [{ ...state, ui: { ...state.ui, titleGenerating: false } }, [{ type: 'RENDER' }]];
+          }
+
+          const title = filterThinkingTokens(action.result)
+            .replace(/^["']|["']$/g, '')
+            .replace(/[.!?]$/, '')
+            .trim();
+
+          if (!title || title.length > 50) {
+            return [{ ...state, ui: { ...state.ui, titleGenerating: false } }, [{ type: 'RENDER' }]];
+          }
+
+          const newDocs = new Map(state.documents);
+          newDocs.set(doc.id, { ...doc, name: title });
+
+          return [{
+            ...state,
+            documents: newDocs,
+            ui: { ...state.ui, titleGenerating: false },
+          }, [{ type: 'PERSIST' }, { type: 'RENDER' }]];
+        }
+
+        // ----------------------------------------
+        // UI
+        // ----------------------------------------
+        case 'SETTINGS_OPEN': {
+          return [{ ...state, ui: { ...state.ui, settingsOpen: true } }, [{ type: 'RENDER' }]];
+        }
+
+        case 'SETTINGS_CLOSE': {
+          return [{ ...state, ui: { ...state.ui, settingsOpen: false } }, [{ type: 'RENDER' }]];
+        }
+
+        default:
+          console.warn('Unknown action:', action.type);
+          return [state, []];
+      }
+    };
+
+    // ============================================
+    // EFFECT RUNNER
+    // ============================================
+
+    const createEffectRunner = (dispatch) => {
+      const engines = new Map();
+      const abortControllers = new Map();
+      const timers = new Map();
+
+      const getOrLoadEngine = async (modelSpec) => {
+        const [, modelId] = modelSpec.split(':');
+        if (!engines.has(modelId)) {
+          dispatch({ type: 'MODEL_LOADING', model: modelId, progress: 0, text: `Loading ${modelId}...` });
+          const engine = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (info) => {
+              dispatch({ type: 'MODEL_LOADING', model: modelId, progress: info.progress || 0, text: info.text || 'Loading...' });
+            },
+          });
+          engines.set(modelId, engine);
+          dispatch({ type: 'MODEL_LOADED', model: modelId });
+        }
+        return engines.get(modelId);
+      };
+
+      return async (effect) => {
+        switch (effect.type) {
+          case 'PERSIST': {
+            const state = window.__APP_STATE__;
+            const toSave = {
+              documents: Object.fromEntries(
+                Array.from(state.documents.entries()).map(([id, doc]) => [
+                  id,
+                  {
+                    ...doc,
+                    history: {
+                      ...doc.history,
+                      nodes: Object.fromEntries(doc.history.nodes),
+                    },
+                  },
+                ])
+              ),
+              currentDocId: state.currentDocId,
+              nextDocId: state.nextDocId,
+            };
+            localStorage.setItem('journal-v2-state', JSON.stringify(toSave));
+            break;
+          }
+
+          case 'RENDER': {
+            render();
+            break;
+          }
+
+          case 'HIDE_LOADING': {
+            $('loading').classList.add('hidden');
+            break;
+          }
+
+          case 'FOCUS': {
+            setTimeout(() => document.querySelector(effect.selector)?.focus(), 0);
+            break;
+          }
+
+          case 'SET_EDITOR_CONTENT': {
+            const editor = $('editor');
+            editor.innerHTML = effect.content;
+            // Move cursor to end
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            break;
+          }
+
+          case 'REMOVE_GHOST': {
+            $('editor').querySelector('.ghost')?.remove();
+            break;
+          }
+
+          case 'ACCEPT_GHOST': {
+            const editor = $('editor');
+            const ghost = editor.querySelector('.ghost');
+            if (ghost) {
+              // Convert ghost to regular text
+              ghost.classList.remove('ghost');
+              ghost.removeAttribute('contentEditable');
+
+              // Move cursor to end of the accepted text
+              const range = document.createRange();
+              range.selectNodeContents(ghost);
+              range.collapse(false); // Collapse to end
+              const sel = window.getSelection();
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
+            // Trigger input to save new content
+            dispatch({ type: 'EDITOR_INPUT', content: editor.innerHTML });
+            break;
+          }
+
+          case 'APPLY_REFINE': {
+            // Restore selection and replace
+            const sel = window.getSelection();
+            if (effect.range) {
+              sel.removeAllRanges();
+              sel.addRange(effect.range);
+            }
+            document.execCommand('insertText', false, effect.text);
+            dispatch({ type: 'EDITOR_INPUT', content: $('editor').innerHTML });
+            break;
+          }
+
+          case 'DEBOUNCE': {
+            clearTimeout(timers.get(effect.timer));
+            timers.set(effect.timer, setTimeout(() => dispatch(effect.action), effect.ms));
+            break;
+          }
+
+          case 'CANCEL_DEBOUNCE': {
+            clearTimeout(timers.get(effect.timer));
+            timers.delete(effect.timer);
+            break;
+          }
+
+          case 'LLM_PRELOAD': {
+            getOrLoadEngine(effect.model).catch(e => console.error('Preload error:', e));
+            break;
+          }
+
+          case 'LLM_STREAM': {
+            const controller = new AbortController();
+            abortControllers.set(effect.requestId, controller);
+
+            const tokenAction = effect.tokenAction || 'COMPLETION_TOKEN';
+            const doneAction = effect.doneAction || 'COMPLETION_DONE';
+            const errorAction = effect.errorAction || 'COMPLETION_ERROR';
+
+            console.log('LLM_STREAM starting:', { model: effect.model, requestId: effect.requestId, tokenAction, doneAction });
+
+            (async () => {
+              try {
+                const engine = await getOrLoadEngine(effect.model);
+                console.log('LLM_STREAM: engine loaded');
+
+                // Interrupt any previous generation
+                try { await engine.interruptGenerate(); } catch (e) {}
+
+                console.log('LLM_STREAM: creating stream...');
+                const stream = await engine.chat.completions.create({
+                  messages: effect.messages,
+                  temperature: effect.options.temperature,
+                  max_tokens: effect.options.max_tokens,
+                  stream: true,
+                });
+
+                console.log('LLM_STREAM: streaming tokens...');
+                let tokenCount = 0;
+                for await (const chunk of stream) {
+                  if (controller.signal.aborted) break;
+                  const token = chunk.choices[0]?.delta?.content || '';
+                  if (token) {
+                    tokenCount++;
+                    if (tokenCount <= 3) console.log('LLM_STREAM token:', token);
+                    dispatch({ type: tokenAction, requestId: effect.requestId, token });
+                  }
+                }
+
+                console.log('LLM_STREAM: done, total tokens:', tokenCount);
+                if (!controller.signal.aborted) {
+                  dispatch({ type: doneAction, requestId: effect.requestId });
+                }
+              } catch (e) {
+                if (e.name !== 'AbortError' && !controller.signal.aborted) {
+                  console.error('LLM stream error:', e);
+                  dispatch({ type: errorAction, requestId: effect.requestId, error: e });
+                }
+              } finally {
+                abortControllers.delete(effect.requestId);
+              }
+            })();
+            break;
+          }
+
+          case 'LLM_COMPLETE': {
+            const controller = new AbortController();
+            abortControllers.set(effect.requestId, controller);
+
+            (async () => {
+              try {
+                const engine = await getOrLoadEngine(effect.model);
+
+                // Interrupt any previous generation
+                try { await engine.interruptGenerate(); } catch (e) {}
+
+                const response = await engine.chat.completions.create({
+                  messages: effect.messages,
+                  temperature: effect.options.temperature,
+                  max_tokens: effect.options.max_tokens,
+                });
+
+                if (!controller.signal.aborted) {
+                  const content = response.choices[0]?.message?.content || '';
+                  const actionType = effect.onDone || 'REFINE_DONE';
+                  dispatch({ type: actionType, requestId: effect.requestId, result: content });
+                }
+              } catch (e) {
+                if (e.name !== 'AbortError' && !controller.signal.aborted) {
+                  console.error('LLM complete error:', e);
+                  dispatch({ type: 'REFINE_ERROR', requestId: effect.requestId, error: e });
+                }
+              } finally {
+                abortControllers.delete(effect.requestId);
+              }
+            })();
+            break;
+          }
+
+          case 'LLM_CANCEL': {
+            if (effect.requestId) {
+              const controller = abortControllers.get(effect.requestId);
+              if (controller) {
+                controller.abort();
+                abortControllers.delete(effect.requestId);
+              }
+            }
+            break;
+          }
+
+        }
+      };
+    };
+
+    // ============================================
+    // RENDER
+    // ============================================
+
+    const render = () => {
+      const state = window.__APP_STATE__;
+      const doc = getCurrentDoc(state);
+
+      // Title
+      const titleEl = $('docTitle');
+      if (!state.ui.titleEditing) {
+        titleEl.textContent = doc?.name || 'Untitled';
+        titleEl.contentEditable = 'false';
+      }
+      titleEl.classList.toggle('generating', state.ui.titleGenerating);
+
+      // Document list
+      const docList = $('docList');
+      docList.innerHTML = '';
+      Array.from(state.documents.values())
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .forEach(d => {
+          const li = document.createElement('li');
+          li.className = `doc-item${d.id === state.currentDocId ? ' active' : ''}`;
+
+          const name = document.createElement('span');
+          name.className = 'doc-item-name';
+          name.textContent = d.name;
+
+          const del = document.createElement('button');
+          del.className = 'doc-item-delete';
+          del.textContent = '×';
+          del.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete "${d.name}"?`)) {
+              dispatch({ type: 'DOC_DELETE', docId: d.id });
+            }
+          };
+
+          li.appendChild(name);
+          li.appendChild(del);
+          li.onclick = () => dispatch({ type: 'DOC_SWITCH', docId: d.id });
+          docList.appendChild(li);
+        });
+
+      // History tree
+      renderTree(state, doc);
+
+      // Ghost text
+      renderGhost(state);
+
+      // Annotations (pondering + refine)
+      renderAnnotations(state);
+
+      // Status
+      $('historyStatus').textContent = doc ? getHistoryInfo(doc) : '';
+
+      // Show completion status
+      const isGenerating = state.completion.status === 'loading' || state.completion.status === 'streaming';
+      const version = state.versions.get(state.editor.versionId);
+      const branchCount = Array.isArray(version?.completions) ? version.completions.length : 0;
+
+      let statusHtml = '';
+      if (isGenerating) {
+        statusHtml = '<span class="dots"><span></span><span></span><span></span></span>';
+      } else if (branchCount > 1) {
+        statusHtml = `↑↓ ${state.completion.selectedBranch + 1}/${branchCount}`;
+      }
+      $('generatingStatus').innerHTML = statusHtml;
+
+      // Settings
+      $('settingsOverlay').classList.toggle('open', state.ui.settingsOpen);
+
+      // Loading text
+      if (state.ui.modelLoading) {
+        $('loadingText').textContent = state.ui.modelLoading.text;
+      }
+    };
+
+    const getHistoryInfo = (doc) => {
+      if (!doc.history.currentId) return '';
+      const node = doc.history.nodes.get(doc.history.currentId);
+      if (!node) return '';
+
+      let info = `v${doc.history.currentId}`;
+      if (node.parent) {
+        const parent = doc.history.nodes.get(node.parent);
+        if (parent && parent.children.length > 1) info += ' ⑂';
+      }
+      if (node.children.length > 0) info += ' →';
+      return info;
+    };
+
+    const renderGhost = (state) => {
+      const editor = $('editor');
+      editor.querySelector('.ghost')?.remove();
+
+      // Don't show ghost when there's an active selection (pondering/refine mode)
+      if (state.editor.selection) return;
+
+      // Only show ghost if cursor is at the end of the document
+      const currentSel = window.getSelection();
+      if (currentSel.rangeCount > 0) {
+        const currentRange = currentSel.getRangeAt(0);
+        const rangeEnd = currentRange.endContainer;
+
+        // If cursor is in the middle of the document, don't show ghost
+        if (rangeEnd.nodeType === Node.TEXT_NODE) {
+          const textAfterCursor = rangeEnd.textContent.slice(currentRange.endOffset);
+          let nextSibling = rangeEnd.nextSibling;
+          // Skip to check if there's real content after cursor
+          while (nextSibling) {
+            if (nextSibling.classList?.contains('ghost')) {
+              nextSibling = nextSibling.nextSibling;
+              continue;
+            }
+            if (nextSibling.textContent?.trim()) {
+              return; // There's content after cursor, don't show ghost
+            }
+            nextSibling = nextSibling.nextSibling;
+          }
+          if (textAfterCursor.trim()) {
+            return; // There's text after cursor in the same node
+          }
+        }
+      }
+
+      const version = state.versions.get(state.editor.versionId);
+      if (!version) return;
+
+      let ghostText = null;
+
+      // Check if we have cached completions for this version
+      if (Array.isArray(version.completions) && version.completions.length > 0) {
+        ghostText = version.completions[state.completion.selectedBranch]?.text;
+      }
+      // Or use streaming text if completion is in progress for current version
+      else if (state.completion.status === 'streaming' &&
+               state.completion.versionId === state.editor.versionId &&
+               state.completion.streamingText) {
+        ghostText = cleanCompletionText(state.completion.streamingText);
+      }
+
+      if (!ghostText) return;
+
+      // Add leading space if text doesn't end with whitespace
+      const plainText = getPlainText(version.content);
+      const needsSpace = plainText.length > 0 && !/\s$/.test(plainText);
+      const displayText = needsSpace ? ' ' + ghostText : ghostText;
+
+      const ghost = document.createElement('span');
+      ghost.className = 'ghost';
+      ghost.contentEditable = 'false';
+      ghost.textContent = displayText;
+
+      // Only insert ghost at end of editor content, not at selection
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0 && !sel.toString()) {
+        // No text selected - insert at cursor
+        const range = sel.getRangeAt(0);
+        range.collapse(false);
+        range.insertNode(ghost);
+        range.setStartBefore(ghost);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } else {
+        // Text is selected or no selection - append to end
+        editor.appendChild(ghost);
+      }
+    };
+
+    const renderAnnotations = (state) => {
+      const container = $('annotations');
+      container.innerHTML = '';
+
+      const selection = state.editor.selection;
+      if (!selection || selection.text.length < 5) return;
+
+      // Calculate position
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const editorRect = $('editor').getBoundingClientRect();
+      const topOffset = rect.top - editorRect.top;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'annotation-bubble';
+      bubble.style.top = `${topOffset}px`;
+
+      // Actions
+      const actions = document.createElement('div');
+      actions.className = 'annotation-actions';
+
+      const refineBtn = document.createElement('button');
+      refineBtn.className = 'annotation-action-btn';
+      refineBtn.textContent = 'Refine';
+      refineBtn.onclick = () => dispatch({ type: 'REFINE_OPEN' });
+      actions.appendChild(refineBtn);
+      bubble.appendChild(actions);
+
+      // Refine UI
+      if (state.refine.status !== 'idle') {
+        renderRefineUI(bubble, state);
+      }
+
+      // Pondering UI
+      renderPonderingUI(bubble, state);
+
+      container.appendChild(bubble);
+    };
+
+    const renderRefineUI = (bubble, state) => {
+      if (state.refine.status === 'input') {
+        const wrap = document.createElement('div');
+        wrap.className = 'refine-input-wrap';
+
+        const input = document.createElement('textarea');
+        input.className = 'refine-input';
+        input.placeholder = state.refine.instructions.length > 0
+          ? 'Refine further...'
+          : 'How should it be refined? (e.g., "more direct")';
+        input.rows = 2;
+
+        const submit = document.createElement('button');
+        submit.className = 'refine-submit';
+        submit.textContent = 'Refine';
+        submit.onclick = () => {
+          if (input.value.trim()) {
+            dispatch({ type: 'REFINE_SUBMIT', instruction: input.value.trim() });
+          }
+        };
+
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (input.value.trim()) {
+              dispatch({ type: 'REFINE_SUBMIT', instruction: input.value.trim() });
+            }
+          }
+        };
+
+        wrap.appendChild(input);
+        wrap.appendChild(submit);
+        bubble.appendChild(wrap);
+
+        setTimeout(() => input.focus(), 0);
+      } else if (state.refine.status === 'loading') {
+        const wrap = document.createElement('div');
+        wrap.className = 'refine-input-wrap';
+        wrap.innerHTML = '<div class="annotation-loading">Thinking...</div>';
+        bubble.appendChild(wrap);
+      } else if (state.refine.status === 'preview') {
+        const preview = document.createElement('div');
+        preview.className = 'refine-preview';
+
+        const suggestion = document.createElement('div');
+        suggestion.className = 'refine-suggestion';
+        suggestion.textContent = state.refine.suggestion;
+        preview.appendChild(suggestion);
+
+        const actions = document.createElement('div');
+        actions.className = 'refine-preview-actions';
+
+        const accept = document.createElement('button');
+        accept.className = 'refine-accept';
+        accept.textContent = 'Accept';
+        accept.onclick = () => {
+          // Save the current range before accepting
+          const sel = window.getSelection();
+          if (sel.rangeCount > 0) {
+            dispatch({ type: 'REFINE_ACCEPT', range: sel.getRangeAt(0).cloneRange() });
+          }
+        };
+
+        const iterate = document.createElement('button');
+        iterate.className = 'refine-iterate';
+        iterate.textContent = 'Refine more';
+        iterate.onclick = () => dispatch({ type: 'REFINE_ITERATE' });
+
+        const cancel = document.createElement('button');
+        cancel.className = 'refine-cancel';
+        cancel.textContent = 'Cancel';
+        cancel.onclick = () => dispatch({ type: 'REFINE_CLOSE' });
+
+        actions.appendChild(accept);
+        actions.appendChild(iterate);
+        actions.appendChild(cancel);
+        preview.appendChild(actions);
+        bubble.appendChild(preview);
+      }
+    };
+
+    const renderPonderingUI = (bubble, state) => {
+      const { pondering } = state;
+
+      const isWorking = pondering.status === 'loading' ||
+                        pondering.status === 'thinking' ||
+                        pondering.status === 'streaming';
+      const hasContent = pondering.insights.length > 0 || pondering.streamingInsight;
+
+      // Show thinking indicator while model is reasoning
+      if (isWorking && pondering.thinkingText) {
+        const thinking = document.createElement('div');
+        thinking.className = 'annotation-thinking';
+        const display = pondering.thinkingText.length > 200
+          ? '...' + pondering.thinkingText.slice(-200)
+          : pondering.thinkingText;
+        thinking.textContent = display;
+        bubble.appendChild(thinking);
+      }
+
+      // Insights (questions)
+      pondering.insights.forEach(insight => {
+        const item = document.createElement('div');
+        item.className = 'annotation-item insight';
+        item.textContent = insight;
+        item.onclick = () => dispatch({ type: 'INSIGHT_CLICK', insight });
+        bubble.appendChild(item);
+      });
+
+      // Streaming insight (question being typed)
+      if (pondering.streamingInsight && pondering.streamingInsight.length > 5) {
+        const item = document.createElement('div');
+        item.className = 'annotation-item insight streaming';
+        item.textContent = pondering.streamingInsight;
+        bubble.appendChild(item);
+      }
+
+      // Show "Pondering..." when working or waiting to start
+      const showLoading = (isWorking && !hasContent && !pondering.thinkingText) ||
+                          (pondering.status === 'idle' && pondering.insights.length === 0);
+      if (showLoading) {
+        const loading = document.createElement('div');
+        loading.className = 'annotation-loading';
+        loading.textContent = 'Pondering...';
+        bubble.appendChild(loading);
+      }
+
+      // Show status when done but no questions found
+      if (pondering.status === 'ready' && pondering.insights.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'annotation-loading';
+        empty.textContent = 'No questions generated';
+        bubble.appendChild(empty);
+      }
+    };
+
+    const renderTree = (state, doc) => {
+      const svg = d3.select('#treeSvg');
+      svg.selectAll('*').remove();
+
+      if (!doc || doc.history.nodes.size === 0) return;
+
+      const nodes = doc.history.nodes;
+      const currentId = doc.history.currentId;
+      const nodeList = Array.from(nodes.values());
+
+      const root = nodeList.find(n => !n.parent);
+      if (!root) return;
+
+      const buildHierarchy = (nodeId) => {
+        const node = nodes.get(nodeId);
+        if (!node) return null;
+        return {
+          id: node.id,
+          children: node.children.map(buildHierarchy).filter(Boolean),
+        };
+      };
+
+      const hierarchyData = buildHierarchy(root.id);
+      if (!hierarchyData) return;
+
+      const hierarchy = d3.hierarchy(hierarchyData);
+
+      const nodeRadius = 8;
+      const levelHeight = 35;
+      const siblingSpacing = 25;
+
+      const levels = [];
+      hierarchy.each(d => { levels[d.depth] = (levels[d.depth] || 0) + 1; });
+      const maxWidth = Math.max(...levels, 1);
+
+      const width = Math.max(100, maxWidth * siblingSpacing + 20);
+      const height = (hierarchy.height + 1) * levelHeight + 20;
+
+      svg.attr('viewBox', `0 0 ${width} ${height}`).attr('height', height);
+
+      const treeLayout = d3.tree().size([width - 20, height - 40]).separation(() => 1);
+      const treeData = treeLayout(hierarchy);
+
+      svg.selectAll('.tree-link')
+        .data(treeData.links())
+        .join('path')
+        .attr('class', 'tree-link')
+        .attr('d', d3.linkVertical().x(d => d.x + 10).y(d => d.y + 20));
+
+      const nodeGroups = svg.selectAll('.tree-node')
+        .data(treeData.descendants())
+        .join('g')
+        .attr('class', d => {
+          const classes = ['tree-node'];
+          if (d.data.id === currentId) classes.push('current');
+
+          const node = nodes.get(d.data.id);
+          if (node) {
+            const versionId = hashContent(node.content);
+            const version = state.versions.get(versionId);
+            // Show cached indicator if version has completions
+            if (Array.isArray(version?.completions) && version.completions.length > 0) {
+              classes.push('cached');
+            }
+            // Show computing indicator if currently generating for this version
+            if (state.completion.status !== 'idle' && state.completion.versionId === versionId) {
+              classes.push('computing');
+            }
+          }
+
+          return classes.join(' ');
+        })
+        .attr('transform', d => `translate(${d.x + 10}, ${d.y + 20})`)
+        .on('click', (event, d) => dispatch({ type: 'HISTORY_NAVIGATE', nodeId: d.data.id }));
+
+      nodeGroups.append('circle').attr('r', nodeRadius);
+      nodeGroups.append('text').attr('dy', 3).attr('text-anchor', 'middle').text(d => d.data.id);
+    };
+
+    // ============================================
+    // EVENT HANDLERS
+    // ============================================
+
+    const setupEventListeners = (dispatch) => {
+      const editor = $('editor');
+
+      editor.addEventListener('input', () => {
+        const clone = editor.cloneNode(true);
+        clone.querySelector('.ghost')?.remove();
+        dispatch({ type: 'EDITOR_INPUT', content: clone.innerHTML });
+      });
+
+      editor.addEventListener('keydown', (e) => {
+        const state = window.__APP_STATE__;
+
+        // Undo
+        if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+          e.preventDefault();
+          dispatch({ type: 'HISTORY_UNDO' });
+          return;
+        }
+
+        // Redo
+        if ((e.key === 'z' && (e.metaKey || e.ctrlKey) && e.shiftKey) ||
+            (e.key === 'y' && (e.metaKey || e.ctrlKey))) {
+          e.preventDefault();
+          dispatch({ type: 'HISTORY_REDO' });
+          return;
+        }
+
+        // Accept completion
+        if (e.key === 'Tab') {
+          const version = state.versions.get(state.editor.versionId);
+          const hasCachedCompletion = Array.isArray(version?.completions) && version.completions.length > 0;
+          const hasStreamingCompletion = state.completion.status === 'streaming' && state.completion.streamingText;
+          if (hasCachedCompletion || hasStreamingCompletion) {
+            e.preventDefault();
+            dispatch({ type: 'COMPLETION_ACCEPT' });
+            return;
+          }
+        }
+
+        // Dismiss completion
+        if (e.key === 'Escape') {
+          dispatch({ type: 'COMPLETION_DISMISS' });
+          dispatch({ type: 'REFINE_CLOSE' });
+          return;
+        }
+
+        // Handle arrow keys when ghost text is showing
+        const version = state.versions.get(state.editor.versionId);
+        const hasGhost = (Array.isArray(version?.completions) && version.completions.length > 0) ||
+                         (state.completion.status === 'streaming' && state.completion.streamingText);
+
+        if (hasGhost) {
+          // Up/Down cycle through completions
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            if (Array.isArray(version?.completions) && version.completions.length > 1) {
+              e.preventDefault();
+              dispatch({ type: 'COMPLETION_CYCLE', delta: e.key === 'ArrowUp' ? -1 : 1 });
+              return;
+            }
+          }
+
+          // Prevent Right arrow from moving cursor into ghost text
+          if (e.key === 'ArrowRight') {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+              const range = sel.getRangeAt(0);
+              const ghost = editor.querySelector('.ghost');
+              if (ghost) {
+                // Check if cursor is right before the ghost
+                const nextSibling = range.endContainer.nodeType === Node.TEXT_NODE
+                  ? range.endContainer.nextSibling
+                  : range.endContainer.childNodes[range.endOffset];
+                if (nextSibling === ghost || (range.endOffset === range.endContainer.length && range.endContainer.nextSibling === ghost)) {
+                  e.preventDefault();
+                  return;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        const text = sel.toString().trim();
+
+        if (text.length < 5) {
+          dispatch({ type: 'EDITOR_SELECTION_CHANGE', selection: null });
+          return;
+        }
+
+        // Check if selection is in editor
+        if (!sel.anchorNode || !editor.contains(sel.anchorNode)) return;
+
+        // Get context
+        let prefix = '', suffix = '';
+        try {
+          const range = sel.getRangeAt(0);
+
+          const preRange = document.createRange();
+          preRange.setStart(editor, 0);
+          preRange.setEnd(range.startContainer, range.startOffset);
+          const preText = preRange.toString();
+          prefix = preText.length > SELECTION_CONTEXT_WINDOW
+            ? preText.slice(-SELECTION_CONTEXT_WINDOW)
+            : preText;
+
+          const postRange = document.createRange();
+          postRange.setStart(range.endContainer, range.endOffset);
+          postRange.setEnd(editor, editor.childNodes.length);
+          const postText = postRange.toString();
+          suffix = postText.length > SELECTION_CONTEXT_WINDOW
+            ? postText.slice(0, SELECTION_CONTEXT_WINDOW)
+            : postText;
+        } catch (e) {}
+
+        dispatch({
+          type: 'EDITOR_SELECTION_CHANGE',
+          selection: {
+            text,
+            prefix,
+            suffix,
+            range: sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null,
+          },
+        });
+      });
+
+      // Title editing
+      const titleEl = $('docTitle');
+      titleEl.addEventListener('click', () => {
+        dispatch({ type: 'DOC_TITLE_EDIT_START' });
+        titleEl.contentEditable = 'true';
+        titleEl.focus();
+        const range = document.createRange();
+        range.selectNodeContents(titleEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      });
+
+      titleEl.addEventListener('blur', () => {
+        dispatch({ type: 'DOC_TITLE_EDIT_END', name: titleEl.textContent });
+      });
+
+      titleEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          titleEl.blur();
+        }
+        if (e.key === 'Escape') {
+          const state = window.__APP_STATE__;
+          const doc = getCurrentDoc(state);
+          titleEl.textContent = doc?.name || 'Untitled';
+          titleEl.blur();
+        }
+      });
+
+      // Document actions
+      $('newDocBtn').addEventListener('click', () => dispatch({ type: 'DOC_CREATE' }));
+
+      // Settings
+      $('settingsBtn').addEventListener('click', () => dispatch({ type: 'SETTINGS_OPEN' }));
+      $('settingsClose').addEventListener('click', () => dispatch({ type: 'SETTINGS_CLOSE' }));
+      $('settingsOverlay').addEventListener('click', (e) => {
+        if (e.target === $('settingsOverlay')) dispatch({ type: 'SETTINGS_CLOSE' });
+      });
+
+      $('clearModelsBtn').addEventListener('click', async () => {
+        if (!confirm('Clear all downloaded models? They will be re-downloaded when needed.')) return;
+        try {
+          const caches = await window.caches.keys();
+          for (const cache of caches) {
+            if (cache.includes('webllm') || cache.includes('mlc')) {
+              await window.caches.delete(cache);
+            }
+          }
+          alert('Model cache cleared. Reload to re-download.');
+        } catch (e) {
+          alert('Failed: ' + e.message);
+        }
+      });
+
+      $('clearStorageBtn').addEventListener('click', () => {
+        if (!confirm('Delete ALL data including documents? This cannot be undone.')) return;
+        localStorage.removeItem('journal-v2-state');
+        location.reload();
+      });
+    };
+
+    // ============================================
+    // MAIN
+    // ============================================
+
+    let dispatch;
+
+    const main = () => {
+      window.__APP_STATE__ = createInitialState();
+
+      const runEffect = createEffectRunner((action) => dispatch(action));
+
+      dispatch = (action) => {
+        console.log('Action:', action.type);
+        const [newState, effects] = reduce(window.__APP_STATE__, action);
+        window.__APP_STATE__ = newState;
+        if (effects.length > 0) {
+          console.log('Effects:', effects.map(e => e.type));
+        }
+        effects.forEach(effect => runEffect(effect));
+      };
+
+      setupEventListeners(dispatch);
+
+      // Load persisted state
+      let persisted = null;
+      try {
+        const saved = localStorage.getItem('journal-v2-state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Convert nodes back to Maps
+          if (parsed.documents) {
+            Object.values(parsed.documents).forEach(doc => {
+              if (doc.history?.nodes && !(doc.history.nodes instanceof Map)) {
+                doc.history.nodes = new Map(Object.entries(doc.history.nodes).map(([k, v]) => [parseInt(k), v]));
+              }
+            });
+          }
+          persisted = parsed;
+        }
+      } catch (e) {
+        console.error('Failed to load state:', e);
+      }
+
+      dispatch({ type: 'INIT', persisted });
+    };
+
+    main();
+  </script>
+</body>
+</html>
