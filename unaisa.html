@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unaisa: Core Primitives - Felix Flores</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #e5e5e7;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    .header {
+      padding: 40px 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,10,0.95);
+      backdrop-filter: blur(20px);
+      z-index: 100;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: -0.3px;
+      color: #f5f5f7;
+    }
+
+    .header a {
+      color: #86868b;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+
+    .header a:hover {
+      color: #f5f5f7;
+    }
+
+    .draft-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #f5a623;
+      background: rgba(245, 166, 35, 0.15);
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-left: 12px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      -webkit-text-fill-color: #f5a623;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 40px 100px;
+    }
+
+    /* Typography */
+    h1, h2, h3, h4, h5, h6 {
+      color: #f5f5f7;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-top: 2.5em;
+      margin-bottom: 0.8em;
+    }
+
+    h1 {
+      font-size: 48px;
+      letter-spacing: -1.5px;
+      margin-top: 0;
+      background: linear-gradient(135deg, #fff 0%, #86868b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    h2 {
+      font-size: 32px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    h3 {
+      font-size: 24px;
+      color: #e5e5e7;
+    }
+
+    h4 {
+      font-size: 18px;
+      color: #c5c5c7;
+    }
+
+    p {
+      margin-bottom: 1.2em;
+      color: #a1a1a6;
+    }
+
+    .subtitle {
+      font-size: 20px;
+      color: #86868b;
+      margin-bottom: 1em;
+      font-weight: 400;
+    }
+
+    .tagline {
+      font-size: 16px;
+      color: #6e6e73;
+      font-style: italic;
+      margin-bottom: 2em;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      margin: 3em 0;
+    }
+
+    /* Links */
+    a {
+      color: #4af;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Blockquotes */
+    blockquote {
+      border-left: 3px solid #4af;
+      padding-left: 20px;
+      margin: 1.5em 0;
+      color: #c5c5c7;
+      font-style: italic;
+    }
+
+    blockquote p {
+      color: inherit;
+    }
+
+    /* Lists */
+    ul, ol {
+      margin-bottom: 1.5em;
+      padding-left: 1.5em;
+      color: #a1a1a6;
+    }
+
+    li {
+      margin-bottom: 0.5em;
+    }
+
+    li ul, li ol {
+      margin-top: 0.5em;
+      margin-bottom: 0;
+    }
+
+    /* Code */
+    code {
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+      background: rgba(255,255,255,0.06);
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      color: #ff9f0a;
+    }
+
+    pre {
+      background: #1c1c1e;
+      border-radius: 12px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      margin: 1.5em 0;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #e5e5e7;
+    }
+
+    /* Syntax highlighting */
+    .keyword { color: #ff7b72; }
+    .string { color: #a5d6ff; }
+    .comment { color: #6e7681; }
+    .function { color: #d2a8ff; }
+    .number { color: #79c0ff; }
+    .type { color: #7ee787; }
+    .property { color: #79c0ff; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5em 0;
+      font-size: 15px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    th {
+      color: #f5f5f7;
+      font-weight: 600;
+      background: rgba(255,255,255,0.03);
+    }
+
+    td {
+      color: #a1a1a6;
+    }
+
+    tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    /* Emphasis */
+    strong {
+      color: #f5f5f7;
+      font-weight: 600;
+    }
+
+    em {
+      font-style: italic;
+    }
+
+    /* ASCII diagrams */
+    .diagram {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* Special callouts */
+    .note {
+      background: rgba(68, 170, 255, 0.1);
+      border-left: 3px solid #4af;
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5em 0;
+    }
+
+    .note p {
+      color: #c5c5c7;
+      margin: 0;
+    }
+
+    /* TOC */
+    .toc {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 24px 30px;
+      margin: 2em 0 3em;
+    }
+
+    .toc h3 {
+      margin-top: 0;
+      margin-bottom: 1em;
+      font-size: 16px;
+      color: #86868b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .toc ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .toc li {
+      margin: 0.4em 0;
+    }
+
+    .toc a {
+      color: #a1a1a6;
+      font-size: 15px;
+    }
+
+    .toc a:hover {
+      color: #4af;
+    }
+
+    .toc .toc-h2 {
+      font-weight: 500;
+    }
+
+    .toc .toc-h3 {
+      padding-left: 1.5em;
+      font-size: 14px;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 40px 60px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      text-align: center;
+      color: #86868b;
+      font-size: 14px;
+    }
+
+    .footer a {
+      color: #4af;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header {
+        padding: 20px 24px;
+      }
+
+      .container {
+        padding: 40px 24px 80px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+
+      h3 {
+        font-size: 20px;
+      }
+
+      pre {
+        padding: 16px;
+        font-size: 13px;
+        border-radius: 8px;
+      }
+
+      table {
+        font-size: 13px;
+      }
+
+      th, td {
+        padding: 8px 12px;
+      }
+    }
+  </style>
+</head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-R0M5DGW99S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-R0M5DGW99S');
+</script>
+<body>
+  <header class="header">
+    <h1>Felix Flores</h1>
+    <a href="index.html">&larr; Back</a>
+  </header>
+
+  <article class="container">
+    <h1>Unaisa: Core Primitives <span class="draft-badge">Draft</span></h1>
+    <p class="subtitle"><strong>Universal Node Addressing through Intrinsic Structure Alignment</strong></p>
+    <p class="tagline">A minimal explanation of the core protocol</p>
+
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        <li class="toc-h2"><a href="#core-idea">The Core Idea</a></li>
+        <li class="toc-h2"><a href="#bunion">What is a Bunion?</a></li>
+        <li class="toc-h2"><a href="#primitives">The Three Primitives</a></li>
+        <li class="toc-h2"><a href="#roots-bunions">How Roots Attach to Bunions</a></li>
+        <li class="toc-h2"><a href="#storage">Storage: The Store Trait</a></li>
+        <li class="toc-h2"><a href="#runtime">The Runtime Layer</a></li>
+        <li class="toc-h3"><a href="#unadata">UnaData: The Runtime's Query Wrapper</a></li>
+        <li class="toc-h3"><a href="#encoders">Encoders: Structured Content as DAGs</a></li>
+        <li class="toc-h3"><a href="#structural-sharing">Structural Sharing</a></li>
+        <li class="toc-h3"><a href="#node-selection">Node Selection and Signing</a></li>
+        <li class="toc-h2"><a href="#publishing">Publishing Workflow</a></li>
+        <li class="toc-h2"><a href="#identity">The Identity Layer</a></li>
+        <li class="toc-h2"><a href="#p2p">The P2P Layer</a></li>
+        <li class="toc-h2"><a href="#gateway">The Gateway (Bootstrap Infrastructure)</a></li>
+        <li class="toc-h2"><a href="#wire-protocol">Wire Protocol</a></li>
+        <li class="toc-h2"><a href="#api-reference">API Reference</a></li>
+        <li class="toc-h2"><a href="#implementation">Implementation Notes</a></li>
+        <li class="toc-h2"><a href="#philosophy">Design Philosophy</a></li>
+        <li class="toc-h2"><a href="#appendices">Appendices</a></li>
+      </ul>
+    </nav>
+
+    <hr>
+
+    <h2 id="core-idea">The Core Idea</h2>
+
+    <blockquote>
+      <p>"to be or not to be"</p>
+    </blockquote>
+
+    <p>Take this phrase. Break it into characters:</p>
+
+    <pre><code>t &rarr; o &rarr;   &rarr; b &rarr; e &rarr;   &rarr; o &rarr; r &rarr;   &rarr; n &rarr; o &rarr; t &rarr;   &rarr; t &rarr; o &rarr;   &rarr; b &rarr; e</code></pre>
+
+    <p>Now, build a Merkle chain where each step incorporates the next character:</p>
+
+    <pre><code>Seed           &rarr; HASH&#8320;
+HASH&#8320; + 't'    &rarr; HASH&#8321;
+HASH&#8321; + 'o'    &rarr; HASH&#8322;
+HASH&#8322; + ' '    &rarr; HASH&#8323;  (whitespace counts!)
+HASH&#8323; + 'b'    &rarr; HASH&#8324;
+HASH&#8324; + 'e'    &rarr; HASH&#8325;
+...
+HASH&#8321;&#8326; + 'e'   &rarr; HASH&#8321;&#8327;  (final hash)</code></pre>
+
+    <p><strong>This final hash is the coordinate.</strong> Everyone who runs this calculation with the same seed gets the exact same result. It's deterministic.</p>
+
+    <p>In Unaisa, we call this coordinate a <strong>bunion</strong>:</p>
+
+    <pre><code>hash("to be or not to be") &rarr; 43b23a7addd32e559945cc14b4427b506b44ec1da69780f349044e651a8eac3f</code></pre>
+
+    <p><strong>That's Unaisa: Merkle chains turn phrases into coordinates.</strong></p>
+
+    <p>Everything else - the P2P mesh, the content DAGs, the multiple publishers - builds on this one simple idea.</p>
+
+    <hr>
+
+    <h2 id="bunion">What is a Bunion?</h2>
+
+    <p>A <strong>bunion</strong> (Boundless Unified Network Ingress Origin Node) is the fundamental addressing primitive in Unaisa. It's a 256-bit coordinate derived from a Merkle chain.</p>
+
+    <p>Every bunion has four essential properties:</p>
+
+    <h4>1. Hash - The 256-bit BLAKE3 hash that IS the coordinate</h4>
+
+    <pre><code><span class="comment">// Build the chain character by character</span>
+<span class="keyword">let mut</span> bunion = bunion::root(<span class="string">"UNAISA-2024-12-21"</span>);
+<span class="keyword">for</span> ch <span class="keyword">in</span> <span class="string">"to be or not to be"</span>.chars() {
+    bunion = bunion::next(&amp;bunion, ch);
+}
+
+<span class="comment">// Bunion {</span>
+<span class="comment">//   hash: "43b23a7addd32e559945cc14b4427b506b44ec1da69780f349044e651a8eac3f",</span>
+<span class="comment">//   path: "to be or not to be",</span>
+<span class="comment">//   parent_hash: "136a2accea160302ed3d94196dc7d71ee6e7d47bc5a68bd8d5fe515945c9c9f1",</span>
+<span class="comment">//   seed: "UNAISA-2024-12-21"</span>
+<span class="comment">// }</span></code></pre>
+
+    <h4>2. Path - The human-readable string that generated this coordinate</h4>
+    <pre><code>path: <span class="string">"to be or not to be"</span></code></pre>
+
+    <h4>3. Parent Hash - Links to the previous bunion in the chain</h4>
+    <pre><code>parentHash: <span class="string">"136a2accea160302ed3d94196dc7d71ee6e7d47bc5a68bd8d5fe515945c9c9f1"</span>
+               &uarr;
+               This is the hash for <span class="string">"to be or not to b"</span></code></pre>
+
+    <h4>4. Seed - The root of the entire address space</h4>
+    <pre><code>seed: <span class="string">"UNAISA-2024-12-21"</span></code></pre>
+
+    <p><strong>About Seeds</strong>: The default seed <code>"UNAISA-2024-12-21"</code> creates the canonical Unaisa address space. All peers using this seed will compute identical bunion hashes for the same phrases, enabling global interoperability.</p>
+
+    <p>Custom seeds create isolated "bunion universes" - useful for:</p>
+    <ul>
+      <li><strong>Private networks</strong>: <code>"MY-COMPANY-INTERNAL"</code></li>
+      <li><strong>Topic-specific spaces</strong>: <code>"ANIMALS-2024-12-21"</code>, <code>"RECIPES-2024-12-21"</code></li>
+      <li><strong>Testing</strong>: <code>"TEST-SEED"</code> for development without polluting the main namespace</li>
+    </ul>
+
+    <p>Peers must share the same seed to discover each other's content.</p>
+
+    <h3>The Bunion Chain</h3>
+
+    <p>Here's the actual chain for "to be or not to be":</p>
+
+    <pre><code>ROOT                  &rarr; d51d9e1542a5104bf88ca59e0c05bfd3059ebaf31a401b3c35a9a28913ef5c6b
+ROOT + 't'            &rarr; e78214761a6a1791c49b051d932cd09c0eaaaa27dda7c7bd068d413026d886a7
+... + 'o'             &rarr; bff8226dfc12e68fdaadca6ad5266ae0b69ed421385a3997879e39ccc0313921
+... + ' '             &rarr; 07093c5d68ed3ff32ab66c62238bf3977179eb0adb1f1f3be6d98efa5db1c802 (whitespace!)
+... + 'b'             &rarr; f9147e1a760346e5f97d5e62fbfcb793dfb6c63b8765b9d27fc29e1c747d709a
+... + 'e'             &rarr; 795f41f30fca6a499b46ae614c30e4654c422f2d0fda81e22b18a04b5dff5004
+...
+... + 'e' (final)     &rarr; 43b23a7addd32e559945cc14b4427b506b44ec1da69780f349044e651a8eac3f</code></pre>
+
+    <h3>Key Properties</h3>
+
+    <p><strong>Deterministic</strong>: Same path + same seed = same bunion hash. Always.</p>
+
+    <pre><code><span class="comment">// Anyone can verify by building the chain:</span>
+<span class="keyword">let mut</span> bunion = bunion::root(<span class="string">"UNAISA-2024-12-21"</span>);
+<span class="keyword">for</span> ch <span class="keyword">in</span> <span class="string">"to be or not to be"</span>.chars() {
+    bunion = bunion::next(&amp;bunion, ch);
+}
+<span class="comment">// bunion.hash = "43b23a7addd32e559945cc14b4427b506b44ec1da69780f349044e651a8eac3f"</span></code></pre>
+
+    <p><strong>No Registration</strong>: You don't "claim" a bunion. You calculate it.</p>
+    <ul>
+      <li>No DNS registrar</li>
+      <li>No smart contract</li>
+      <li>No authority to ask permission from</li>
+      <li>Just math</li>
+    </ul>
+
+    <p><strong>Collision-Free</strong>: 256-bit space = 2&sup2;&sup5;&sup6; possible addresses</p>
+    <ul>
+      <li>That's 115,792,089,237,316,195,423,570,985,008,687,907,853,269,984,665,640,564,039,457,584,007,913,129,639,936 addresses</li>
+      <li>More addresses than atoms in the observable universe</li>
+      <li>You'll never accidentally collide with someone else's bunion</li>
+    </ul>
+
+    <p><strong>Hierarchical</strong>: Parent hashes create a Merkle chain structure</p>
+    <ul>
+      <li><code>"to be"</code> is cryptographically linked to <code>"to"</code></li>
+      <li><code>"to be or"</code> is cryptographically linked to <code>"to be"</code></li>
+      <li>You can verify any path by checking the chain back to ROOT</li>
+    </ul>
+
+    <h3>You Don't Create Bunions - You Discover Them</h3>
+
+    <p>Here's a profound insight: <strong>Every sequence of characters that has been written or will ever be written already exists as a coordinate.</strong></p>
+
+    <p>Think about it:</p>
+    <ul>
+      <li>The bunion for "To be or not to be" existed before Shakespeare wrote it</li>
+      <li>The bunion for "Call me Ishmael" existed before Melville wrote Moby Dick</li>
+      <li>The bunion for your name, your email, your thoughts - all exist mathematically right now</li>
+    </ul>
+
+    <p><strong>Bunions are coordinates in the space of all possible strings.</strong> You don't create them. You <strong>discover</strong> them by computing their hash.</p>
+
+    <p>This is fundamentally different from:</p>
+    <ul>
+      <li><strong>DNS</strong>: You register a domain (creation)</li>
+      <li><strong>URLs</strong>: You set up a server (creation)</li>
+      <li><strong>Blockchain addresses</strong>: You generate a keypair (creation)</li>
+    </ul>
+
+    <p><strong>With bunions</strong>: The coordinate already exists. You're just calculating it.</p>
+
+    <hr>
+
+    <h2 id="primitives">The Three Primitives</h2>
+
+    <p>Now that we understand bunions - deterministic coordinates in 256-bit space - the natural question is: <strong>what do you store at these coordinates?</strong></p>
+
+    <p>The answer: <strong>three content-addressed primitives</strong> inspired by Git's object model.</p>
+
+    <h3>Root</h3>
+
+    <p>Entry point at a bunion coordinate (like Git's commit):</p>
+
+    <pre><code><span class="type">Root</span> {
+    hash: <span class="type">String</span>,           <span class="comment">// BLAKE3(bunion_hash + encoder + children)</span>
+    bunion_hash: <span class="type">String</span>,    <span class="comment">// The coordinate this content is attached to</span>
+    encoder: <span class="type">String</span>,        <span class="comment">// "html5", "json", "markdown"</span>
+    children: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,  <span class="comment">// DagNode hashes (the content tree)</span>
+}</code></pre>
+
+    <p><strong>Roots don't nest.</strong> They're always the entry point. Multiple Roots can exist at the same bunion (like multiple commits on a branch).</p>
+
+    <h3>DagNode</h3>
+
+    <p>Content tree nodes (like Git's tree/blob):</p>
+
+    <pre><code><span class="type">DagNode</span> {
+    hash: <span class="type">String</span>,           <span class="comment">// BLAKE3(content + children_hashes)</span>
+    content: <span class="type">Vec</span>&lt;<span class="type">u8</span>&gt;,       <span class="comment">// CBOR-encoded data (opaque bytes)</span>
+    children: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,  <span class="comment">// Child DagNode hashes</span>
+}</code></pre>
+
+    <p><strong>DagNodes nest.</strong> They form the content structure. Parents point to children (Git-style), so changes cascade up to the root.</p>
+
+    <h3>Signature</h3>
+
+    <p>Attestation about content:</p>
+
+    <pre><code><span class="type">Signature</span> {
+    hash: <span class="type">String</span>,           <span class="comment">// BLAKE3(signs + signer + sig)</span>
+    signs: <span class="type">String</span>,          <span class="comment">// Hash of object being signed (Root OR DagNode)</span>
+    signer: <span class="type">String</span>,         <span class="comment">// Public key hash</span>
+    sig: <span class="type">Vec</span>&lt;<span class="type">u8</span>&gt;,           <span class="comment">// Ed25519 signature bytes</span>
+}</code></pre>
+
+    <p><strong>Signatures are separate from content.</strong> Adding a signature doesn't change the Root or its DagNodes.</p>
+
+    <p><strong>Signatures can sign any content-addressed object:</strong></p>
+    <ul>
+      <li>Sign a <strong>Root</strong> to attest to an entire document version</li>
+      <li>Sign a <strong>DagNode</strong> to attest to a specific section</li>
+    </ul>
+
+    <p><strong>Granular signing:</strong> Different parties can sign different parts. Legal team signs terms, user signs agreement, appendix remains unsigned.</p>
+
+    <h3>How They Relate</h3>
+
+    <pre><code>Bunion (computed coordinate)
+    &boxv;
+    &boxvr;&boxh;&boxh; Root A &boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+    &boxv;   bunion_hash: X   &boxv;
+    &boxv;   encoder: html5   &boxv;
+    &boxv;   children: [P]    &boxv;
+    &boxv;                    &blacktriangledown;
+    &boxv;              &boxdr;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+    &boxv;              &boxv; DagNode P &boxv;&boxh;&boxh;&blacktriangleright; DagNode Q &boxh;&boxh;&blacktriangleright; DagNode R
+    &boxv;              &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxdl;
+    &boxv;
+    &boxur;&boxh;&boxh; Root B (different version)
+        bunion_hash: X
+        encoder: html5
+        children: [S]
+
+Signatures can sign Root OR DagNode:
+
+Signature 1                    Signature 2
+    signs: Root A's hash           signs: DagNode Q's hash
+    signer: alice_key              signer: legal_team
+    (whole document)               (specific section)</code></pre>
+
+    <p><strong>Key insight</strong>: DagNodes contain <strong>opaque bytes</strong>, not structured objects. They're format-agnostic primitives. The encoder (specified in Root) knows how to interpret them.</p>
+
+    <h3>The Four Concepts</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Concept</th>
+          <th>Type</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Bunion</strong></td>
+          <td>Computed</td>
+          <td>Coordinate (WHERE)</td>
+        </tr>
+        <tr>
+          <td><strong>Root</strong></td>
+          <td>Stored</td>
+          <td>Entry point at bunion</td>
+        </tr>
+        <tr>
+          <td><strong>DagNode</strong></td>
+          <td>Stored</td>
+          <td>Content tree (WHAT)</td>
+        </tr>
+        <tr>
+          <td><strong>Signature</strong></td>
+          <td>Stored</td>
+          <td>Attestation (WHO)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Everything else in Unaisa builds on these primitives.</p>
+
+    <hr>
+
+    <h2 id="roots-bunions">How Roots Attach to Bunions</h2>
+
+    <p>Now we understand the primitives. But how do they connect? How does content get attached to a coordinate?</p>
+
+    <h3>The Root Primitive</h3>
+
+    <p>A <strong>Root</strong> explicitly stores its bunion coordinate:</p>
+
+    <pre><code><span class="type">Root</span> {
+    hash: <span class="type">String</span>,           <span class="comment">// BLAKE3(bunion_hash + encoder + children)</span>
+    bunion_hash: <span class="type">String</span>,    <span class="comment">// &larr; The coordinate this content is at</span>
+    encoder: <span class="type">String</span>,        <span class="comment">// How to decode the content</span>
+    children: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,  <span class="comment">// The content tree (DagNode hashes)</span>
+}</code></pre>
+
+    <p><strong>Example:</strong> Publishing content at "Call me Ishmael":</p>
+
+    <pre><code>Step 1: Discover the bunion coordinate
+  bunion(<span class="string">"Call me Ishmael"</span>) = <span class="string">"3a720bf2..."</span>
+
+Step 2: Build content tree (DagNodes, bottom-up)
+  ... create DagNodes for content ...
+  content_root_hash = <span class="string">"abc123..."</span>
+
+Step 3: Create Root
+  Root {
+    bunion_hash: <span class="string">"3a720bf2..."</span>,  <span class="comment">// The coordinate</span>
+    encoder: <span class="string">"html5"</span>,
+    children: [<span class="string">"abc123..."</span>],     <span class="comment">// Points to content</span>
+    hash: BLAKE3(bunion_hash + encoder + children)
+  }</code></pre>
+
+    <h3>Multiple Roots, Same Bunion</h3>
+
+    <p>Because Unaisa is <strong>permissionless</strong>, multiple people can publish to the same coordinate.</p>
+
+    <p><strong>The coordinate for "hello world" exists mathematically.</strong> Anyone can discover it. Anyone can create Roots there.</p>
+
+    <pre><code>Bunion <span class="string">"hello world"</span> (hash: 3b9ec76f...)
+    &boxv;
+    &boxvr;&boxh;&boxh; Root A (Alice)
+    &boxv;     bunion_hash: <span class="string">"3b9ec76f..."</span>
+    &boxv;     encoder: <span class="string">"html5"</span>
+    &boxv;     children: [content_A]
+    &boxv;     hash: <span class="string">"ROOT_A"</span>
+    &boxv;
+    &boxur;&boxh;&boxh; Root B (Bob)
+          bunion_hash: <span class="string">"3b9ec76f..."</span>
+          encoder: <span class="string">"html5"</span>
+          children: [content_B]
+          hash: <span class="string">"ROOT_B"</span></code></pre>
+
+    <p><strong>This is not a protocol error.</strong> Multiple Roots at the same bunion is like multiple commits - the application layer decides which one to use.</p>
+
+    <h3>Why This Design?</h3>
+
+    <p><strong>Permissionless:</strong></p>
+    <ul>
+      <li>Anyone can calculate any bunion (no registration)</li>
+      <li>Anyone can create Roots at any bunion (no gatekeeping)</li>
+      <li>Multiple Roots can coexist at the same coordinate</li>
+    </ul>
+
+    <p><strong>Three simple primitives:</strong></p>
+    <ul>
+      <li>Root (entry point at bunion)</li>
+      <li>DagNode (content tree)</li>
+      <li>Signature (attestation)</li>
+    </ul>
+
+    <p><strong>Higher layers decide:</strong></p>
+    <ul>
+      <li>Which Root to use (if multiple exist)</li>
+      <li>How to resolve conflicts</li>
+      <li>What "latest" means</li>
+      <li>Trust and authentication</li>
+    </ul>
+
+    <hr>
+
+    <h2 id="storage">Storage: The Store Trait</h2>
+
+    <p>Now that we understand the three primitives, we need a way to <strong>persist</strong> and <strong>retrieve</strong> them. This is where the <strong>Store</strong> trait comes in.</p>
+
+    <h3>The Store Trait</h3>
+
+    <p><strong>Store</strong> is an abstraction for primitive storage. It defines the interface; implementations are platform-specific.</p>
+
+    <pre><code><span class="keyword">trait</span> <span class="type">Store</span> {
+    <span class="comment">// Roots</span>
+    <span class="keyword">fn</span> <span class="function">put_root</span>(&amp;<span class="keyword">self</span>, root: <span class="type">Root</span>);
+    <span class="keyword">fn</span> <span class="function">get_root</span>(&amp;<span class="keyword">self</span>, hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Option</span>&lt;<span class="type">Root</span>&gt;;
+    <span class="keyword">fn</span> <span class="function">roots_at</span>(&amp;<span class="keyword">self</span>, bunion_hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Vec</span>&lt;<span class="type">Root</span>&gt;;
+
+    <span class="comment">// DagNodes</span>
+    <span class="keyword">fn</span> <span class="function">put_node</span>(&amp;<span class="keyword">self</span>, node: <span class="type">DagNode</span>);
+    <span class="keyword">fn</span> <span class="function">get_node</span>(&amp;<span class="keyword">self</span>, hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Option</span>&lt;<span class="type">DagNode</span>&gt;;
+
+    <span class="comment">// Signatures</span>
+    <span class="keyword">fn</span> <span class="function">put_signature</span>(&amp;<span class="keyword">self</span>, sig: <span class="type">Signature</span>);
+    <span class="keyword">fn</span> <span class="function">signatures_for</span>(&amp;<span class="keyword">self</span>, hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Vec</span>&lt;<span class="type">Signature</span>&gt;;
+}</code></pre>
+
+    <h3>Key Properties</h3>
+
+    <p><strong>Type-specific storage</strong>: Roots, DagNodes, and Signatures are stored separately with their own accessors.</p>
+
+    <p><strong>Direct lookups</strong>: No content parsing needed:</p>
+    <ul>
+      <li><code>roots_at(bunion_hash)</code> - Find Roots by coordinate</li>
+      <li><code>signatures_for(root_hash)</code> - Find Signatures by what they sign</li>
+    </ul>
+
+    <p><strong>Immutable primitives</strong>: Once created, Roots, DagNodes, and Signatures never change. All <code>put</code> methods are idempotent.</p>
+
+    <p><strong>No deletion</strong>: There's no <code>delete()</code> method. Primitives are permanent by design.</p>
+
+    <h3>Platform-Specific Implementations</h3>
+
+    <pre><code><span class="comment">// Testing - ephemeral in-memory storage</span>
+<span class="keyword">use</span> unaisa::dag::<span class="type">MemoryStore</span>;
+<span class="keyword">let</span> store = <span class="type">MemoryStore</span>::new();
+
+<span class="comment">// Native/Desktop - persistent SQLite storage</span>
+<span class="keyword">use</span> unaisa::dag::<span class="type">SqliteStore</span>;
+<span class="keyword">let</span> store = <span class="type">SqliteStore</span>::open(<span class="string">"~/.unaisa/nodes.db"</span>)?;
+
+<span class="comment">// Browser/WASM - IndexedDB storage</span>
+<span class="keyword">use</span> unaisa::dag::<span class="type">IndexedDbStore</span>;
+<span class="keyword">let</span> store = <span class="type">IndexedDbStore</span>::new(<span class="string">"unaisa-nodes"</span>).<span class="keyword">await</span>?;</code></pre>
+
+    <hr>
+
+    <h2 id="runtime">The Runtime Layer</h2>
+
+    <p><strong>Summary: What We've Built So Far</strong></p>
+
+    <p>We've now covered the <strong>Core Layer</strong> - the complete foundation of Unaisa:</p>
+
+    <ul>
+      <li><strong>Bunion</strong> - Deterministic coordinates in 256-bit space</li>
+      <li><strong>Root</strong> - Entry points at bunions (like Git commits)</li>
+      <li><strong>DagNode</strong> - Content tree nodes (like Git trees/blobs)</li>
+      <li><strong>Signature</strong> - Attestations about Roots</li>
+      <li><strong>Store</strong> - Platform-agnostic persistence</li>
+    </ul>
+
+    <p>These are powerful primitives. They give you full control. But they're intentionally low-level - like manually parsing HTTP with <code>TcpStream</code> instead of using Axum.</p>
+
+    <h3>Why We Need a Runtime Layer</h3>
+
+    <p><strong>1. Performance</strong>: Calculating long bunion chains repeatedly is wasteful</p>
+    <ul>
+      <li>A long phrase requires 40+ hash operations</li>
+      <li>Doing this 100 times = 4,000+ redundant hashes</li>
+      <li><strong>Solution</strong>: Cache intermediate results automatically</li>
+    </ul>
+
+    <p><strong>2. Convenience</strong>: Character-by-character hashing is too low-level</p>
+    <ul>
+      <li><strong>Solution</strong>: <code>runtime.bunion(path)</code> - does the loop for you AND caches</li>
+    </ul>
+
+    <p><strong>3. Content encoding</strong>: Structured formats need to become DAG trees</p>
+    <ul>
+      <li><strong>Solution</strong>: Encoders that automatically convert formats to DAG structures</li>
+    </ul>
+
+    <p><strong>4. P2P practicality</strong>: In a P2P network, you might have partial data</p>
+    <ul>
+      <li><strong>Solution</strong>: UnaData wrapper that tracks completeness</li>
+    </ul>
+
+    <p><strong>5. Publishing workflow</strong>: Multiple steps from content to stored</p>
+    <ul>
+      <li><strong>Solution</strong>: <code>runtime.publish(path, html)</code> does it all</li>
+    </ul>
+
+    <h3>Layered Architecture</h3>
+
+    <pre><code>&boxdr;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+&boxv;  Application Layer                      &boxv;
+&boxv;  - Your code                            &boxv;
+&boxv;  - Business logic                       &boxv;
+&boxv;  - UI/UX                                &boxv;
+&boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxdl;
+               &boxv;
+&boxdr;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+&boxv;  Runtime Layer                          &boxv;
+&boxv;  - Unaisa struct (caching, convenience) &boxv;
+&boxv;  - UnaData (completeness tracking)      &boxv;
+&boxv;  - Encoders (HTML/XML/Markdown &rarr; DAG)   &boxv;
+&boxv;  - Publishing workflow                  &boxv;
+&boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxdl;
+               &boxv;
+&boxdr;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+&boxv;  P2P Layer                              &boxv;
+&boxv;  - Peer (connection management)         &boxv;
+&boxv;  - ConnectionInfo (P2P primitive)       &boxv;
+&boxv;  - Gossip protocol                      &boxv;
+&boxv;  - Bootstrap methods (QR, URL, gateway) &boxv;
+&boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxdl;
+               &boxv;
+&boxdr;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+&boxv;  Core Layer                             &boxv;
+&boxv;  - Bunion (coordinate)                  &boxv;
+&boxv;  - Root, DagNode, Signature primitives  &boxv;
+&boxv;  - Store trait                          &boxv;
+&boxv;  - Pure functions, no state             &boxv;
+&boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxdl;</code></pre>
+
+    <h3 id="unadata">UnaData: The Runtime's Query Wrapper</h3>
+
+    <p>The runtime wraps primitives in <strong>UnaData</strong> - a query result that provides convenient access:</p>
+
+    <pre><code><span class="comment">/// Runtime query wrapper (NOT stored)</span>
+<span class="keyword">pub struct</span> <span class="type">UnaData</span> {
+    <span class="keyword">pub</span> bunion_hash: <span class="type">String</span>,
+    <span class="keyword">pub</span> encoder: <span class="type">String</span>,
+    <span class="keyword">pub</span> roots: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,  <span class="comment">// Root hashes at this bunion with this encoder</span>
+}
+
+<span class="keyword">impl</span> <span class="type">UnaData</span> {
+    <span class="comment">/// Get fully decoded content (HTML string, JSON string, etc.)</span>
+    <span class="keyword">pub fn</span> <span class="function">get</span>(&amp;<span class="keyword">self</span>, root_hash: &amp;<span class="type">str</span>, store: &amp;<span class="keyword">impl</span> <span class="type">Store</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">String</span>, <span class="type">Error</span>&gt;;
+
+    <span class="comment">/// Find signatures for a root</span>
+    <span class="keyword">pub fn</span> <span class="function">signatures</span>(&amp;<span class="keyword">self</span>, root_hash: &amp;<span class="type">str</span>, store: &amp;<span class="keyword">impl</span> <span class="type">Store</span>) -&gt; <span class="type">Vec</span>&lt;<span class="type">Signature</span>&gt;;
+}</code></pre>
+
+    <p><strong>Key insight</strong>: <code>get()</code> returns <strong>fully decoded content</strong>, not primitive DagNodes. You get the original HTML/JSON/Markdown string back.</p>
+
+    <h3 id="encoders">Encoders: Structured Content as DAGs</h3>
+
+    <p>Encoders parse structured formats and create <strong>trees of DagNodes</strong> - one node per element:</p>
+
+    <pre><code>HTML Input:
+  &lt;article&gt;
+    &lt;h1&gt;The Cat Sat&lt;/h1&gt;
+    &lt;p&gt;On the mat.&lt;/p&gt;
+  &lt;/article&gt;
+
+DAG Output (built bottom-up):
+  Root
+    bunion_hash: "..."
+    encoder: "html5"
+    children: [article_hash]
+           &boxv;
+           &blacktriangledown;
+  DagNode (article)
+    content: { tag: "article" }
+    children: [h1_hash, p_hash]
+           &boxv;
+    &boxdr;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangleleft;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+    &blacktriangledown;             &blacktriangledown;
+  DagNode       DagNode
+  (h1)          (p)
+  tag: "h1"     tag: "p"
+  children:     children:
+   [text1]       [text2]</code></pre>
+
+    <p>Now you can:</p>
+    <ul>
+      <li><strong>Fetch just the &lt;h1&gt;</strong> - download that subtree only</li>
+      <li><strong>Share identical text</strong> - same text content = same hash</li>
+      <li><strong>Stream rendering</strong> - display elements as nodes arrive</li>
+    </ul>
+
+    <h4>The Encoder Trait</h4>
+
+    <pre><code><span class="keyword">trait</span> <span class="type">DagEncoder</span> {
+    <span class="comment">/// Parse input into DagNode tree (bottom-up: leaves first)</span>
+    <span class="keyword">fn</span> <span class="function">decode</span>(&amp;<span class="keyword">self</span>, input: &amp;<span class="type">str</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">Vec</span>&lt;<span class="type">DagNode</span>&gt;, <span class="type">Error</span>&gt;;
+
+    <span class="comment">/// Reconstruct original format from Root (top-down traversal)</span>
+    <span class="keyword">fn</span> <span class="function">encode</span>(&amp;<span class="keyword">self</span>, root: &amp;<span class="type">Root</span>, store: &amp;<span class="keyword">dyn</span> <span class="type">Store</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">String</span>, <span class="type">Error</span>&gt;;
+
+    <span class="comment">/// Encoder name (e.g., "html5", "markdown")</span>
+    <span class="keyword">fn</span> <span class="function">name</span>(&amp;<span class="keyword">self</span>) -&gt; &amp;<span class="type">str</span>;
+}</code></pre>
+
+    <h4>Built-in Encoders</h4>
+
+    <pre><code><span class="comment">// JsonEncoder (default):</span>
+runtime.publish(<span class="string">"path"</span>, <span class="string">r#"{"key": "value"}"#</span>)?;
+
+<span class="comment">// HtmlEncoder:</span>
+runtime.publish_html(<span class="string">"path"</span>, <span class="string">"&lt;h1&gt;Hello&lt;/h1&gt;"</span>)?;
+
+<span class="comment">// MarkdownEncoder:</span>
+runtime.publish_markdown(<span class="string">"path"</span>, <span class="string">"# Hello\n\nWorld"</span>)?;</code></pre>
+
+    <h3 id="structural-sharing">Structural Sharing</h3>
+
+    <p>DagNodes can be shared between Roots (like Git trees between commits). This is a natural consequence of content-addressed storage.</p>
+
+    <pre><code>Root 1 (v1)                    Root 2 (v2)
+  &boxv;                              &boxv;
+  &blacktriangledown;                              &blacktriangledown;
+body (B1)                      body (B2)       &larr; DIFFERENT
+  children: [h1:X, p:P1]         children: [h1:X, p:P2]
+        &boxv;      &boxv;                       &boxv;      &boxv;
+        &blacktriangledown;      &blacktriangledown;                       &blacktriangledown;      &blacktriangledown;
+    h1 (X)   p (P1)                h1 (X)   p (P2)
+   "Hello"  "Original"            "Hello"  "Updated"
+      &uarr;                              &uarr;
+      &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh; SHARED &boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxdl;</code></pre>
+
+    <p>The <code>h1</code> DagNode with "Hello" is <strong>stored once</strong> but referenced by both versions.</p>
+
+    <h3 id="node-selection">Node Selection and Signing</h3>
+
+    <p>The <code>at()</code> method uses <strong>JSON Path</strong> as the universal baseline:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Syntax</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>$</code></td>
+          <td>Root node</td>
+        </tr>
+        <tr>
+          <td><code>$[0]</code></td>
+          <td>First child</td>
+        </tr>
+        <tr>
+          <td><code>$[0][2][1]</code></td>
+          <td>Nested positional navigation</td>
+        </tr>
+        <tr>
+          <td><code>$[*]</code></td>
+          <td>All children</td>
+        </tr>
+        <tr>
+          <td><code>$..*</code></td>
+          <td>All descendants (recursive)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Encoder-Specific Queries:</strong></p>
+
+    <pre><code><span class="comment">// HTML encoder: CSS selectors</span>
+doc.at(<span class="string">"#terms"</span>)?              <span class="comment">// By ID</span>
+doc.at(<span class="string">".clause"</span>)?             <span class="comment">// By class</span>
+doc.at(<span class="string">"section > p"</span>)?         <span class="comment">// CSS selector</span>
+
+<span class="comment">// JSON encoder: JSON Path with keys</span>
+doc.at(<span class="string">"$.terms.clauses[0]"</span>)?  <span class="comment">// Key-based path</span>
+
+<span class="comment">// Markdown encoder: Heading paths</span>
+doc.at(<span class="string">"## Terms"</span>)?            <span class="comment">// By heading text</span></code></pre>
+
+    <p><strong>Signing Examples:</strong></p>
+
+    <pre><code><span class="comment">// Sign entire document (Root):</span>
+doc.at(<span class="string">"$"</span>).sign(&amp;key)?;
+
+<span class="comment">// Granular section signing:</span>
+doc.at(<span class="string">"#terms"</span>).sign(&amp;legal_key)?;   <span class="comment">// Legal team signs terms</span>
+doc.at(<span class="string">"#agreement"</span>).sign(&amp;user_key)?; <span class="comment">// User signs agreement</span>
+<span class="comment">// Appendix remains unsigned</span></code></pre>
+
+    <hr>
+
+    <h2 id="publishing">Publishing Workflow</h2>
+
+    <p><strong>Putting It All Together</strong></p>
+
+    <h3>The Simple Case: Publish JSON</h3>
+
+    <pre><code><span class="keyword">use</span> unaisa::<span class="type">Unaisa</span>;
+
+<span class="comment">// Initialize runtime with seed</span>
+<span class="keyword">let mut</span> runtime = <span class="type">Unaisa</span>::new(<span class="string">"UNAISA-2024-12-21"</span>);
+
+<span class="comment">// Publish JSON content</span>
+<span class="keyword">let</span> json = <span class="string">r#"{
+    "type": "blog-post",
+    "title": "My First Post",
+    "content": "Hello, Unaisa!",
+    "author": "Alice"
+}"#</span>;
+
+<span class="keyword">let</span> root_hash = runtime.publish(<span class="string">"blog/my-first-post"</span>, json)?;
+
+println!(<span class="string">"Published!"</span>);
+println!(<span class="string">"Root hash: {}"</span>, root_hash);</code></pre>
+
+    <p><strong>What just happened?</strong></p>
+
+    <p>Behind the scenes, the runtime:</p>
+    <ol>
+      <li>Discovered the bunion coordinate for "blog/my-first-post"</li>
+      <li>Used JsonEncoder to parse JSON into DagNode tree (bottom-up)</li>
+      <li>Created Root: <code>{ bunion_hash, encoder: "json", children }</code></li>
+      <li>Stored all DagNodes + Root in Store</li>
+      <li>Returned the Root hash</li>
+    </ol>
+
+    <h3>The Full Lifecycle</h3>
+
+    <pre><code><span class="keyword">use</span> unaisa::<span class="type">Unaisa</span>;
+
+<span class="keyword">fn</span> <span class="function">main</span>() -&gt; <span class="type">Result</span>&lt;(), <span class="type">Box</span>&lt;<span class="keyword">dyn</span> std::error::<span class="type">Error</span>&gt;&gt; {
+    <span class="comment">// 1. Initialize runtime</span>
+    <span class="keyword">let mut</span> runtime = <span class="type">Unaisa</span>::new(<span class="string">"UNAISA-2024-12-21"</span>);
+
+    <span class="comment">// 2. Publish content</span>
+    <span class="keyword">let</span> html = <span class="string">"&lt;h1&gt;Hello World&lt;/h1&gt;&lt;p&gt;First post!&lt;/p&gt;"</span>;
+    <span class="keyword">let</span> root_hash = runtime.publish_html(<span class="string">"hello"</span>, html)?;
+    println!(<span class="string">"&check; Published: {}"</span>, root_hash);
+
+    <span class="comment">// 3. List content at coordinate</span>
+    <span class="keyword">let</span> slots = runtime.list(<span class="string">"hello"</span>)?;
+    println!(<span class="string">"&check; Found {} encoder type(s)"</span>, slots.len());
+
+    <span class="comment">// 4. Get decoded content</span>
+    <span class="keyword">let</span> reconstructed = slots[<span class="number">0</span>].get(&amp;root_hash, &amp;runtime.store())?;
+    assert_eq!(reconstructed, html);
+    println!(<span class="string">"&check; Verified: content matches"</span>);
+
+    <span class="type">Ok</span>(())
+}</code></pre>
+
+    <hr>
+
+    <h2 id="identity">The Identity Layer</h2>
+
+    <p>The identity system provides <strong>collision-free decentralized identity</strong> rooted at cryptographic coordinates. Multiple people can use the same persona name (like "alice") without conflicts because identity is rooted at public key hashes, not human-readable names.</p>
+
+    <h3>The DNS Problem: Namespace Collisions</h3>
+
+    <pre><code>&cross; OLD (Namespace Collision):
+personas.alice/  &larr; ONLY ONE "alice" can exist globally!
+&boxvr;&boxh;&boxh; key.e3b0c442...
+&boxur;&boxh;&boxh; handle.twitter.alice
+
+&check; NEW (Collision-Free):
+keys.e3b0c442.../  &larr; Alice's laptop key (unique by cryptography)
+&boxvr;&boxh;&boxh; DagNode(name: "alice")
+&boxvr;&boxh;&boxh; DagNode(bio: "...")
+&boxur;&boxh;&boxh; DagNode(handle: twitter.alice)
+
+keys.a7f9d3c1.../  &larr; Bob's key (also wants name "alice")
+&boxvr;&boxh;&boxh; DagNode(name: "alice")  &larr; Fine! Different root = no collision
+&boxur;&boxh;&boxh; DagNode(handle: github.alice)</code></pre>
+
+    <h3>Bidirectional Claims: Offline-First Linking</h3>
+
+    <p><strong>No separate verification step.</strong> Links are confirmed when bidirectional claims exist:</p>
+    <ul>
+      <li>Laptop &rarr; Phone claim exists? &check;</li>
+      <li>Phone &rarr; Laptop claim exists? &check;</li>
+      <li><strong>CONFIRMED!</strong> Both keys coalesced into one persona.</li>
+    </ul>
+
+    <h3>Social Handle Verification</h3>
+
+    <p>Social handles use the <strong>same bidirectional claims model</strong>, just asymmetric:</p>
+
+    <pre><code>Bidirectional claim for social handles:
+
+  p1 &rarr; p2: Your Unaisa key claims the handle (DagNode)
+           keys.e3b0c442.../
+           &boxur;&boxh;&boxh; handle_claim { handle: <span class="string">"twitter.alice"</span>, verification_code: <span class="string">"unaisa-verify-7f3a9b2c"</span> }
+
+  p2 &rarr; p1: Your Twitter account "claims back" by posting the code
+           Tweet: <span class="string">"Verifying my Unaisa identity: unaisa-verify-7f3a9b2c"</span>
+
+Runtime checks BOTH directions exist &rarr; VERIFIED</code></pre>
+
+    <h3>Key Properties</h3>
+
+    <p><strong>Collision-Free Namespace:</strong></p>
+    <ul>
+      <li>&check; Rooted at public key hash (globally unique by cryptography)</li>
+      <li>&check; Multiple people can use same persona name (different roots)</li>
+      <li>&check; Discovery through social verification (handles, QR codes, web of trust)</li>
+    </ul>
+
+    <p><strong>Asynchronous Operation:</strong></p>
+    <ul>
+      <li>&check; Claims work offline (no coordination needed)</li>
+      <li>&check; Verification happens when devices come online</li>
+      <li>&check; Perfect for offline-first, intermittent connectivity</li>
+    </ul>
+
+    <hr>
+
+    <h2 id="p2p">The P2P Layer</h2>
+
+    <h3>Core Principle</h3>
+
+    <p><strong>Pure peer-to-peer connectivity with no central dependencies.</strong> The gateway is optional infrastructure for convenience, not a requirement.</p>
+
+    <h3>The P2P Primitive: ConnectionInfo</h3>
+
+    <pre><code><span class="keyword">pub struct</span> <span class="type">ConnectionInfo</span> {
+    peer_id: <span class="type">PeerId</span>,
+    transport_data: <span class="type">Vec</span>&lt;<span class="type">u8</span>&gt;, <span class="comment">// WebRTC SDP, IP:port, or whatever the transport needs</span>
+}</code></pre>
+
+    <p>This is everything needed to establish a connection. Everything else builds on this.</p>
+
+    <h3>Bootstrap Methods</h3>
+
+    <h4>1. QR Code Exchange (No Infrastructure)</h4>
+
+    <pre><code><span class="comment">// Peer A: Generate QR code</span>
+<span class="keyword">let</span> qr_code = peer_a.connection_info().to_qr_code();
+<span class="comment">// Display QR code on screen</span>
+
+<span class="comment">// Peer B: Scan QR code</span>
+<span class="keyword">let</span> info = <span class="type">ConnectionInfo</span>::from_qr_scan(camera);
+<span class="keyword">let</span> conn = peer_b.connect(info);</code></pre>
+
+    <p><strong>Use case</strong>: Two people in the same room, phone-to-phone, laptop-to-phone.</p>
+
+    <h4>2. URL/Link Sharing</h4>
+
+    <pre><code><span class="comment">// Peer A: Generate shareable URL</span>
+<span class="keyword">let</span> url = format!(<span class="string">"unaisa://connect?{}"</span>,
+    peer_a.connection_info().to_base64());
+<span class="comment">// Share via email, chat, SMS, etc.</span>
+
+<span class="comment">// Peer B: Click/paste URL</span>
+<span class="keyword">let</span> info = <span class="type">ConnectionInfo</span>::from_url(url);
+<span class="keyword">let</span> conn = peer_b.connect(info);</code></pre>
+
+    <h4>3. Gateway-Assisted (Optional Convenience)</h4>
+
+    <p>For browser peers that can't do direct TCP/UDP. The gateway is a <strong>dumb relay</strong> - it just helps with WebRTC signaling.</p>
+
+    <h3>Network Growth Through Gossip</h3>
+
+    <pre><code>Initial state:
+A knows: [B]
+B knows: [C, D]
+C knows: [E]
+
+Step 1: A connects to B
+  A &rarr; B: "I know about: [B]"
+  B &rarr; A: "I know about: [C, D]"
+
+Result:
+  A knows: [B, C, D]  &larr; learned about C and D from B
+  B knows: [A, C, D]  &larr; learned about A
+
+Network continues growing as peers share what they know!</code></pre>
+
+    <h3>Content Discovery & Sync</h3>
+
+    <p>Content discovery in Unaisa is <strong>serendipitous by design</strong> - you discover what your peers have, like torrents.</p>
+
+    <p><strong>The Serendipity Principle:</strong></p>
+    <ul>
+      <li>You only discover content your network knows about</li>
+      <li>Want to find more? Connect to more peers</li>
+      <li>Popular content spreads organically through announcements</li>
+      <li>Rare content requires knowing the right peers</li>
+    </ul>
+
+    <p>This is intentional - Unaisa is a <strong>social network of content</strong>, not a global search engine.</p>
+
+    <hr>
+
+    <h2 id="gateway">The Gateway (Bootstrap Infrastructure)</h2>
+
+    <h3>What Is a Gateway?</h3>
+
+    <p>A <strong>Gateway</strong> is optional bootstrap infrastructure with exactly two responsibilities:</p>
+
+    <ol>
+      <li><strong>Serve static resources</strong> - Deliver the HTML/JS/WASM bundle containing the Unaisa runtime</li>
+      <li><strong>WebRTC signaling</strong> - Help browser peers establish P2P connections</li>
+    </ol>
+
+    <p><strong>That's it.</strong> The gateway does NOT:</p>
+    <ul>
+      <li>Calculate bunions (that's local runtime)</li>
+      <li>Store DagNodes (that's local Store)</li>
+      <li>Maintain a peer registry (that's gossip)</li>
+      <li>Publish content (that's local runtime + P2P mesh)</li>
+    </ul>
+
+    <h3>You Don't Even Need a Gateway</h3>
+
+    <p>The gateway is just a <strong>convenience</strong>, not a requirement:</p>
+
+    <pre><code><span class="comment"># Option 1: QR Code Bootstrap</span>
+<span class="comment"># Two peers scan each other's QR codes - no gateway needed</span>
+
+<span class="comment"># Option 2: CLI with Local Files</span>
+cargo install unaisa
+unaisa bunion <span class="string">"hello world"</span>
+
+<span class="comment"># Option 3: Offline HTML Bundle</span>
+<span class="comment"># Bundle the runtime into a standalone HTML file</span>
+<span class="comment"># Hand it to someone, they open it, they have Unaisa</span></code></pre>
+
+    <h3>Ideal Gateway Devices</h3>
+
+    <p>Gateways are minimal - they can run on extremely cheap hardware:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Device</th>
+          <th>Price</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Raspberry Pi Pico 2 W</td>
+          <td>~$6</td>
+          <td>Runs on USB power, WiFi-enabled</td>
+        </tr>
+        <tr>
+          <td>ESP32</td>
+          <td>~$5</td>
+          <td>Ultra-cheap, runs Rust via esp-rs</td>
+        </tr>
+        <tr>
+          <td>Raspberry Pi Zero 2 W</td>
+          <td>~$15</td>
+          <td>Full Linux, extremely low power</td>
+        </tr>
+        <tr>
+          <td>Old smartphone</td>
+          <td>Free</td>
+          <td>Repurposed device, always-on WiFi</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Gateways as "Public Libraries":</strong> Think of gateways like public library WiFi access points - free to use, operated by community members, provide initial entry to the network. Once you're in, you don't need them anymore. Anyone can run one.</p>
+
+    <hr>
+
+    <h2 id="wire-protocol">Wire Protocol</h2>
+
+    <p>All P2P messages use <strong>CBOR</strong> (Concise Binary Object Representation, RFC 8949) with length-prefixed framing.</p>
+
+    <h3>Message Framing</h3>
+
+    <pre><code>&boxdr;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangleleft;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangleleft;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxur;
+&boxv; Length       &boxv; Version     &boxv; CBOR Payload            &boxv;
+&boxv; (4 bytes BE) &boxv; (1 byte)    &boxv; (variable length)       &boxv;
+&boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&blacktriangledown;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxdl;</code></pre>
+
+    <h3>Why CBOR?</h3>
+
+    <ul>
+      <li><strong>Schema-less</strong>: Self-describing like JSON, matches Unaisa's flexible design</li>
+      <li><strong>Compact</strong>: Binary encoding, efficient for P2P bandwidth</li>
+      <li><strong>Evolvable</strong>: Can add fields without breaking compatibility</li>
+      <li><strong>Wide support</strong>: Rust (<code>ciborium</code>), JavaScript (<code>cbor-x</code>), all major languages</li>
+      <li><strong>IPLD compatible</strong>: DAG-CBOR is IPFS's standard format</li>
+    </ul>
+
+    <hr>
+
+    <h2 id="api-reference">API Reference</h2>
+
+    <h3>Core Layer API</h3>
+
+    <h4>Bunion Module</h4>
+
+    <pre><code><span class="comment">/// Create the ROOT bunion for a seed</span>
+<span class="keyword">pub fn</span> <span class="function">root</span>(seed: &amp;<span class="type">str</span>) -&gt; <span class="type">Bunion</span>
+
+<span class="comment">/// Calculate the next bunion by appending one character</span>
+<span class="keyword">pub fn</span> <span class="function">next</span>(current: &amp;<span class="type">Bunion</span>, next_char: <span class="type">char</span>) -&gt; <span class="type">Bunion</span>
+
+<span class="comment">/// Calculate bunion at a path (convenience)</span>
+<span class="keyword">pub fn</span> <span class="function">at</span>(seed: &amp;<span class="type">str</span>, path: &amp;<span class="type">str</span>) -&gt; <span class="type">Bunion</span></code></pre>
+
+    <h4>The Three Primitives</h4>
+
+    <pre><code><span class="comment">/// Entry point at a bunion (like Git commit)</span>
+<span class="keyword">pub struct</span> <span class="type">Root</span> {
+    <span class="keyword">pub</span> hash: <span class="type">String</span>,
+    <span class="keyword">pub</span> bunion_hash: <span class="type">String</span>,
+    <span class="keyword">pub</span> encoder: <span class="type">String</span>,
+    <span class="keyword">pub</span> children: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,
+}
+
+<span class="comment">/// Content tree node (like Git tree/blob)</span>
+<span class="keyword">pub struct</span> <span class="type">DagNode</span> {
+    <span class="keyword">pub</span> hash: <span class="type">String</span>,
+    <span class="keyword">pub</span> content: <span class="type">Vec</span>&lt;<span class="type">u8</span>&gt;,
+    <span class="keyword">pub</span> children: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,
+}
+
+<span class="comment">/// Attestation about content (Root or DagNode)</span>
+<span class="keyword">pub struct</span> <span class="type">Signature</span> {
+    <span class="keyword">pub</span> hash: <span class="type">String</span>,
+    <span class="keyword">pub</span> signs: <span class="type">String</span>,
+    <span class="keyword">pub</span> signer: <span class="type">String</span>,
+    <span class="keyword">pub</span> sig: <span class="type">Vec</span>&lt;<span class="type">u8</span>&gt;,
+}</code></pre>
+
+    <h4>Store Trait</h4>
+
+    <pre><code><span class="keyword">pub trait</span> <span class="type">Store</span> {
+    <span class="comment">// Roots</span>
+    <span class="keyword">fn</span> <span class="function">put_root</span>(&amp;<span class="keyword">self</span>, root: <span class="type">Root</span>);
+    <span class="keyword">fn</span> <span class="function">get_root</span>(&amp;<span class="keyword">self</span>, hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Option</span>&lt;<span class="type">Root</span>&gt;;
+    <span class="keyword">fn</span> <span class="function">roots_at</span>(&amp;<span class="keyword">self</span>, bunion_hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Vec</span>&lt;<span class="type">Root</span>&gt;;
+
+    <span class="comment">// DagNodes</span>
+    <span class="keyword">fn</span> <span class="function">put_node</span>(&amp;<span class="keyword">self</span>, node: <span class="type">DagNode</span>);
+    <span class="keyword">fn</span> <span class="function">get_node</span>(&amp;<span class="keyword">self</span>, hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Option</span>&lt;<span class="type">DagNode</span>&gt;;
+
+    <span class="comment">// Signatures</span>
+    <span class="keyword">fn</span> <span class="function">put_signature</span>(&amp;<span class="keyword">self</span>, sig: <span class="type">Signature</span>);
+    <span class="keyword">fn</span> <span class="function">signatures_for</span>(&amp;<span class="keyword">self</span>, hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Vec</span>&lt;<span class="type">Signature</span>&gt;;
+}</code></pre>
+
+    <h3>Runtime Layer API</h3>
+
+    <h4>Unaisa Struct</h4>
+
+    <pre><code><span class="keyword">impl</span> <span class="type">Unaisa</span> {
+    <span class="comment">// === Construction ===</span>
+    <span class="keyword">pub fn</span> <span class="function">new</span>(seed: &amp;<span class="type">str</span>) -&gt; <span class="type">Self</span>
+    <span class="keyword">pub fn</span> <span class="function">default</span>() -&gt; <span class="type">Self</span>  <span class="comment">// Uses "UNAISA-2024-12-21"</span>
+
+    <span class="comment">// === Bunion Operations ===</span>
+    <span class="keyword">pub fn</span> <span class="function">bunion</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, path: &amp;<span class="type">str</span>) -&gt; &amp;<span class="type">Bunion</span>
+    <span class="keyword">pub fn</span> <span class="function">chain</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, path: &amp;<span class="type">str</span>) -&gt; <span class="type">Vec</span>&lt;&amp;<span class="type">Bunion</span>&gt;
+
+    <span class="comment">// === Content Operations ===</span>
+    <span class="keyword">pub fn</span> <span class="function">publish</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, path: &amp;<span class="type">str</span>, content: &amp;<span class="type">str</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">String</span>, <span class="type">Error</span>&gt;
+    <span class="keyword">pub fn</span> <span class="function">publish_html</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, path: &amp;<span class="type">str</span>, html: &amp;<span class="type">str</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">String</span>, <span class="type">Error</span>&gt;
+    <span class="keyword">pub fn</span> <span class="function">publish_markdown</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, path: &amp;<span class="type">str</span>, md: &amp;<span class="type">str</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">String</span>, <span class="type">Error</span>&gt;
+
+    <span class="comment">// === Content Discovery ===</span>
+    <span class="keyword">pub fn</span> <span class="function">list</span>(&amp;<span class="keyword">self</span>, path: &amp;<span class="type">str</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">Vec</span>&lt;<span class="type">UnaData</span>&gt;, <span class="type">Error</span>&gt;
+
+    <span class="comment">// === Identity Operations ===</span>
+    <span class="keyword">pub fn</span> <span class="function">create_key</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, device_name: <span class="type">Option</span>&lt;&amp;<span class="type">str</span>&gt;) -&gt; <span class="type">Result</span>&lt;<span class="type">String</span>, <span class="type">Error</span>&gt;
+    <span class="keyword">pub fn</span> <span class="function">claim_handle</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, handle: &amp;<span class="type">str</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">String</span>, <span class="type">Error</span>&gt;
+    <span class="keyword">pub fn</span> <span class="function">resolve_persona</span>(&amp;<span class="keyword">self</span>, key_hash: &amp;<span class="type">str</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">Persona</span>, <span class="type">Error</span>&gt;
+}</code></pre>
+
+    <h3>P2P Layer API</h3>
+
+    <pre><code><span class="keyword">pub struct</span> <span class="type">ConnectionInfo</span> {
+    <span class="keyword">pub</span> peer_id: <span class="type">PeerId</span>,
+    <span class="keyword">pub</span> transport_data: <span class="type">Vec</span>&lt;<span class="type">u8</span>&gt;,
+}
+
+<span class="keyword">impl</span> <span class="type">ConnectionInfo</span> {
+    <span class="keyword">pub fn</span> <span class="function">to_qr_code</span>(&amp;<span class="keyword">self</span>) -&gt; <span class="type">QrCode</span>
+    <span class="keyword">pub fn</span> <span class="function">from_qr_scan</span>(data: &amp;[<span class="type">u8</span>]) -&gt; <span class="type">Result</span>&lt;<span class="type">Self</span>, <span class="type">Error</span>&gt;
+    <span class="keyword">pub fn</span> <span class="function">to_base64</span>(&amp;<span class="keyword">self</span>) -&gt; <span class="type">String</span>
+    <span class="keyword">pub fn</span> <span class="function">to_url</span>(&amp;<span class="keyword">self</span>) -&gt; <span class="type">String</span>
+}
+
+<span class="keyword">pub struct</span> <span class="type">Peer</span> {
+    <span class="keyword">pub</span> id: <span class="type">PeerId</span>,
+    <span class="keyword">pub</span> known_peers: <span class="type">Vec</span>&lt;<span class="type">ConnectionInfo</span>&gt;,
+}
+
+<span class="keyword">impl</span> <span class="type">Peer</span> {
+    <span class="keyword">pub fn</span> <span class="function">connection_info</span>(&amp;<span class="keyword">self</span>) -&gt; <span class="type">ConnectionInfo</span>
+    <span class="keyword">pub fn</span> <span class="function">connect</span>(&amp;<span class="keyword">self</span>, info: <span class="type">ConnectionInfo</span>) -&gt; <span class="type">Result</span>&lt;<span class="type">Connection</span>, <span class="type">Error</span>&gt;
+    <span class="keyword">pub fn</span> <span class="function">gossip</span>(&amp;<span class="keyword">self</span>, conn: &amp;<span class="type">Connection</span>)
+}</code></pre>
+
+    <hr>
+
+    <h2 id="implementation">Implementation Notes</h2>
+
+    <h3>Platform Considerations</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Platform</th>
+          <th>Runtime</th>
+          <th>Transport</th>
+          <th>Storage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Browser</td>
+          <td>WASM</td>
+          <td>WebRTC</td>
+          <td>IndexedDB</td>
+        </tr>
+        <tr>
+          <td>Desktop/Server</td>
+          <td>Native binary</td>
+          <td>QUIC, TCP, WebRTC</td>
+          <td>SQLite</td>
+        </tr>
+        <tr>
+          <td>Mobile</td>
+          <td>Native + FFI</td>
+          <td>QUIC, WebRTC</td>
+          <td>SQLite</td>
+        </tr>
+        <tr>
+          <td>Embedded</td>
+          <td>Native (no_std)</td>
+          <td>TCP, WiFi</td>
+          <td>Flash</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Large Files</h3>
+
+    <p><strong>Recommendation</strong>: Store references to large files, not the files themselves.</p>
+
+    <pre><code>{
+  <span class="string">"type"</span>: <span class="string">"video-reference"</span>,
+  <span class="string">"ipfs_cid"</span>: <span class="string">"QmX4e8f7d..."</span>,
+  <span class="string">"torrent_magnet"</span>: <span class="string">"magnet:?xt=urn:btih:..."</span>,
+  <span class="string">"http_url"</span>: <span class="string">"https://cdn.example.com/video.mp4"</span>,
+  <span class="string">"size_bytes"</span>: <span class="number">1073741824</span>,
+  <span class="string">"blake3_hash"</span>: <span class="string">"abc123..."</span>
+}</code></pre>
+
+    <p><strong>Why</strong>:</p>
+    <ul>
+      <li>DagNodes should be small (kilobytes, not gigabytes)</li>
+      <li>P2P mesh is for discovery and coordination, not bulk transfer</li>
+      <li>Specialized protocols (BitTorrent, IPFS) handle large files better</li>
+    </ul>
+
+    <hr>
+
+    <h2 id="philosophy">Design Philosophy</h2>
+
+    <h3>No External Dependencies</h3>
+
+    <p><strong>What This Means:</strong></p>
+    <ul>
+      <li>&check; Single Rust binary compiles to native code for any platform</li>
+      <li>&check; WASM module runs in any modern browser without dependencies</li>
+      <li>&check; Self-contained HTTP server serves static assets</li>
+      <li>&cross; No Python, Node.js, or other external runtimes required</li>
+      <li>&cross; No <code>npm install</code>, <code>pip install</code>, or package manager dependencies</li>
+    </ul>
+
+    <h3>Platform Agnostic</h3>
+
+    <p><strong>Every peer is equal. The browser is just another platform.</strong></p>
+
+    <p><strong>Design principles:</strong></p>
+    <ul>
+      <li>Use the best transport for each environment</li>
+      <li>Same protocol, different transports</li>
+      <li>No platform is privileged over another</li>
+      <li>Peers interoperate regardless of platform</li>
+    </ul>
+
+    <h3>Permissionless</h3>
+
+    <p><strong>Anyone can publish anywhere:</strong></p>
+    <ul>
+      <li>No registration required to create bunion coordinates</li>
+      <li>No permission needed to publish content at any coordinate</li>
+      <li>Multiple publishers can coexist at the same coordinate</li>
+      <li>Discovery happens through social verification</li>
+    </ul>
+
+    <h3>Inspirations</h3>
+
+    <ul>
+      <li><strong>Bitcoin</strong>: Fully self-contained node software</li>
+      <li><strong>SQLite</strong>: Single file database, no server</li>
+      <li><strong>Go</strong>: Single binary deployment philosophy</li>
+      <li><strong>WASM</strong>: Universal compilation target</li>
+      <li><strong>IPFS</strong>: Content-addressed P2P networking</li>
+      <li><strong>Freenet</strong>: Censorship-resistant mesh networks</li>
+      <li><strong>Gemini Protocol</strong>: Simplicity over features</li>
+    </ul>
+
+    <hr>
+
+    <h2 id="appendices">Appendices</h2>
+
+    <h3>Appendix A: IPFS Integration</h3>
+
+    <p>Bunions (deterministic coordinates) can integrate with IPFS (content-addressed storage) via a registry that maps bunion hashes to CIDs.</p>
+
+    <pre><code>Bunion (coordinate) &boxh;&boxh;&rarr; Registry &boxh;&boxh;&rarr; CID(s) &boxh;&boxh;&rarr; IPFS Network
+   a3f8bc...              maps to      QmX4e8f...    (actual content)</code></pre>
+
+    <h3>Appendix B: Glossary</h3>
+
+    <dl>
+      <dt><strong>Bunion</strong></dt>
+      <dd>A 256-bit coordinate derived from a phrase via character-by-character Merkle chain hashing. Deterministic, hierarchical, collision-free.</dd>
+
+      <dt><strong>Root</strong></dt>
+      <dd>Entry point at a bunion coordinate (like Git commit). Contains <code>hash</code>, <code>bunion_hash</code>, <code>encoder</code>, and <code>children</code>. Doesn't nest.</dd>
+
+      <dt><strong>DagNode</strong></dt>
+      <dd>Content tree node (like Git tree/blob). Contains <code>hash</code>, <code>content</code> (CBOR bytes), and <code>children</code>. Nests to form content structure.</dd>
+
+      <dt><strong>Signature</strong></dt>
+      <dd>Attestation about a Root or DagNode. Contains <code>hash</code>, <code>signs</code>, <code>signer</code>, and <code>sig</code>. Separate primitive.</dd>
+
+      <dt><strong>Store</strong></dt>
+      <dd>Storage abstraction for the three primitives.</dd>
+
+      <dt><strong>UnaData</strong></dt>
+      <dd>Runtime query wrapper (NOT stored). Groups Roots at a bunion by encoder. <code>get()</code> returns fully decoded content.</dd>
+
+      <dt><strong>Encoder</strong></dt>
+      <dd>Converts structured content (HTML, Markdown, JSON) to/from DagNode trees.</dd>
+
+      <dt><strong>ConnectionInfo</strong></dt>
+      <dd>P2P primitive containing peer ID and transport-specific data.</dd>
+
+      <dt><strong>Gateway</strong></dt>
+      <dd>Optional bootstrap infrastructure. Serves static files and provides WebRTC signaling. NOT required.</dd>
+
+      <dt><strong>Gossip</strong></dt>
+      <dd>Protocol for peers to share known peer information.</dd>
+
+      <dt><strong>Persona</strong></dt>
+      <dd>Runtime view of an identity. Coalesced from multiple linked keys.</dd>
+
+      <dt><strong>Seed</strong></dt>
+      <dd>Initial value for bunion chain calculation. Default: <code>"UNAISA-2024-12-21"</code>.</dd>
+    </dl>
+
+    <h3>Appendix C: Ubiquitous Language</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Use This</th>
+          <th>Not This</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>"bunion"</td>
+          <td>"address", "URL"</td>
+          <td>Bunions are coordinates, not addresses</td>
+        </tr>
+        <tr>
+          <td>"discover"</td>
+          <td>"create"</td>
+          <td>Bunions exist mathematically; you discover them</td>
+        </tr>
+        <tr>
+          <td>"coordinate"</td>
+          <td>"location"</td>
+          <td>More precise for a 256-bit hash</td>
+        </tr>
+        <tr>
+          <td>"children"</td>
+          <td>"parent_hash"</td>
+          <td>Parents point to children (Git-style)</td>
+        </tr>
+        <tr>
+          <td>"encoder"</td>
+          <td>"parser"</td>
+          <td>Bidirectional (decode + encode)</td>
+        </tr>
+        <tr>
+          <td>"serendipitous discovery"</td>
+          <td>"search"</td>
+          <td>You find what your network knows</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Conclusion</h2>
+
+    <p>Unaisa provides a complete system for permissionless, decentralized content addressing:</p>
+
+    <ol>
+      <li><strong>Bunions</strong> turn any phrase into a deterministic coordinate</li>
+      <li><strong>Three primitives</strong> (Root, DagNode, Signature) store content at those coordinates</li>
+      <li><strong>The Runtime</strong> provides caching, encoding, and convenience APIs</li>
+      <li><strong>The Identity Layer</strong> enables collision-free identities via cryptographic roots</li>
+      <li><strong>The P2P Layer</strong> connects peers without central infrastructure</li>
+      <li><strong>The Gateway</strong> optionally bootstraps browsers into the mesh</li>
+    </ol>
+
+    <p>The result is a system where anyone can publish content to any coordinate, discover content through social mechanisms, and participate in a resilient mesh network - all without servers, registration, or permission.</p>
+
+    <p><strong>The network is the computer. The browser is the runtime. The mesh is the infrastructure.</strong></p>
+
+    <p><em>No servers. No dependencies. Just peers.</em></p>
+
+  </article>
+
+  <footer class="footer">
+    Questions or feedback? <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
+  </footer>
+</body>
+</html>

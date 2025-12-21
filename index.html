@@ -1,23 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Felix Flores</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&display=swap"
-    rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
   <style>
     * {
       margin: 0;
@@ -27,1224 +17,717 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-      background: #fafafa;
-      color: #1d1d1f;
-      line-height: 1.4;
+      background: #0a0a0a;
+      color: #f5f5f7;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      perspective: 800px;
-      position: relative;
+      overflow-x: hidden;
     }
 
-    #matrixCanvas {
+    /* Cellular Automata Canvas */
+    #caCanvas {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: -1;
-      opacity: 0;
-      transition: opacity 1s ease-in;
+      z-index: 0;
     }
 
-    #matrixCanvas.active {
-      opacity: 1;
-    }
-
-    .container {
-      max-width: 380px;
-      width: 100%;
-      background: white;
-      border-radius: 16px;
-      padding: 0;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
-      border: 1px solid rgba(0, 0, 0, 0.04);
-      text-align: center;
-      overflow: visible;
-      transition: transform 0.1s ease-out;
-      transform-style: preserve-3d;
+    .content {
       position: relative;
+      z-index: 1;
+      background: transparent;
+      transition: opacity 0.5s ease, transform 0.5s ease;
     }
 
-    .hidden-layer {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 100%;
-      transform: translate(-50%, -50%) translateZ(-100px);
-      display: flex;
-      justify-content: space-between;
-      padding: 0 40px;
+    .content.hidden {
+      opacity: 0;
       pointer-events: none;
-      transform-style: preserve-3d;
+      transform: scale(0.98);
     }
 
-    .hidden-link {
+    .toggle-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      background: rgba(10, 10, 12, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
       display: flex;
       align-items: center;
-      padding: 16px 20px;
-      text-decoration: none;
-      color: #1d1d1f;
-      background: #f5f5f7;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 400;
-      transition: all 0.15s ease;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      pointer-events: auto;
-      white-space: nowrap;
+      gap: 6px;
     }
 
-    .hidden-link:hover {
-      background: #e8e8ed;
+    .toggle-btn:hover {
+      background: rgba(10, 10, 12, 0.6);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.8);
     }
 
-    .hidden-link.left:hover {
-      transform: translateY(-50%) rotate(-90deg) scale(1.02);
+    .toggle-btn svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.7;
     }
 
-    .hidden-link.right:hover {
-      transform: translateY(-50%) rotate(90deg) scale(1.02);
-    }
-
-    .hidden-link.left:active {
-      background: #d1d1d6;
-      transform: translateY(-50%) rotate(-90deg) scale(0.98);
-    }
-
-    .hidden-link.right:active {
-      background: #d1d1d6;
-      transform: translateY(-50%) rotate(90deg) scale(0.98);
-    }
-
-    .hidden-link-group {
-      position: absolute;
-      display: flex;
-      flex-direction: row;
-      gap: 0;
-      pointer-events: none;
-    }
-
-    .hidden-link-group.left {
-      left: -145px;
-      top: 50%;
-      transform: translateY(-50%) rotate(-90deg);
-    }
-
-    .hidden-link-group .hidden-link {
-      border-radius: 0;
-    }
-
-    .hidden-link-group .hidden-link:first-child {
-      border-radius: 12px 0 0 12px;
-      border-right: none;
-    }
-
-    .hidden-link-group .hidden-link:last-child {
-      border-radius: 0 12px 12px 0;
-    }
-
-    .hidden-link-group.left .hidden-link:hover {
-      z-index: 1;
-    }
-
-    .hidden-link-group.left .hidden-link:active {
-      background: #d1d1d6;
-    }
-
-    .hidden-link.left {
-      position: absolute;
-      left: -80px;
-      top: 50%;
-      transform: translateY(-50%) rotate(-90deg);
-    }
-
-    .hidden-link.right {
-      position: absolute;
-      right: -80px;
-      top: 50%;
-      transform: translateY(-50%) rotate(90deg);
-    }
-
-    @media (max-width: 768px) {
-      body {
-        padding: 5px;
-      }
-
-      .container {
-        max-width: 260px;
-        font-size: 14px;
-      }
-    }
-
-    .ascii-container {
-      background: #000;
-      padding: 0;
-      font-family: 'Courier New', monospace;
-      font-size: 6px;
-      line-height: 6px;
-      color: #00ff00;
-      user-select: none;
-      overflow: hidden;
-      position: relative;
-      min-height: 180px;
+    /* Hero Section */
+    .hero {
+      min-height: 50vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 16px 16px 0 0;
-      transform: translateZ(0px);
-      transition: min-height 0.4s ease;
+      padding: 80px 40px 40px;
     }
 
-    .ascii-container.active {
-      min-height: 280px;
+    .hero-content {
+      text-align: center;
+      max-width: 600px;
     }
 
-    .debug-overlay {
-      position: absolute;
-      top: 10px;
-      right: 10px;
+    .avatar {
       width: 100px;
       height: 100px;
-      background: rgba(0, 0, 0, 0.8);
-      border: 1px solid #00ff00;
-      z-index: 1000;
-      display: none;
-    }
-
-    .debug-overlay.visible {
-      display: block;
-    }
-
-    .debug-grid {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-    }
-
-    .debug-grid-line-h,
-    .debug-grid-line-v {
-      position: absolute;
-      background: #00ff00;
-      opacity: 0.3;
-    }
-
-    .debug-grid-line-h {
-      width: 100%;
-      height: 1px;
-      top: 50%;
-    }
-
-    .debug-grid-line-v {
-      width: 1px;
-      height: 100%;
-      left: 50%;
-    }
-
-    .debug-dot {
-      position: absolute;
-      width: 8px;
-      height: 8px;
-      background: #00ff00;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      transition: all 0.1s ease-out;
-    }
-
-    .debug-info {
-      position: absolute;
-      bottom: 2px;
-      left: 2px;
-      font-size: 8px;
-      color: #00ff00;
-      font-family: monospace;
-      line-height: 1.2;
-    }
-
-    @media (max-width: 768px) {
-      .ascii-container {
-        min-height: 140px;
-      }
-
-      .ascii-container.active {
-        min-height: 200px;
-      }
-    }
-
-    .ascii-art {
-      white-space: pre;
-      letter-spacing: 0;
-      font-weight: bold;
-      text-align: center;
-    }
-
-    #videoCanvas {
-      display: none;
-    }
-
-    .ascii-controls {
-      display: none;
-    }
-
-    .initial-figure {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 6px;
-      line-height: 6px;
-      color: rgba(0, 255, 0, 0.6);
-      font-family: 'Courier New', monospace;
-      white-space: pre;
-      animation: subtleMove 4s ease-in-out infinite;
-      pointer-events: none;
-    }
-
-    @keyframes subtleMove {
-
-      0%,
-      100% {
-        transform: translate(-50%, -50%) translateY(0);
-      }
-
-      50% {
-        transform: translate(-50%, -50%) translateY(-3px);
-      }
-    }
-
-    .loading-notice {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 14px;
-      color: #00ff00;
-      font-family: 'Courier New', monospace;
-      background: rgba(0, 0, 0, 0.95);
-      padding: 20px 28px;
-      border-radius: 8px;
-      text-align: center;
-      pointer-events: none;
-      z-index: 100;
-      display: none;
-      border: 1px solid #00ff00;
-    }
-
-    .loading-notice.visible {
-      display: block;
-    }
-
-    .loading-spinner {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid rgba(0, 255, 0, 0.3);
-      border-radius: 50%;
-      border-top-color: #00ff00;
-      animation: spin 0.8s linear infinite;
-      margin-left: 8px;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .content-wrapper {
-      padding: 48px 32px 32px;
-      transform-style: preserve-3d;
-      background: white;
-      border-radius: 0 0 16px 16px;
-    }
-
-    @media (max-width: 768px) {
-      .content-wrapper {
-        padding: 16px 20px 16px;
-      }
-    }
-
-    .profile-image {
-      width: 96px;
-      height: 96px;
       border-radius: 50%;
       object-fit: cover;
-      margin: 0 auto 24px;
-      display: block;
-      transform: translateZ(200px);
-      filter: brightness(1.05);
-      transition: box-shadow 0.1s ease-out;
-    }
-
-    @media (max-width: 768px) {
-      .profile-image {
-        width: 72px;
-        height: 72px;
-        margin: 0 auto 12px;
-      }
+      margin-bottom: 24px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     }
 
     .name {
-      font-size: 28px;
+      font-size: 42px;
       font-weight: 600;
-      color: #1d1d1f;
-      margin-bottom: 4px;
-      letter-spacing: -0.4px;
-      transform: translateZ(120px);
-      transition: text-shadow 0.1s ease-out;
-    }
-
-    @media (max-width: 768px) {
-      .name {
-        font-size: 22px;
-        margin-bottom: 2px;
-      }
+      letter-spacing: -1.5px;
+      margin-bottom: 8px;
+      color: #f5f5f7;
     }
 
     .title {
-      font-size: 17px;
-      color: #86868b;
-      font-weight: 400;
+      font-size: 18px;
+      color: #6e6e73;
       margin-bottom: 32px;
-      transform: translateZ(120px);
-      transition: text-shadow 0.1s ease-out;
     }
 
-    @media (max-width: 768px) {
-      .title {
-        font-size: 14px;
-        margin-bottom: 12px;
-      }
-    }
-
-    .links {
+    .social-links {
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       gap: 12px;
-      transform: translateZ(60px);
+      flex-wrap: wrap;
     }
 
-    @media (max-width: 768px) {
-      .links {
-        gap: 8px;
-      }
-    }
-
-    .link {
+    .social-link {
       display: flex;
       align-items: center;
-      padding: 16px 20px;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+      color: #86868b;
       text-decoration: none;
-      color: #1d1d1f;
-      background: #f5f5f7;
-      border-radius: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .social-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #f5f5f7;
+      transform: translateY(-2px);
+    }
+
+    .social-link svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Projects - Uniform Grid */
+    .projects {
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .grid-cell {
+      width: 100%;
+      aspect-ratio: 1.2;
+      position: relative;
+    }
+
+    /* Last row centered with 2 items */
+    .grid-cell:nth-child(4) {
+      grid-column: 1 / 2;
+    }
+    .grid-cell:nth-child(5) {
+      grid-column: 2 / 3;
+    }
+
+    .project-card {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 10, 12, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+
+    .project-card:hover {
+      background: rgba(10, 10, 12, 0.55);
+      border-color: rgba(255, 255, 255, 0.12);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .project-icon {
+      font-size: 32px;
+      margin-bottom: 16px;
+    }
+
+    .project-name {
       font-size: 16px;
-      font-weight: 400;
-      transition: all 0.15s ease, box-shadow 0.1s ease-out;
-      border: 1px solid rgba(0, 0, 0, 0.06);
+      font-weight: 600;
+      color: #f5f5f7;
+      margin-bottom: 8px;
+      letter-spacing: -0.3px;
     }
 
+    .draft-badge {
+      font-size: 10px;
+      font-weight: 500;
+      color: #f5a623;
+      background: rgba(245, 166, 35, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .project-description {
+      font-size: 13px;
+      color: #86868b;
+      line-height: 1.5;
+      flex-grow: 1;
+    }
+
+    .project-arrow {
+      margin-top: auto;
+      padding-top: 16px;
+      color: #4af;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .project-card:hover .project-arrow {
+      opacity: 1;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 60px 40px;
+      text-align: center;
+      color: #3a3a3c;
+      font-size: 13px;
+    }
+
+    .footer a {
+      color: #4af;
+      text-decoration: none;
+    }
+
+    /* Responsive */
     @media (max-width: 768px) {
-      .link {
-        padding: 12px 16px;
-        font-size: 14px;
-        border-radius: 10px;
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
       }
+
+      .grid-cell:nth-child(4) { grid-column: 1; }
+      .grid-cell:nth-child(5) { grid-column: 2; }
     }
 
-    .link:hover {
-      background: #e8e8ed;
-      transform: translateY(-2px) translateZ(10px);
-    }
-
-    .link:active {
-      transform: translateY(0) translateZ(5px);
-      background: #d1d1d6;
-    }
-
-    .link-icon {
-      width: 20px;
-      height: 20px;
-      margin-right: 12px;
-      opacity: 0.8;
-    }
-
-    @media (max-width: 768px) {
-      .link-icon {
-        width: 18px;
-        height: 18px;
-        margin-right: 10px;
-      }
-    }
-
-    @media (prefers-color-scheme: dark) {
-      body {
-        background: #000;
-        color: #f5f5f7;
-      }
-
-      #matrixCanvas {
-        background: #000;
-      }
-
-      .container {
-        background: #1d1d1f;
-        border-color: rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-      }
-
-      .content-wrapper {
-        background: #1d1d1f;
-      }
-
-      .ascii-container {
-        background: #000;
-        color: #00ff00;
+    @media (max-width: 500px) {
+      .hero {
+        padding: 60px 24px 30px;
+        min-height: 40vh;
       }
 
       .name {
-        color: #f5f5f7;
+        font-size: 32px;
       }
 
-      .title {
-        color: #86868b;
+      .projects {
+        padding: 20px;
       }
 
-      .link {
-        color: #f5f5f7;
-        background: #2c2c2e;
-        border-color: rgba(255, 255, 255, 0.06);
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
       }
 
-      .link:hover {
-        background: #3a3a3c;
+      .grid-cell {
+        aspect-ratio: 1.6;
       }
 
-      .link:active {
-        background: #48484a;
-      }
-
-      .hidden-link {
-        color: #f5f5f7;
-        background: #2c2c2e;
-        border-color: rgba(255, 255, 255, 0.06);
-      }
-
-      .hidden-link:hover {
-        background: #3a3a3c;
-      }
-
-      .hidden-link:active {
-        background: #48484a;
+      .grid-cell:nth-child(n) {
+        grid-column: 1;
       }
     }
   </style>
 </head>
-<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-R0M5DGW99S"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
-  function gtag() { dataLayer.push(arguments); }
+  function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-
   gtag('config', 'G-R0M5DGW99S');
 </script>
-
 <body>
-  <canvas id="matrixCanvas"></canvas>
-  <div class="container">
-    <div class="hidden-layer">
-      <div class="hidden-link-group left">
-        <a href="blog.html" class="hidden-link">
-          <i class="fa-solid fa-blog" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
-          BLOG
-        </a>
-        <a href="tiltrush.html" class="hidden-link">
-          <i class="fa-solid fa-gamepad" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
-          TILTRUSH
-        </a>
-      </div>
-      <div class="hidden-link-group right" style="right: -145px; top: 50%; transform: translateY(-50%) rotate(90deg);">
-        <a href="photos.html" class="hidden-link">
-          <i class="fa-solid fa-images" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
-          PHOTOS
-        </a>
-        <a href="tinnitus-therapy.html" class="hidden-link">
-          <i class="fa-solid fa-headphones" style="width: 20px; height: 20px; margin-right: 12px; opacity: 0.8;"></i>
-          TINNITUS
-        </a>
-      </div>
-    </div>
-    <div class="ascii-container">
-      <div class="ascii-art" id="asciiArt"></div>
-      <canvas id="videoCanvas"></canvas>
-      <div class="ascii-controls">[ WEBCAM ]</div>
-      <div class="initial-figure" id="initialFigure"></div>
-      <div class="loading-notice" id="loadingNotice">
-        LOADING<span class="loading-spinner"></span>
-      </div>
-      <div class="debug-overlay visible" id="debugOverlay">
-        <div class="debug-grid">
-          <div class="debug-grid-line-h"></div>
-          <div class="debug-grid-line-v"></div>
+  <button class="toggle-btn" id="toggleBtn" title="Toggle view">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+    <span>View</span>
+  </button>
+  <canvas id="caCanvas"></canvas>
+
+  <div class="content" id="content">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-content">
+        <img src="image.png" alt="Felix Flores" class="avatar">
+        <h1 class="name">Felix Flores</h1>
+        <p class="title">Technologist</p>
+        <div class="social-links">
+          <a href="https://github.com/felixflores" target="_blank" rel="noopener noreferrer" class="social-link" title="GitHub">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          </a>
+          <a href="https://x.com/felixflores" target="_blank" rel="noopener noreferrer" class="social-link" title="X">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a href="https://www.instagram.com/felixflores" target="_blank" rel="noopener noreferrer" class="social-link" title="Instagram">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          </a>
+          <a href="https://www.linkedin.com/in/felixflores/" target="_blank" rel="noopener noreferrer" class="social-link" title="LinkedIn">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          </a>
         </div>
-        <div class="debug-dot" id="debugDot"></div>
-        <div class="debug-info" id="debugInfo">x: 0.5<br>y: 0.5</div>
       </div>
-    </div>
-    <div class="content-wrapper">
-      <img src="image.png" alt="Felix Flores" class="profile-image" />
-      <h1 class="name">Felix Flores</h1>
-      <p class="title">Technologist</p>
+    </section>
 
-      <div class="links">
-        <a href="https://github.com/felixflores" target="_blank" rel="noopener noreferrer" class="link">
-          <svg class="link-icon" fill="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
-          </svg>
-          @felixflores
-        </a>
+    <!-- Projects -->
+    <section class="projects">
+      <div class="grid">
+        <div class="grid-cell">
+          <a href="buddhabrot_bg.html" class="project-card">
+            <span class="project-icon">🌌</span>
+            <h3 class="project-name">Nebulabrot Explorer</h3>
+            <p class="project-description">Interactive Buddhabrot fractal with parallel Web Workers</p>
+            <span class="project-arrow">Explore →</span>
+          </a>
+        </div>
 
-        <a href="https://x.com/felixflores" target="_blank" rel="noopener noreferrer" class="link">
-          <svg class="link-icon" fill="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-          </svg>
-          @felixflores
-        </a>
+        <div class="grid-cell">
+          <a href="unaisa.html" class="project-card">
+            <span class="project-icon">📜</span>
+            <h3 class="project-name">Unaisa Protocol <span class="draft-badge">Draft</span></h3>
+            <p class="project-description">Decentralized content addressing via Merkle chains</p>
+            <span class="project-arrow">Read →</span>
+          </a>
+        </div>
 
-        <a href="https://www.instagram.com/felixflores" target="_blank" rel="noopener noreferrer" class="link">
-          <svg class="link-icon" fill="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-          </svg>
-          @felixflores
-        </a>
+        <div class="grid-cell">
+          <a href="cymatics.html" class="project-card">
+            <span class="project-icon">🔮</span>
+            <h3 class="project-name">Spherical Cymatics</h3>
+            <p class="project-description">Standing wave patterns on a sphere</p>
+            <span class="project-arrow">View →</span>
+          </a>
+        </div>
 
-        <a href="https://www.linkedin.com/in/felixflores/" target="_blank" rel="noopener noreferrer" class="link">
-          <svg class="link-icon" fill="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-          </svg>
-          /in/felixflores
-        </a>
+        <div class="grid-cell">
+          <a href="tiltrush.html" class="project-card">
+            <span class="project-icon">🎮</span>
+            <h3 class="project-name">TiltRush</h3>
+            <p class="project-description">Motion-controlled mobile game</p>
+            <span class="project-arrow">Play →</span>
+          </a>
+        </div>
+
+        <div class="grid-cell">
+          <a href="blog.html" class="project-card">
+            <span class="project-icon">✦</span>
+            <h3 class="project-name">More</h3>
+            <p class="project-description">Experiments & tools</p>
+            <span class="project-arrow">Browse →</span>
+          </a>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <footer class="footer">
+      <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
+    </footer>
   </div>
+
   <script>
-    // DOM Elements
-    const elements = {
-      asciiArt: document.getElementById('asciiArt'),
-      canvas: document.getElementById('videoCanvas'),
-      container: document.querySelector('.container'),
-      initialFigure: document.getElementById('initialFigure'),
-      loadingNotice: document.getElementById('loadingNotice'),
-      profileImage: document.querySelector('.profile-image'),
-      nameElement: document.querySelector('.name'),
-      titleElement: document.querySelector('.title'),
-      linkElements: document.querySelectorAll('.link'),
-      matrixCanvas: document.getElementById('matrixCanvas'),
-      asciiContainer: document.querySelector('.ascii-container'),
-      debugOverlay: document.getElementById('debugOverlay'),
-      debugDot: document.getElementById('debugDot'),
-      debugInfo: document.getElementById('debugInfo')
-    };
+    // Toggle content visibility
+    const toggleBtn = document.getElementById('toggleBtn');
+    const content = document.getElementById('content');
+    const btnText = toggleBtn.querySelector('span');
 
-    // Constants
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const CONFIG = {
-      asciiChars: ['@', '#', 'S', '%', '?', '*', '+', ';', ':', ',', '.', ' '],
-      width: 80,
-      height: 40,
-      fps: isSafari ? 30 : 60,
-      smoothing: isMobile ? 0.3 : (isSafari ? 0.35 : 0.25),
-      rotationMultipliers: { horizontal: 70, verticalUp: 60, verticalDown: 80 },
-      shadowMultipliers: { x: 50, y: 60 }
-    };
-
-    elements.canvas.width = CONFIG.width;
-    elements.canvas.height = CONFIG.height;
-
-    // Create canvas context once with willReadFrequently for better performance
-    const canvasCtx = elements.canvas.getContext('2d', { willReadFrequently: true });
-
-    // Pure Functions
-    const pipe = (...fns) => x => fns.reduce((v, f) => f(v), x);
-    const curry = fn => (...args) => args.length >= fn.length ? fn(...args) : curry(fn.bind(null, ...args));
-
-    const calculateBrightness = (r, g, b) => (r + g + b) / 3;
-
-    const getPixelBrightness = (pixels, x, y, width) => {
-      const offset = (y * width + x) * 4;
-      return calculateBrightness(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
-    };
-
-    const mapRange = (value, inMin, inMax, outMin, outMax) =>
-      ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
-
-    const smoothValue = curry((smoothing, current, target) =>
-      current + (target - current) * smoothing);
-
-    const findDarkestRegion = (pixels, width, height, gridSize) => {
-      const regions = Array.from({ length: gridSize }, (_, gy) =>
-        Array.from({ length: gridSize }, (_, gx) => {
-          const startX = Math.floor((gx / gridSize) * width);
-          const startY = Math.floor((gy / gridSize) * height);
-          const endX = Math.floor(((gx + 1) / gridSize) * width);
-          const endY = Math.floor(((gy + 1) / gridSize) * height);
-
-          const brightness = Array.from({ length: endY - startY }, (_, dy) =>
-            Array.from({ length: endX - startX }, (_, dx) =>
-              getPixelBrightness(pixels, startX + dx, startY + dy, width)
-            ).reduce((sum, val) => sum + val, 0)
-          ).reduce((sum, val) => sum + val, 0);
-
-          return { brightness, x: (startX + endX) / 2, y: (startY + endY) / 2 };
-        })
-      ).flat();
-
-      // Find DARKEST region (lowest brightness = where head/face is)
-      return regions.reduce((min, region) =>
-        region.brightness < min.brightness ? region : min
-      );
-    };
-
-    const pixelToAscii = curry((chars, brightness) => {
-      const charIndex = Math.floor((brightness / 255) * (chars.length - 1));
-      return chars[chars.length - 1 - charIndex];
+    toggleBtn.addEventListener('click', () => {
+      content.classList.toggle('hidden');
+      btnText.textContent = content.classList.contains('hidden') ? 'Show' : 'View';
     });
-
-    const imageDataToAscii = (imageData, config) => {
-      const { width, height, asciiChars } = config;
-      const toChar = pixelToAscii(asciiChars);
-
-      return Array.from({ length: height }, (_, y) =>
-        Array.from({ length: width }, (_, x) => {
-          const brightness = getPixelBrightness(imageData.data, x, y, width);
-          return toChar(brightness);
-        }).reverse().join('')
-      ).join('\n');
-    };
-
-    // Clean 3D transform calculation
-    // User left → left side forward (positive rotateY)
-    // User right → right side forward (negative rotateY)
-    // User top → top forward (negative rotateX)
-    // User bottom → bottom forward (positive rotateX)
-    const create3DTransformData = (state, config) => {
-      const { smoothHeadX, smoothHeadY } = state;
-
-      // Calculate offset from center (-0.5 to +0.5 range)
-      const offsetX = smoothHeadX - CALIBRATED_CENTER.x;
-      const offsetY = smoothHeadY - CALIBRATED_CENTER.y;
-
-      // Apply rotation with different multipliers for up/down
-      const rotateY = -offsetX * config.rotationMultipliers.horizontal;
-      const verticalMultiplier = offsetY < 0 ? config.rotationMultipliers.verticalUp : config.rotationMultipliers.verticalDown;
-      const rotateX = offsetY * verticalMultiplier;
-
-      // Shadows follow rotation
-      const shadowX = offsetX * config.shadowMultipliers.x;
-      const shadowY = offsetY * config.shadowMultipliers.y;
-
-      return { rotateX, rotateY, shadowX, shadowY };
-    };
-
-    // State Management
-    const createState = () => ({
-      video: null,
-      isWebcamActive: false,
-      isGyroActive: false,
-      headX: 0.5,
-      headY: 0.5,
-      smoothHeadX: 0.5,
-      smoothHeadY: 0.5,
-      lastRenderTime: 0,
-      faceDetector: null,
-      lockedFace: null,
-      faceLostFrames: 0
-    });
-
-    let state = createState();
-
-    // Use center of frame as neutral position
-    const CALIBRATED_CENTER = { x: 0.5, y: 0.5 };
-
-    // Initialize BlazeFace
-    const initFaceDetector = async () => {
-      try {
-        state.faceDetector = await blazeface.load();
-      } catch (err) {
-        console.error('Failed to load BlazeFace:', err);
-      }
-    };
-
-    // Gyroscope Support
-    const mapGyroToPosition = (beta, gamma) => {
-      // beta: front-to-back tilt (-180 to 180), 0 is flat
-      // gamma: left-to-right tilt (-90 to 90), 0 is flat
-      // Tilt left = positive gamma, Tilt right = negative gamma
-      // Adjusted range so comfortable viewing angle (~45°) is origin
-      const clampedBeta = Math.max(15, Math.min(75, beta));
-      const clampedGamma = Math.max(-30, Math.min(30, gamma));
-
-      const x = mapRange(clampedGamma, -30, 30, 1, 0); // Flipped
-      const y = mapRange(clampedBeta, 15, 75, 1, 0);
-
-      return { x, y };
-    };
-
-    const handleDeviceOrientation = (event) => {
-      if (!state.isGyroActive) return;
-
-      const beta = event.beta || 0;   // front-to-back (-180 to 180)
-      const gamma = event.gamma || 0; // left-to-right (-90 to 90)
-
-      const position = mapGyroToPosition(beta, gamma);
-      state.headX = position.x;
-      state.headY = position.y;
-
-      // Update smoothed position
-      const smooth = smoothValue(CONFIG.smoothing);
-      state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
-      state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
-
-      updateDebugOverlay(state, elements);
-      const transformData = create3DTransformData(state, CONFIG);
-      apply3DTransformToDOM(transformData, elements);
-    };
-
-    const initGyroscope = async () => {
-      // Better mobile detection: check for touch AND small screen
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const isSmallScreen = window.innerWidth <= 768;
-      const isActualMobile = isMobile && isTouchDevice && isSmallScreen;
-
-      if (!isActualMobile) {
-        // Desktop (including Safari desktop) - use webcam with face tracking
-        initWebcam();
-        return;
-      }
-
-      // Hide initial figure and show loading indicator
-      setDisplay(elements.initialFigure, 'none');
-      toggleClass(elements.loadingNotice, 'visible', true);
-
-      // Mobile - use webcam for ASCII but gyro for tracking
-      // Request gyroscope permission for iOS 13+
-      if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-          const permission = await DeviceOrientationEvent.requestPermission();
-          if (permission !== 'granted') {
-            // Fallback to webcam with face tracking
-            toggleClass(elements.loadingNotice, 'visible', false);
-            initWebcam();
-            return;
-          }
-        } catch (error) {
-          toggleClass(elements.loadingNotice, 'visible', false);
-          initWebcam();
-          return;
-        }
-      }
-
-      // Initialize webcam for ASCII art
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false
-        });
-
-        const video = createVideoElement(stream);
-        video.onloadedmetadata = () => {
-          state.video = video;
-          state.isWebcamActive = true;
-          state.isGyroActive = true;
-
-          toggleClass(elements.asciiContainer, 'active', true);
-          setDisplay(elements.initialFigure, 'none');
-          toggleClass(elements.loadingNotice, 'visible', false);
-
-          // Remember that user enabled camera/gyro
-          localStorage.setItem('cameraEnabled', 'true');
-
-          initMatrix();
-          startRenderLoop();
-          window.addEventListener('deviceorientation', handleDeviceOrientation);
-        };
-      } catch (err) {
-        toggleClass(elements.loadingNotice, 'visible', false);
-        elements.asciiArt.textContent = `
-╔══════════════════════════╗
-║                          ║
-║    WEBCAM ACCESS         ║
-║    DENIED OR             ║
-║    UNAVAILABLE           ║
-║                          ║
-║  Tap to enable           ║
-║                          ║
-╚══════════════════════════╝`;
-      }
-    };
-
-    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    elements.initialFigure.textContent = `
-       ▄▄▄▄▄▄▄▄▄▄▄▄▄
-     ▄▀░░░░░░░░░░░░░▀▄
-    █░░░░░░░░░░░░░░░░█
-   █░░█░░░░░░░░░█░░░░█
-  █░░░█░░░░░░░░░█░░░░░█
-  █░░░░░░░░░░░░░░░░░░░█
-  █░░░░░░░░░░░░░░░░░░░█
-   █░░░░▄▄▄▄▄▄▄░░░░░░█
-    █░░░░░░░░░░░░░░░█
-     ▀▄░░░░░░░░░░░▄▀
-       ▀▀▀▀▀▀▀▀▀▀▀
-
-     CLICK TO ENABLE
-       ${isMobileDevice ? 'MOTION 3D' : 'WEBCAM 3D'}`;
-
-    // Side Effects - DOM Manipulation
-    const applyStyles = (element, styles) =>
-      Object.entries(styles).forEach(([key, value]) => element.style[key] = value);
-
-    const toggleClass = (element, className, add) =>
-      add ? element.classList.add(className) : element.classList.remove(className);
-
-    const setDisplay = (element, value) => element.style.display = value;
-
-    const updateDebugOverlay = (state, elements) => {
-      const { smoothHeadX, smoothHeadY } = state;
-
-      // Update dot position (0-1 range maps to 0-100%)
-      const dotX = smoothHeadX * 100;
-      const dotY = smoothHeadY * 100;
-      applyStyles(elements.debugDot, {
-        left: `${dotX}%`,
-        top: `${dotY}%`
-      });
-
-      // Update info text
-      const offsetX = (smoothHeadX - CALIBRATED_CENTER.x).toFixed(2);
-      const offsetY = (smoothHeadY - CALIBRATED_CENTER.y).toFixed(2);
-      elements.debugInfo.innerHTML = `x:${smoothHeadX.toFixed(2)}<br>y:${smoothHeadY.toFixed(2)}<br>Δx:${offsetX}<br>Δy:${offsetY}`;
-    };
-
-    const apply3DTransformToDOM = (transformData, elements) => {
-      const { rotateX, rotateY, shadowX, shadowY } = transformData;
-
-      // Card is furthest away (base layer)
-      applyStyles(elements.container, {
-        transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`
-      });
-
-      // Avatar is closest - least rotation, most translateZ
-      // Shadow projects away from viewer (light source from nose)
-      const avatarShadowX = -rotateY * 2; // negative rotateY = right tilt, shadow goes right
-      const avatarShadowY = rotateX * 2; // positive rotateX = down tilt, shadow goes down
-      applyStyles(elements.profileImage, {
-        transform: `translateZ(200px) rotateY(${-rotateY * 0.2}deg) rotateX(${-rotateX * 0.2}deg)`,
-        boxShadow: `
-            ${avatarShadowX}px ${avatarShadowY + 30}px 80px rgba(0, 0, 0, 0.4),
-            0 0 0 4px rgba(255, 255, 255, 0.1),
-            inset ${-avatarShadowX * 0.1}px ${-avatarShadowY * 0.1}px 8px rgba(0, 0, 0, 0.3)
-          `
-      });
-
-      // Text is closest - least rotation, most translateZ
-      const textShadowX = -rotateY * 0.3;
-      const textShadowY = rotateX * 0.3;
-      const textShadow = `
-          ${textShadowX}px ${textShadowY + 2}px 4px rgba(0, 0, 0, 0.1),
-          ${textShadowX * 2}px ${textShadowY * 2 + 4}px 12px rgba(0, 0, 0, 0.08),
-          ${textShadowX * 3}px ${textShadowY * 3 + 8}px 24px rgba(0, 0, 0, 0.06)
-        `;
-
-      applyStyles(elements.nameElement, {
-        transform: `translateZ(180px) rotateY(${-rotateY * 0.2}deg) rotateX(${-rotateX * 0.2}deg)`,
-        textShadow
-      });
-
-      applyStyles(elements.titleElement, {
-        transform: `translateZ(180px) rotateY(${-rotateY * 0.2}deg) rotateX(${-rotateX * 0.2}deg)`,
-        textShadow: `
-            ${textShadowX}px ${textShadowY + 2}px 4px rgba(0, 0, 0, 0.08),
-            ${textShadowX * 2}px ${textShadowY * 2 + 4}px 12px rgba(0, 0, 0, 0.06)
-          `
-      });
-
-      // Buttons are middle layer - moderate rotation and translateZ
-      const linkShadowX = -rotateY * 0.8;
-      const linkShadowY = rotateX * 0.8;
-      elements.linkElements.forEach(link => {
-        applyStyles(link, {
-          transform: `translateZ(100px) rotateY(${-rotateY * 0.5}deg) rotateX(${-rotateX * 0.5}deg)`
-        });
-
-        if (!link.matches(':hover') && !link.matches(':active')) {
-          applyStyles(link, {
-            boxShadow: `
-                ${linkShadowX}px ${linkShadowY + 2}px 8px rgba(0, 0, 0, 0.08),
-                ${linkShadowX * 2}px ${linkShadowY * 2 + 8}px 20px rgba(0, 0, 0, 0.06),
-                inset 0 1px 0 rgba(255, 255, 255, 0.5)
-              `
-          });
-        }
-      });
-    };
-
-    // Matrix Effect
-    const createMatrixState = (width, height) => ({
-      columns: Array(Math.floor(width / 20)).fill(0),
-      width,
-      height,
-      active: true
-    });
-
-    const updateMatrixColumn = (column, height) =>
-      column * 20 > height && Math.random() > 0.975 ? 0 : column + 1;
-
-    const drawMatrixFrame = (ctx, matrixState) => {
-      if (!matrixState.active) return matrixState;
-
-      ctx.fillStyle = 'rgba(250, 250, 250, 0.05)';
-      ctx.fillRect(0, 0, matrixState.width, matrixState.height);
-      ctx.fillStyle = 'rgba(0, 80, 0, 0.3)';
-      ctx.font = '13px monospace';
-
-      const updatedColumns = matrixState.columns.map((column, i) => {
-        const text = String.fromCharCode(0x30A0 + Math.random() * 96);
-        ctx.fillText(text, i * 20, column * 20);
-        return updateMatrixColumn(column, matrixState.height);
-      });
-
-      return { ...matrixState, columns: updatedColumns };
-    };
-
-    let matrixState = null;
-
-    const initMatrix = () => {
-      elements.matrixCanvas.width = window.innerWidth;
-      elements.matrixCanvas.height = window.innerHeight;
-      matrixState = createMatrixState(elements.matrixCanvas.width, elements.matrixCanvas.height);
-      toggleClass(elements.matrixCanvas, 'active', true);
-
-      const ctx = elements.matrixCanvas.getContext('2d');
-      const animate = () => {
-        if (matrixState?.active) {
-          matrixState = drawMatrixFrame(ctx, matrixState);
-          setTimeout(() => requestAnimationFrame(animate), 50);
-        }
-      };
-      animate();
-    };
-
-    // Webcam and Video Processing
-    const createVideoElement = (stream) => {
-      const video = document.createElement('video');
-      video.setAttribute('playsinline', '');
-      video.srcObject = stream;
-      video.play();
-      return video;
-    };
-
-    const handleWebcamActivation = () => {
-      toggleClass(elements.asciiContainer, 'active', true);
-      setDisplay(elements.initialFigure, 'none');
-      toggleClass(elements.loadingNotice, 'visible', false);
-
-      // Remember that user enabled camera/gyro
-      localStorage.setItem('cameraEnabled', 'true');
-
-      initMatrix();
-      startRenderLoop();
-    };
-
-    const initWebcam = async () => {
-      // Hide initial figure and show loading indicator
-      setDisplay(elements.initialFigure, 'none');
-      toggleClass(elements.loadingNotice, 'visible', true);
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false
-        });
-
-        const video = createVideoElement(stream);
-        video.onloadedmetadata = async () => {
-          state.video = video;
-          state.isWebcamActive = true;
-
-          // Initialize BlazeFace for face tracking
-          await initFaceDetector();
-
-          handleWebcamActivation();
-        };
-      } catch (err) {
-        toggleClass(elements.loadingNotice, 'visible', false);
-        elements.asciiArt.textContent = `
-╔══════════════════════════╗
-║                          ║
-║    WEBCAM ACCESS         ║
-║    DENIED OR             ║
-║    UNAVAILABLE           ║
-║                          ║
-║  Tap to enable           ║
-║                          ║
-╚══════════════════════════╝`;
-      }
-    };
-
-    const processVideoFrame = (video, ctx, config) => {
-      if (!video) return null;
-
-      ctx.drawImage(video, 0, 0, config.width, config.height);
-      return ctx.getImageData(0, 0, config.width, config.height);
-    };
-
-    const processFrame = async (timestamp) => {
-      const frameDelay = 1000 / CONFIG.fps;
-      if (timestamp - state.lastRenderTime < frameDelay) {
-        return;
-      }
-
-      const imageData = processVideoFrame(state.video, canvasCtx, CONFIG);
-
-      if (!imageData) return;
-
-      const ascii = imageDataToAscii(imageData, CONFIG);
-      elements.asciiArt.textContent = ascii;
-
-      // Only do face tracking if gyroscope is NOT active (desktop mode)
-      if (!state.isGyroActive && state.faceDetector) {
-        // Use BlazeFace to detect face
-        const predictions = await state.faceDetector.estimateFaces(state.video, false);
-
-        if (predictions.length > 0) {
-          let face = null;
-
-          // Lock onto most dominant (largest) face initially, then never switch
-          if (!state.lockedFace) {
-            // Find the largest face (most dominant/closest)
-            let largestArea = 0;
-            for (const prediction of predictions) {
-              const [x1, y1] = prediction.topLeft;
-              const [x2, y2] = prediction.bottomRight;
-              const area = (x2 - x1) * (y2 - y1);
-              if (area > largestArea) {
-                largestArea = area;
-                face = prediction;
-              }
-            }
-
-            // Lock onto this face permanently
-            const [x1, y1] = face.topLeft;
-            const [x2, y2] = face.bottomRight;
-            state.lockedFace = {
-              x: (x1 + x2) / 2,
-              y: (y1 + y2) / 2,
-              area: (x2 - x1) * (y2 - y1)
-            };
-          } else {
-            // Find the same face by proximity (never switch to a different person)
-            let minDistance = Infinity;
-            for (const prediction of predictions) {
-              const [x1, y1] = prediction.topLeft;
-              const [x2, y2] = prediction.bottomRight;
-              const centerX = (x1 + x2) / 2;
-              const centerY = (y1 + y2) / 2;
-
-              const distance = Math.sqrt(
-                Math.pow(centerX - state.lockedFace.x, 2) +
-                Math.pow(centerY - state.lockedFace.y, 2)
-              );
-
-              if (distance < minDistance) {
-                minDistance = distance;
-                face = prediction;
-              }
-            }
-
-            // Update locked position to track the same person
-            if (face) {
-              const [x1, y1] = face.topLeft;
-              const [x2, y2] = face.bottomRight;
-              state.lockedFace.x = (x1 + x2) / 2;
-              state.lockedFace.y = (y1 + y2) / 2;
-              state.faceLostFrames = 0;
-            }
-          }
-
-          if (face) {
-            // Get face center from bounding box
-            const [x1, y1] = face.topLeft;
-            const [x2, y2] = face.bottomRight;
-            const centerX = (x1 + x2) / 2;
-            const centerY = (y1 + y2) / 2;
-
-            // Normalize to 0-1 range, mirror X for selfie view
-            state.headX = 1 - (centerX / state.video.videoWidth);
-            state.headY = centerY / state.video.videoHeight;
-
-            // Update smoothed position (direct mutation for performance)
-            const smooth = smoothValue(CONFIG.smoothing);
-            state.smoothHeadX = smooth(state.smoothHeadX, state.headX);
-            state.smoothHeadY = smooth(state.smoothHeadY, state.headY);
-
-            updateDebugOverlay(state, elements);
-            const transformData = create3DTransformData(state, CONFIG);
-            apply3DTransformToDOM(transformData, elements);
-          }
-        } else {
-          // No faces detected - keep lock (don't reset, stay locked to same person)
-          state.faceLostFrames++;
-        }
-      }
-
-      state.lastRenderTime = timestamp;
-    };
-
-    const startRenderLoop = () => {
-      const render = (timestamp) => {
-        if (state.isWebcamActive) {
-          processFrame(timestamp);
-          requestAnimationFrame(render);
-        }
-      };
-      requestAnimationFrame(render);
-    };
-
-    // Event Handlers
-    const handleAsciiContainerClick = () => {
-      if (!state.isWebcamActive && !state.isGyroActive) {
-        initGyroscope();
-      }
-    };
-
-    // Initialize
-    elements.asciiContainer.addEventListener('click', handleAsciiContainerClick);
-
-    // Auto-start if camera was previously enabled
-    if (localStorage.getItem('cameraEnabled') === 'true') {
-      initGyroscope();
-    }
   </script>
 
-  <!-- Contact Section -->
-  <div style="position: fixed; bottom: 10px; left: 10px; font-size: 11px; opacity: 0.6; color: #999; z-index: 1000;">
-    Questions or feedback? <a href="mailto:holla@felixflor.es" style="color: #667eea; text-decoration: none;">holla@felixflor.es</a>
-  </div>
-</body>
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    // Wolfram Physics Project - Hypergraph Rewriting
+    // Based on rules from wolframphysics.org
+    import * as THREE from 'three';
 
+    const canvas = document.getElementById('caCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x0a0a0a, 50, 180);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 60;
+
+    // Hypergraph state - using node IDs
+    let nodePositions = new Map(); // id -> {x, y, z, vx, vy, vz}
+    let edges = []; // array of [id1, id2]
+    let nextNodeId = 0;
+    let nodeMeshes = new Map();
+    let glowSprites = new Map();
+    let edgeLines = [];
+    const maxNodes = 80;
+    const maxEdges = 150;
+
+    // Materials
+    const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0x6699cc, transparent: true, opacity: 0.7 });
+    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4477aa, transparent: true, opacity: 0.2 });
+    const nodeGeometry = new THREE.SphereGeometry(0.35, 10, 10);
+
+    // Glow sprite
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 64;
+    glowCanvas.height = 64;
+    const glowCtx = glowCanvas.getContext('2d');
+    const gradient = glowCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gradient.addColorStop(0, 'rgba(100, 160, 220, 0.5)');
+    gradient.addColorStop(0.4, 'rgba(80, 140, 200, 0.2)');
+    gradient.addColorStop(1, 'rgba(60, 120, 180, 0)');
+    glowCtx.fillStyle = gradient;
+    glowCtx.fillRect(0, 0, 64, 64);
+    const glowTexture = new THREE.CanvasTexture(glowCanvas);
+    const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, transparent: true, opacity: 0.5 });
+
+    function createNode(x, y, z) {
+      const id = nextNodeId++;
+      nodePositions.set(id, { x, y, z, vx: 0, vy: 0, vz: 0 });
+
+      const mesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
+      mesh.position.set(x, y, z);
+      scene.add(mesh);
+      nodeMeshes.set(id, mesh);
+
+      const glow = new THREE.Sprite(glowMaterial.clone());
+      glow.scale.set(3.5, 3.5, 1);
+      glow.position.set(x, y, z);
+      scene.add(glow);
+      glowSprites.set(id, glow);
+
+      return id;
+    }
+
+    function removeNode(id) {
+      const mesh = nodeMeshes.get(id);
+      const glow = glowSprites.get(id);
+      if (mesh) scene.remove(mesh);
+      if (glow) scene.remove(glow);
+      nodeMeshes.delete(id);
+      glowSprites.delete(id);
+      nodePositions.delete(id);
+    }
+
+    function initHypergraph() {
+      // Clear everything
+      nodeMeshes.forEach(m => scene.remove(m));
+      glowSprites.forEach(s => scene.remove(s));
+      edgeLines.forEach(l => scene.remove(l));
+      nodePositions.clear();
+      nodeMeshes.clear();
+      glowSprites.clear();
+      edges = [];
+      edgeLines = [];
+      nextNodeId = 0;
+
+      // Seed: small initial structure {{1,2},{2,3},{3,1},{1,4}}
+      const n1 = createNode(0, 0, 0);
+      const n2 = createNode(2, 1, 0);
+      const n3 = createNode(1, -1.5, 1);
+      const n4 = createNode(-1.5, 0.5, -0.5);
+
+      edges.push([n1, n2], [n2, n3], [n3, n1], [n1, n4]);
+      rebuildEdges();
+    }
+
+    // Wolfram-style rule: {{x,y},{x,z}} → {{x,y},{x,w},{y,w},{z,w}}
+    // Find two edges sharing node x, create new node w connected to x, y, z
+    function applyRule() {
+      if (nodePositions.size >= maxNodes || edges.length >= maxEdges) {
+        initHypergraph();
+        return;
+      }
+
+      // Build adjacency: for each node, list of connected nodes
+      const adjacency = new Map();
+      edges.forEach(([a, b]) => {
+        if (!adjacency.has(a)) adjacency.set(a, []);
+        if (!adjacency.has(b)) adjacency.set(b, []);
+        adjacency.get(a).push(b);
+        adjacency.get(b).push(a);
+      });
+
+      // Find candidates: node x with at least 2 neighbors
+      const candidates = [];
+      adjacency.forEach((neighbors, x) => {
+        if (neighbors.length >= 2) {
+          // Pick pairs of neighbors
+          for (let i = 0; i < neighbors.length; i++) {
+            for (let j = i + 1; j < neighbors.length; j++) {
+              candidates.push({ x, y: neighbors[i], z: neighbors[j] });
+            }
+          }
+        }
+      });
+
+      if (candidates.length === 0) return;
+
+      // Pick random match
+      const match = candidates[Math.floor(Math.random() * candidates.length)];
+      const { x, y, z } = match;
+
+      const posX = nodePositions.get(x);
+      const posY = nodePositions.get(y);
+      const posZ = nodePositions.get(z);
+      if (!posX || !posY || !posZ) return;
+
+      // Create new node w near the centroid with some randomness
+      const wx = (posX.x + posY.x + posZ.x) / 3 + (Math.random() - 0.5) * 2;
+      const wy = (posX.y + posY.y + posZ.y) / 3 + (Math.random() - 0.5) * 2;
+      const wz = (posX.z + posY.z + posZ.z) / 3 + (Math.random() - 0.5) * 2;
+      const w = createNode(wx, wy, wz);
+
+      // Rule: {{x,y},{x,z}} → {{x,y},{x,w},{y,w},{z,w}}
+      // Keep {x,y}, add {x,w}, {y,w}, {z,w}
+      // Remove {x,z} - find and remove it
+      const xzIndex = edges.findIndex(([a, b]) =>
+        (a === x && b === z) || (a === z && b === x)
+      );
+      if (xzIndex !== -1) {
+        edges.splice(xzIndex, 1);
+      }
+
+      edges.push([x, w], [y, w], [z, w]);
+      rebuildEdges();
+    }
+
+    function rebuildEdges() {
+      edgeLines.forEach(({ line }) => scene.remove(line));
+      edgeLines = [];
+
+      edges.forEach(([a, b]) => {
+        const posA = nodePositions.get(a);
+        const posB = nodePositions.get(b);
+        if (!posA || !posB) return;
+
+        const curve = createCurvedEdge(posA, posB);
+        const points = curve.getPoints(20);
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(geometry, edgeMaterial);
+        scene.add(line);
+        edgeLines.push({ line, a, b });
+      });
+    }
+
+    function createCurvedEdge(posA, posB) {
+      const start = new THREE.Vector3(posA.x, posA.y, posA.z);
+      const end = new THREE.Vector3(posB.x, posB.y, posB.z);
+
+      // Midpoint with perpendicular offset for curve
+      const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+
+      // Create perpendicular vector for the curve bulge
+      const direction = new THREE.Vector3().subVectors(end, start);
+      const length = direction.length();
+
+      // Cross with an arbitrary vector to get perpendicular
+      const up = new THREE.Vector3(0, 1, 0);
+      const perp = new THREE.Vector3().crossVectors(direction, up).normalize();
+
+      // If direction is parallel to up, use different vector
+      if (perp.length() < 0.1) {
+        perp.crossVectors(direction, new THREE.Vector3(1, 0, 0)).normalize();
+      }
+
+      // Add subtle curve - offset midpoint perpendicular to the line
+      const curveAmount = length * 0.15;
+      mid.add(perp.multiplyScalar(curveAmount));
+
+      return new THREE.QuadraticBezierCurve3(start, mid, end);
+    }
+
+    // Force-directed layout
+    function updateLayout() {
+      const repulsion = 3;
+      const attraction = 0.02;
+      const damping = 0.92;
+      const centerPull = 0.005;
+
+      const nodeIds = Array.from(nodePositions.keys());
+
+      // Repulsion between all nodes
+      for (let i = 0; i < nodeIds.length; i++) {
+        for (let j = i + 1; j < nodeIds.length; j++) {
+          const posI = nodePositions.get(nodeIds[i]);
+          const posJ = nodePositions.get(nodeIds[j]);
+
+          const dx = posJ.x - posI.x;
+          const dy = posJ.y - posI.y;
+          const dz = posJ.z - posI.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.1;
+          const force = repulsion / (dist * dist);
+
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          const fz = (dz / dist) * force;
+
+          posI.vx -= fx; posI.vy -= fy; posI.vz -= fz;
+          posJ.vx += fx; posJ.vy += fy; posJ.vz += fz;
+        }
+      }
+
+      // Attraction along edges
+      edges.forEach(([a, b]) => {
+        const posA = nodePositions.get(a);
+        const posB = nodePositions.get(b);
+        if (!posA || !posB) return;
+
+        const dx = posB.x - posA.x;
+        const dy = posB.y - posA.y;
+        const dz = posB.z - posA.z;
+
+        posA.vx += dx * attraction;
+        posA.vy += dy * attraction;
+        posA.vz += dz * attraction;
+        posB.vx -= dx * attraction;
+        posB.vy -= dy * attraction;
+        posB.vz -= dz * attraction;
+      });
+
+      // Update positions
+      nodePositions.forEach((pos, id) => {
+        pos.vx -= pos.x * centerPull;
+        pos.vy -= pos.y * centerPull;
+        pos.vz -= pos.z * centerPull;
+
+        pos.vx *= damping;
+        pos.vy *= damping;
+        pos.vz *= damping;
+
+        pos.x += pos.vx;
+        pos.y += pos.vy;
+        pos.z += pos.vz;
+
+        const mesh = nodeMeshes.get(id);
+        const glow = glowSprites.get(id);
+        if (mesh) mesh.position.set(pos.x, pos.y, pos.z);
+        if (glow) glow.position.set(pos.x, pos.y, pos.z);
+      });
+
+      // Update edge positions with curves
+      edgeLines.forEach(({ line, a, b }) => {
+        const posA = nodePositions.get(a);
+        const posB = nodePositions.get(b);
+        if (!posA || !posB) return;
+
+        const curve = createCurvedEdge(posA, posB);
+        const points = curve.getPoints(20);
+        const positions = line.geometry.attributes.position.array;
+
+        for (let i = 0; i < points.length; i++) {
+          positions[i * 3] = points[i].x;
+          positions[i * 3 + 1] = points[i].y;
+          positions[i * 3 + 2] = points[i].z;
+        }
+        line.geometry.attributes.position.needsUpdate = true;
+      });
+    }
+
+    // Camera orbit
+    let angle = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+
+      angle += 0.0008;
+      const nodeCount = nodePositions.size;
+      const radius = 50 + nodeCount * 0.12;
+      camera.position.x = Math.sin(angle) * radius;
+      camera.position.z = Math.cos(angle) * radius;
+      camera.position.y = Math.sin(angle * 0.4) * radius * 0.3;
+      camera.lookAt(0, 0, 0);
+
+      updateLayout();
+      renderer.render(scene, camera);
+    }
+
+    // Apply rules at interval
+    setInterval(applyRule, 250);
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    window.addEventListener('resize', onResize);
+    initHypergraph();
+    animate();
+  </script>
+</body>
 </html>
