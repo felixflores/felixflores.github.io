@@ -420,325 +420,163 @@
     });
   </script>
 
-  <script type="importmap">
-    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-  </script>
-  <script type="module">
-    // Wolfram Physics Project - Hypergraph Rewriting
-    // Based on rules from wolframphysics.org
-    import * as THREE from 'three';
-
+  <script>
+    // Cosmic flow shader with mouse interaction
     const canvas = document.getElementById('caCanvas');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x0a0a0a, 50, 180);
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 60;
+    let mouse = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 };
 
-    // Hypergraph state - using node IDs
-    let nodePositions = new Map(); // id -> {x, y, z, vx, vy, vz}
-    let edges = []; // array of [id1, id2]
-    let nextNodeId = 0;
-    let nodeMeshes = new Map();
-    let glowSprites = new Map();
-    let edgeLines = [];
-    const maxNodes = 80;
-    const maxEdges = 150;
+    const vertexShaderSource = `
+      attribute vec2 position;
+      void main() {
+        gl_Position = vec4(position, 0.0, 1.0);
+      }
+    `;
 
-    // Materials
-    const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0x6699cc, transparent: true, opacity: 0.7 });
-    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4477aa, transparent: true, opacity: 0.2 });
-    const nodeGeometry = new THREE.SphereGeometry(0.35, 10, 10);
+    const fragmentShaderSource = `
+      precision highp float;
+      uniform vec2 resolution;
+      uniform float time;
+      uniform vec2 mouse;
 
-    // Glow sprite
-    const glowCanvas = document.createElement('canvas');
-    glowCanvas.width = 64;
-    glowCanvas.height = 64;
-    const glowCtx = glowCanvas.getContext('2d');
-    const gradient = glowCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gradient.addColorStop(0, 'rgba(100, 160, 220, 0.5)');
-    gradient.addColorStop(0.4, 'rgba(80, 140, 200, 0.2)');
-    gradient.addColorStop(1, 'rgba(60, 120, 180, 0)');
-    glowCtx.fillStyle = gradient;
-    glowCtx.fillRect(0, 0, 64, 64);
-    const glowTexture = new THREE.CanvasTexture(glowCanvas);
-    const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, transparent: true, opacity: 0.5 });
+      #define PI 3.14159265359
 
-    function createNode(x, y, z) {
-      const id = nextNodeId++;
-      nodePositions.set(id, { x, y, z, vx: 0, vy: 0, vz: 0 });
-
-      const mesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
-      mesh.position.set(x, y, z);
-      scene.add(mesh);
-      nodeMeshes.set(id, mesh);
-
-      const glow = new THREE.Sprite(glowMaterial.clone());
-      glow.scale.set(3.5, 3.5, 1);
-      glow.position.set(x, y, z);
-      scene.add(glow);
-      glowSprites.set(id, glow);
-
-      return id;
-    }
-
-    function removeNode(id) {
-      const mesh = nodeMeshes.get(id);
-      const glow = glowSprites.get(id);
-      if (mesh) scene.remove(mesh);
-      if (glow) scene.remove(glow);
-      nodeMeshes.delete(id);
-      glowSprites.delete(id);
-      nodePositions.delete(id);
-    }
-
-    function initHypergraph() {
-      // Clear everything
-      nodeMeshes.forEach(m => scene.remove(m));
-      glowSprites.forEach(s => scene.remove(s));
-      edgeLines.forEach(l => scene.remove(l));
-      nodePositions.clear();
-      nodeMeshes.clear();
-      glowSprites.clear();
-      edges = [];
-      edgeLines = [];
-      nextNodeId = 0;
-
-      // Seed: small initial structure {{1,2},{2,3},{3,1},{1,4}}
-      const n1 = createNode(0, 0, 0);
-      const n2 = createNode(2, 1, 0);
-      const n3 = createNode(1, -1.5, 1);
-      const n4 = createNode(-1.5, 0.5, -0.5);
-
-      edges.push([n1, n2], [n2, n3], [n3, n1], [n1, n4]);
-      rebuildEdges();
-    }
-
-    // Wolfram-style rule: {{x,y},{x,z}} → {{x,y},{x,w},{y,w},{z,w}}
-    // Find two edges sharing node x, create new node w connected to x, y, z
-    function applyRule() {
-      if (nodePositions.size >= maxNodes || edges.length >= maxEdges) {
-        initHypergraph();
-        return;
+      mat2 rot(float a) {
+        float c = cos(a), s = sin(a);
+        return mat2(c, -s, s, c);
       }
 
-      // Build adjacency: for each node, list of connected nodes
-      const adjacency = new Map();
-      edges.forEach(([a, b]) => {
-        if (!adjacency.has(a)) adjacency.set(a, []);
-        if (!adjacency.has(b)) adjacency.set(b, []);
-        adjacency.get(a).push(b);
-        adjacency.get(b).push(a);
-      });
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
 
-      // Find candidates: node x with at least 2 neighbors
-      const candidates = [];
-      adjacency.forEach((neighbors, x) => {
-        if (neighbors.length >= 2) {
-          // Pick pairs of neighbors
-          for (let i = 0; i < neighbors.length; i++) {
-            for (let j = i + 1; j < neighbors.length; j++) {
-              candidates.push({ x, y: neighbors[i], z: neighbors[j] });
-            }
+      void main() {
+        vec2 uv = (gl_FragCoord.xy - 0.5 * resolution) / resolution.y;
+        vec2 m = (mouse - 0.5) * 2.0;
+
+        vec3 col = vec3(0.0);
+        float t = time * 0.4;
+
+        // Multiple layers of flowing tendrils
+        for (float i = 0.0; i < 6.0; i++) {
+          vec2 p = uv * (1.5 + i * 0.3);
+          p *= rot(t * 0.1 * (1.0 + i * 0.2) + i);
+
+          // Warp toward mouse
+          float d = length(uv - m * 0.3);
+          p += m * 0.2 * exp(-d * 3.0);
+
+          // Fractal domain warping
+          for (float j = 0.0; j < 5.0; j++) {
+            p = abs(p) / dot(p, p) - 0.8;
+            p *= rot(t * 0.05 + j * 0.5 + i);
           }
+
+          // Color based on position and layer
+          float h = length(p) * 0.3 + i * 0.15 + t * 0.1;
+          vec3 c = 0.5 + 0.5 * cos(2.0 * PI * (h + vec3(0.0, 0.33, 0.67)));
+
+          // Accumulate with glow
+          float glow = 0.02 / (0.01 + length(p) * length(p));
+          col += c * glow * (0.4 + 0.2 * sin(t + i));
         }
-      });
 
-      if (candidates.length === 0) return;
+        // Add some sparkles
+        vec2 sparkleUV = uv * 8.0 + t;
+        float sparkle = pow(hash(floor(sparkleUV)), 20.0);
+        sparkle *= smoothstep(0.5, 0.0, length(fract(sparkleUV) - 0.5));
+        col += sparkle * 0.5;
 
-      // Pick random match
-      const match = candidates[Math.floor(Math.random() * candidates.length)];
-      const { x, y, z } = match;
+        // Vignette
+        col *= 1.0 - 0.4 * length(uv);
 
-      const posX = nodePositions.get(x);
-      const posY = nodePositions.get(y);
-      const posZ = nodePositions.get(z);
-      if (!posX || !posY || !posZ) return;
+        // Tone mapping
+        col = 1.0 - exp(-col * 1.5);
+        col = pow(col, vec3(0.9));
 
-      // Create new node w near the centroid with some randomness
-      const wx = (posX.x + posY.x + posZ.x) / 3 + (Math.random() - 0.5) * 2;
-      const wy = (posX.y + posY.y + posZ.y) / 3 + (Math.random() - 0.5) * 2;
-      const wz = (posX.z + posY.z + posZ.z) / 3 + (Math.random() - 0.5) * 2;
-      const w = createNode(wx, wy, wz);
-
-      // Rule: {{x,y},{x,z}} → {{x,y},{x,w},{y,w},{z,w}}
-      // Keep {x,y}, add {x,w}, {y,w}, {z,w}
-      // Remove {x,z} - find and remove it
-      const xzIndex = edges.findIndex(([a, b]) =>
-        (a === x && b === z) || (a === z && b === x)
-      );
-      if (xzIndex !== -1) {
-        edges.splice(xzIndex, 1);
+        gl_FragColor = vec4(col, 1.0);
       }
+    `;
 
-      edges.push([x, w], [y, w], [z, w]);
-      rebuildEdges();
-    }
-
-    function rebuildEdges() {
-      edgeLines.forEach(({ line }) => scene.remove(line));
-      edgeLines = [];
-
-      edges.forEach(([a, b]) => {
-        const posA = nodePositions.get(a);
-        const posB = nodePositions.get(b);
-        if (!posA || !posB) return;
-
-        const curve = createCurvedEdge(posA, posB);
-        const points = curve.getPoints(20);
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const line = new THREE.Line(geometry, edgeMaterial);
-        scene.add(line);
-        edgeLines.push({ line, a, b });
-      });
-    }
-
-    function createCurvedEdge(posA, posB) {
-      const start = new THREE.Vector3(posA.x, posA.y, posA.z);
-      const end = new THREE.Vector3(posB.x, posB.y, posB.z);
-
-      // Midpoint with perpendicular offset for curve
-      const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-
-      // Create perpendicular vector for the curve bulge
-      const direction = new THREE.Vector3().subVectors(end, start);
-      const length = direction.length();
-
-      // Cross with an arbitrary vector to get perpendicular
-      const up = new THREE.Vector3(0, 1, 0);
-      const perp = new THREE.Vector3().crossVectors(direction, up).normalize();
-
-      // If direction is parallel to up, use different vector
-      if (perp.length() < 0.1) {
-        perp.crossVectors(direction, new THREE.Vector3(1, 0, 0)).normalize();
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
       }
-
-      // Add subtle curve - offset midpoint perpendicular to the line
-      const curveAmount = length * 0.15;
-      mid.add(perp.multiplyScalar(curveAmount));
-
-      return new THREE.QuadraticBezierCurve3(start, mid, end);
+      return shader;
     }
 
-    // Force-directed layout
-    function updateLayout() {
-      const repulsion = 3;
-      const attraction = 0.02;
-      const damping = 0.92;
-      const centerPull = 0.005;
-
-      const nodeIds = Array.from(nodePositions.keys());
-
-      // Repulsion between all nodes
-      for (let i = 0; i < nodeIds.length; i++) {
-        for (let j = i + 1; j < nodeIds.length; j++) {
-          const posI = nodePositions.get(nodeIds[i]);
-          const posJ = nodePositions.get(nodeIds[j]);
-
-          const dx = posJ.x - posI.x;
-          const dy = posJ.y - posI.y;
-          const dz = posJ.z - posI.z;
-          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.1;
-          const force = repulsion / (dist * dist);
-
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          const fz = (dz / dist) * force;
-
-          posI.vx -= fx; posI.vy -= fy; posI.vz -= fz;
-          posJ.vx += fx; posJ.vy += fy; posJ.vz += fz;
-        }
+    function createProgram(gl, vertexShader, fragmentShader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error(gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
       }
-
-      // Attraction along edges
-      edges.forEach(([a, b]) => {
-        const posA = nodePositions.get(a);
-        const posB = nodePositions.get(b);
-        if (!posA || !posB) return;
-
-        const dx = posB.x - posA.x;
-        const dy = posB.y - posA.y;
-        const dz = posB.z - posA.z;
-
-        posA.vx += dx * attraction;
-        posA.vy += dy * attraction;
-        posA.vz += dz * attraction;
-        posB.vx -= dx * attraction;
-        posB.vy -= dy * attraction;
-        posB.vz -= dz * attraction;
-      });
-
-      // Update positions
-      nodePositions.forEach((pos, id) => {
-        pos.vx -= pos.x * centerPull;
-        pos.vy -= pos.y * centerPull;
-        pos.vz -= pos.z * centerPull;
-
-        pos.vx *= damping;
-        pos.vy *= damping;
-        pos.vz *= damping;
-
-        pos.x += pos.vx;
-        pos.y += pos.vy;
-        pos.z += pos.vz;
-
-        const mesh = nodeMeshes.get(id);
-        const glow = glowSprites.get(id);
-        if (mesh) mesh.position.set(pos.x, pos.y, pos.z);
-        if (glow) glow.position.set(pos.x, pos.y, pos.z);
-      });
-
-      // Update edge positions with curves
-      edgeLines.forEach(({ line, a, b }) => {
-        const posA = nodePositions.get(a);
-        const posB = nodePositions.get(b);
-        if (!posA || !posB) return;
-
-        const curve = createCurvedEdge(posA, posB);
-        const points = curve.getPoints(20);
-        const positions = line.geometry.attributes.position.array;
-
-        for (let i = 0; i < points.length; i++) {
-          positions[i * 3] = points[i].x;
-          positions[i * 3 + 1] = points[i].y;
-          positions[i * 3 + 2] = points[i].z;
-        }
-        line.geometry.attributes.position.needsUpdate = true;
-      });
+      return program;
     }
 
-    // Camera orbit
-    let angle = 0;
-    function animate() {
-      requestAnimationFrame(animate);
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const program = createProgram(gl, vertexShader, fragmentShader);
 
-      angle += 0.0008;
-      const nodeCount = nodePositions.size;
-      const radius = 50 + nodeCount * 0.12;
-      camera.position.x = Math.sin(angle) * radius;
-      camera.position.z = Math.cos(angle) * radius;
-      camera.position.y = Math.sin(angle * 0.4) * radius * 0.3;
-      camera.lookAt(0, 0, 0);
+    const positionLocation = gl.getAttribLocation(program, 'position');
+    const resolutionLocation = gl.getUniformLocation(program, 'resolution');
+    const timeLocation = gl.getUniformLocation(program, 'time');
+    const mouseLocation = gl.getUniformLocation(program, 'mouse');
 
-      updateLayout();
-      renderer.render(scene, camera);
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1, 1, -1, -1, 1,
+      -1, 1, 1, -1, 1, 1
+    ]), gl.STATIC_DRAW);
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      gl.viewport(0, 0, canvas.width, canvas.height);
     }
 
-    // Apply rules at interval
-    setInterval(applyRule, 250);
+    function render(time) {
+      // Smooth mouse following
+      mouse.x += (mouse.targetX - mouse.x) * 0.05;
+      mouse.y += (mouse.targetY - mouse.y) * 0.05;
 
-    function onResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      gl.useProgram(program);
+      gl.enableVertexAttribArray(positionLocation);
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+      gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+      gl.uniform1f(timeLocation, time * 0.001);
+      gl.uniform2f(mouseLocation, mouse.x, mouse.y);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(render);
     }
 
-    window.addEventListener('resize', onResize);
-    initHypergraph();
-    animate();
+    window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', (e) => {
+      mouse.targetX = e.clientX / window.innerWidth;
+      mouse.targetY = 1.0 - e.clientY / window.innerHeight;
+    });
+    window.addEventListener('touchmove', (e) => {
+      mouse.targetX = e.touches[0].clientX / window.innerWidth;
+      mouse.targetY = 1.0 - e.touches[0].clientY / window.innerHeight;
+    });
+
+    resize();
+    requestAnimationFrame(render);
   </script>
 </body>
 </html>
