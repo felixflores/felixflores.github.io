@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>👁️ Blinking Contest</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+  <!-- Versions are pinned: these four have to agree, and an unpinned "latest"
+       silently breaks the page the day any of them ships a major bump.
+       face-detection is not optional — the tfjs FaceMesh runtime uses it to
+       locate the face before fitting the mesh, and without it estimateFaces
+       just returns [] forever with no error. -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.22.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.22.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection@1.0.3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.6"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -36,8 +42,15 @@
 
     .loading { font-size: 16px; opacity: 0.8; padding: 40px 0; }
 
-    /* the camera feed itself is never shown — only the two eye crops are */
-    #video { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: -10px; }
+    /* The feed is never shown — only the two eye crops are. It keeps a real
+       layout size and is clipped by the wrapper rather than shrunk to 1px,
+       because a 1x1/hidden video can stop being composited and then supplies
+       no frames to drawImage or the detector. */
+    .camhide {
+      position: fixed; left: 0; bottom: 0; z-index: -1;
+      width: 2px; height: 2px; overflow: hidden; opacity: 0.01; pointer-events: none;
+    }
+    .camhide video { width: 320px; height: 180px; }
 
     .stage { display: none; }
 
@@ -146,7 +159,7 @@
 
     <div class="loading" id="loading">Loading face detection…</div>
 
-    <video id="video" autoplay playsinline muted></video>
+    <div class="camhide"><video id="video" autoplay playsinline muted></video></div>
 
     <div class="stage" id="stage">
       <div class="eyes">
@@ -228,8 +241,21 @@
     let best = parseFloat(localStorage.getItem(BEST_KEY) || '') || 0;
     let frame = 0;
     let lastShownCount = null;
+    let detCount = 0, faceCount = 0, noKp = 0, lastErr = '';
 
     if (best) bestVal.textContent = best.toFixed(2);
+
+    const work = document.createElement('canvas');
+    const workCtx = work.getContext('2d', { willReadFrequently: false });
+    function grabFrame() {
+      if (!video.videoWidth) return false;
+      if (work.width !== video.videoWidth) {
+        work.width = video.videoWidth;
+        work.height = video.videoHeight;
+      }
+      workCtx.drawImage(video, 0, 0, work.width, work.height);
+      return true;
+    }
 
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     const meanX = pts => pts.reduce((s, p) => s + p.x, 0) / pts.length;
@@ -269,7 +295,7 @@
       ctx.translate(W, 0);
       ctx.scale(-1, 1);
       try {
-        ctx.drawImage(video, b.x, b.y, b.w, b.h, 0, 0, W, H);
+        ctx.drawImage(work, b.x, b.y, b.w, b.h, 0, 0, W, H);
       } catch (e) { /* video not ready for this frame */ }
       ctx.restore();
 
@@ -384,17 +410,26 @@
         });
         video.srcObject = stream;
         await new Promise(res => {
-          if (video.readyState >= 2) return res();
-          video.onloadedmetadata = res;
+          if (video.readyState >= 1) return res();
+          let done = false;
+          const ok = () => { if (done) return; done = true; video.removeEventListener('loadedmetadata', ok); res(); };
+          video.addEventListener('loadedmetadata', ok);
+          setTimeout(ok, 5000);   // never hang the UI on a missed event
         });
-        await video.play().catch(() => {});
+        try {
+          await video.play();
+        } catch (e) {
+          statusEl.textContent = 'Camera stream would not play: ' + e.message;
+          console.error('[blink] play() rejected', e);
+        }
 
         loading.style.display = 'none';
         startButton.style.display = 'none';
         stage.style.display = 'block';
         sizeCanvases();
 
-        try { await model.estimateFaces(video); } catch (e) {}
+        grabFrame();
+        try { await model.estimateFaces(work); } catch (e) {}
 
         toSearching();
         requestAnimationFrame(loop);
@@ -412,16 +447,35 @@
         try {
           await step();
         } catch (err) {
+          lastErr = 'ERR ' + err.message;
           console.error('[blink] detect error', err);
         }
       }
+      if (state === 'searching' && frame % 20 === 0) statusEl.textContent = diag();
       if (state === 'live') timeVal.textContent = ((performance.now() - roundStart) / 1000).toFixed(2);
       requestAnimationFrame(loop);
     }
 
+    function diag() {
+      return 'cam ' + (video.videoWidth || 0) + '×' + (video.videoHeight || 0) +
+             ' · rs' + video.readyState + (video.paused ? ' · PAUSED' : '') +
+             ' · scans ' + detCount + ' · faces ' + faceCount +
+             (noKp ? ' · nokp ' + noKp : '') +
+             (lastErr ? ' · ' + lastErr : '');
+    }
+
     async function step() {
-      if (video.readyState < 2) return;
-      const faces = await model.estimateFaces(video, { flipHorizontal: false });
+      if (video.readyState < 2) {
+        if (state === 'searching' && detCount === 0) {
+          statusEl.textContent = 'Waiting for camera frames… ' + diag();
+        }
+        return;
+      }
+      if (!grabFrame()) return;
+      detCount++;
+      const faces = await model.estimateFaces(work, { flipHorizontal: false });
+      if (faces.length) faceCount++;
+      if (state === 'searching' && detCount % 8 === 0) statusEl.textContent = diag();
 
       if (!faces.length) {
         if (state === 'live') return endRound('lost');
@@ -433,7 +487,7 @@
       const kp = faces[0].keypoints;
       const a = EYE_A.map(i => kp[i]);
       const b = EYE_B.map(i => kp[i]);
-      if (a.some(p => !p) || b.some(p => !p)) return;
+      if (a.some(p => !p) || b.some(p => !p)) { noKp++; return; }
 
       // Mirrored view puts the subject's left eye on the viewer's left, so the
       // left panel takes whichever ring sits further right in the raw frame.
