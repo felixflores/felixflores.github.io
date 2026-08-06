@@ -288,6 +288,11 @@
     // landmarks does not. Requiring two in a row kills the noise spikes that
     // were ending rounds on their own.
     const CLOSE_STREAK = 2;
+    // ...but a very short blink may only land on one sample, and a reading
+    // this low is unambiguous — no amount of landmark noise puts a genuinely
+    // open eye here. Deep closures fire immediately; only marginal ones, which
+    // is where the false positives come from, have to persist.
+    const DEEP_RATIO = 0.50;
     let closedStreak = 0;
     let baseline = 0.30;
     let earThreshold = 0.21;
@@ -802,7 +807,10 @@
 
         if (why) {
           closedStreak++;
-          if (closedStreak >= CLOSE_STREAK) { triggerReason = why; return endRound('blink'); }
+          if (closedStreak >= CLOSE_STREAK || ratio < DEEP_RATIO) {
+            triggerReason = why;
+            return endRound('blink');
+          }
         } else {
           closedStreak = 0;
           // track slow drift, but ignore readings outside a sane band so a
