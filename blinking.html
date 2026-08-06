@@ -10,138 +10,130 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Courier New', monospace;
       background: #000;
       color: #00ff00;
-      overflow: hidden;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      padding: 20px;
+      overflow-x: hidden;
     }
 
-    .container {
-      text-align: center;
-      max-width: 1200px;
-      width: 100%;
-      padding: 20px;
-    }
+    .container { text-align: center; width: 100%; max-width: 900px; }
 
     h1 {
-      font-size: 48px;
-      margin-bottom: 20px;
+      font-size: clamp(24px, 5vw, 44px);
+      margin-bottom: 6px;
       text-shadow: 0 0 20px #00ff00;
+      letter-spacing: 2px;
     }
+    .tagline { font-size: 13px; opacity: 0.55; letter-spacing: 3px; margin-bottom: 26px; }
 
-    .video-container {
+    .loading { font-size: 16px; opacity: 0.8; padding: 40px 0; }
+
+    /* the camera feed itself is never shown — only the two eye crops are */
+    #video { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: -10px; }
+
+    .stage { display: none; }
+
+    .eyes {
+      display: flex; gap: clamp(10px, 3vw, 28px);
+      justify-content: center; align-items: center;
       position: relative;
-      display: inline-block;
-      margin: 20px auto;
     }
 
-    #video {
-      width: 640px;
-      height: 480px;
+    .eye {
+      position: relative;
+      flex: 1 1 0; max-width: 380px;
       border: 2px solid #00ff00;
       border-radius: 10px;
-      transform: scaleX(-1);
+      overflow: hidden;
+      background: #001100;
+      box-shadow: 0 0 24px rgba(0, 255, 0, 0.18) inset, 0 0 18px rgba(0, 255, 0, 0.12);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .eye.closed {
+      border-color: #ff3b30;
+      box-shadow: 0 0 26px rgba(255, 59, 48, 0.35) inset, 0 0 20px rgba(255, 59, 48, 0.25);
+    }
+    .eye canvas { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; }
+
+    .eye-tag {
+      position: absolute; top: 7px; left: 9px;
+      font-size: 11px; letter-spacing: 2px; opacity: 0.75;
+      text-shadow: 0 0 6px #000;
+    }
+    .eye-ear {
+      position: absolute; bottom: 7px; right: 9px;
+      font-size: 11px; letter-spacing: 1px; opacity: 0.6;
+      text-shadow: 0 0 6px #000;
     }
 
-    #canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 640px;
-      height: 480px;
-      pointer-events: none;
-      transform: scaleX(-1);
+    /* overlay that covers both panels: countdown, verdict, prompts */
+    .overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      pointer-events: none; gap: 8px;
     }
+    .overlay .big {
+      font-size: clamp(60px, 16vw, 150px);
+      font-weight: bold; line-height: 1;
+      text-shadow: 0 0 30px #00ff00, 0 0 60px #00ff00;
+    }
+    .overlay .msg {
+      font-size: clamp(14px, 2.6vw, 22px);
+      letter-spacing: 4px;
+      text-shadow: 0 0 14px #00ff00;
+      background: rgba(0, 0, 0, 0.62);
+      padding: 8px 18px; border-radius: 6px;
+    }
+    .overlay.danger, .overlay.danger .big { color: #ff3b30; }
+    .overlay.danger .big { text-shadow: 0 0 30px #ff3b30, 0 0 60px #ff3b30; }
+    .overlay.danger .msg { text-shadow: 0 0 14px #ff3b30; }
 
-    .debug-panel {
-      background: rgba(0, 255, 0, 0.1);
-      border: 1px solid #00ff00;
-      border-radius: 10px;
-      padding: 20px;
-      margin: 20px auto;
-      max-width: 600px;
-      text-align: left;
-    }
+    @keyframes pop { from { transform: scale(1.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .pop { animation: pop 0.28s cubic-bezier(0.2, 1.4, 0.4, 1); }
 
-    .debug-item {
-      margin: 10px 0;
-      font-size: 14px;
+    .readout {
+      margin-top: 22px;
+      display: flex; justify-content: center; gap: clamp(16px, 5vw, 54px);
+      flex-wrap: wrap;
     }
+    .stat { min-width: 110px; }
+    .stat .label { font-size: 11px; letter-spacing: 2px; opacity: 0.5; }
+    .stat .value { font-size: clamp(22px, 4.4vw, 34px); text-shadow: 0 0 14px #00ff00; }
 
-    .debug-label {
-      color: #00ff00;
-      font-weight: bold;
-    }
-
-    .debug-value {
-      color: #00cc00;
-      margin-left: 10px;
-    }
-
-    .eye-indicator {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      margin-left: 10px;
-      vertical-align: middle;
-    }
-
-    .eye-open {
-      background: #00ff00;
-      box-shadow: 0 0 10px #00ff00;
-    }
-
-    .eye-closed {
-      background: #ff0000;
-      box-shadow: 0 0 10px #ff0000;
-    }
+    .status { margin-top: 18px; font-size: 13px; letter-spacing: 2px; opacity: 0.7; min-height: 20px; }
 
     button {
-      background: #00ff00;
-      color: #000;
-      border: none;
-      padding: 15px 30px;
-      font-size: 18px;
-      font-family: 'Courier New', monospace;
+      margin-top: 22px;
+      background: transparent; color: #00ff00;
+      border: 2px solid #00ff00; border-radius: 8px;
+      padding: 12px 30px;
+      font-family: inherit; font-size: 15px; letter-spacing: 3px;
       cursor: pointer;
-      border-radius: 5px;
-      margin: 10px;
-      transition: all 0.3s;
+      transition: all 0.2s ease;
     }
-
-    button:hover {
-      background: #00cc00;
-      transform: scale(1.05);
-    }
-
-    .loading {
-      font-size: 24px;
-      margin: 20px;
-    }
+    button:hover { background: #00ff00; color: #000; box-shadow: 0 0 22px #00ff00; }
 
     .back-link {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      color: #00ff00;
-      text-decoration: none;
-      font-size: 18px;
+      position: fixed; top: 18px; left: 18px;
+      color: #00ff00; text-decoration: none; font-size: 15px; opacity: 0.75;
     }
+    .back-link:hover { text-shadow: 0 0 10px #00ff00; opacity: 1; }
 
-    .back-link:hover {
-      text-shadow: 0 0 10px #00ff00;
+    .contact { position: fixed; bottom: 10px; left: 12px; font-size: 11px; opacity: 0.45; color: #999; }
+    .contact a { color: #667eea; text-decoration: none; }
+
+    @media (max-width: 560px) {
+      .eyes { gap: 8px; }
+      .eye-ear { display: none; }
     }
   </style>
 </head>
@@ -150,303 +142,352 @@
 
   <div class="container">
     <h1>👁️ BLINKING CONTEST</h1>
+    <p class="tagline">HOW LONG CAN YOU LAST</p>
 
-    <div class="loading" id="loading">Loading face detection...</div>
+    <div class="loading" id="loading">Loading face detection…</div>
 
-    <div class="video-container" id="videoContainer" style="display: none;">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
+    <video id="video" autoplay playsinline muted></video>
+
+    <div class="stage" id="stage">
+      <div class="eyes">
+        <div class="eye" id="eyeLeft">
+          <canvas id="canvasLeft"></canvas>
+          <span class="eye-tag">LEFT</span>
+          <span class="eye-ear" id="earLeft">—</span>
+        </div>
+        <div class="eye" id="eyeRight">
+          <canvas id="canvasRight"></canvas>
+          <span class="eye-tag">RIGHT</span>
+          <span class="eye-ear" id="earRight">—</span>
+        </div>
+        <div class="overlay" id="overlay"></div>
+      </div>
+
+      <div class="readout">
+        <div class="stat"><div class="label">TIME</div><div class="value" id="timeVal">0.00</div></div>
+        <div class="stat"><div class="label">BEST</div><div class="value" id="bestVal">—</div></div>
+        <div class="stat"><div class="label">BLINKS</div><div class="value" id="blinkVal">0</div></div>
+      </div>
+
+      <div class="status" id="status"></div>
     </div>
 
-    <div class="debug-panel" id="debugPanel" style="display: none;">
-      <h3>👁️ Eye Tracking Debug</h3>
-      <div class="debug-item">
-        <span class="debug-label">Left Eye:</span>
-        <span class="debug-value" id="leftEyePos">N/A</span>
-        <span class="eye-indicator" id="leftEyeIndicator"></span>
-      </div>
-      <div class="debug-item">
-        <span class="debug-label">Right Eye:</span>
-        <span class="debug-value" id="rightEyePos">N/A</span>
-        <span class="eye-indicator" id="rightEyeIndicator"></span>
-      </div>
-      <div class="debug-item">
-        <span class="debug-label">Blink Detected:</span>
-        <span class="debug-value" id="blinkStatus">NO</span>
-      </div>
-      <div class="debug-item">
-        <span class="debug-label">Blink Count:</span>
-        <span class="debug-value" id="blinkCount">0</span>
-      </div>
-    </div>
+    <button id="startButton" style="display: none;">START</button>
+    <button id="againButton" style="display: none;">GO AGAIN</button>
+  </div>
 
-    <button id="startButton" style="display: none;">START TRACKING</button>
+  <div class="contact">
+    Questions or feedback? <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
   </div>
 
   <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const loading = document.getElementById('loading');
+    const video       = document.getElementById('video');
+    const loading     = document.getElementById('loading');
+    const stage       = document.getElementById('stage');
     const startButton = document.getElementById('startButton');
-    const videoContainer = document.getElementById('videoContainer');
-    const debugPanel = document.getElementById('debugPanel');
+    const againButton = document.getElementById('againButton');
+    const overlay     = document.getElementById('overlay');
+    const statusEl    = document.getElementById('status');
+    const timeVal     = document.getElementById('timeVal');
+    const bestVal     = document.getElementById('bestVal');
+    const blinkVal    = document.getElementById('blinkVal');
+
+    const panels = {
+      left:  { wrap: document.getElementById('eyeLeft'),  cv: document.getElementById('canvasLeft'),  ear: document.getElementById('earLeft'),  box: null },
+      right: { wrap: document.getElementById('eyeRight'), cv: document.getElementById('canvasRight'), ear: document.getElementById('earRight'), box: null }
+    };
+    for (const p of Object.values(panels)) p.ctx = p.cv.getContext('2d');
+
+    // FaceMesh eye rings. Which anatomical eye each index set lands on is
+    // resolved at runtime by x position rather than trusted here.
+    const EYE_A = [33, 160, 158, 133, 153, 144];
+    const EYE_B = [362, 385, 387, 263, 373, 380];
+
+    const CROP_ASPECT   = 3 / 2;   // panel shape
+    const CROP_PAD      = 2.8;     // how much eye-width of context to include
+    const SMOOTH        = 0.35;    // crop box easing per detection frame
+    const LOCK_FRAMES   = 14;      // stable detections before we call it locked
+    const COUNTDOWN_MS  = 3000;
+    const BEST_KEY      = 'blinkingContestBest';
+
+    // Acquisition uses a deliberately permissive floor: eye shape and camera
+    // angle push some people's open-eye EAR near 0.15, and gating lock-on at
+    // the blink threshold would mean they could never start a round at all.
+    const LOCK_MIN_EAR = 0.13;
+    // Real blink threshold, calibrated against this face during lock.
+    let earThreshold = 0.21;
 
     let model = null;
-    let isTracking = false;
+    let state = 'idle';          // idle | searching | countdown | live | ended
+    let stableFrames = 0;
+    let calibration = [];
+    let countdownEnds = 0;
+    let roundStart = 0;
+    let lastTime = 0;
     let blinkCount = 0;
-    let lastBlinkTime = 0;
-    let frameCount = 0;
+    let best = parseFloat(localStorage.getItem(BEST_KEY) || '') || 0;
+    let frame = 0;
+    let lastShownCount = null;
 
-    // Eye state tracking
-    let leftEyeOpen = true;
-    let rightEyeOpen = true;
-    let wasBlinking = false;
+    if (best) bestVal.textContent = best.toFixed(2);
 
-    // Eye landmark indices for FaceMesh
-    const LEFT_EYE_INDICES = [33, 160, 158, 133, 153, 144];
-    const RIGHT_EYE_INDICES = [362, 385, 387, 263, 373, 380];
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const meanX = pts => pts.reduce((s, p) => s + p.x, 0) / pts.length;
+    const lerp = (a, b, t) => a + (b - a) * t;
 
-    // EAR threshold for blink detection
-    const EAR_THRESHOLD = 0.21;
-
-    // Load FaceMesh model
-    async function loadModel() {
-      try {
-        loading.textContent = 'Loading TensorFlow backend...';
-        console.log('Starting model load...');
-
-        // Ensure WebGL backend is loaded
-        await tf.setBackend('webgl');
-        await tf.ready();
-        console.log('Backend ready:', tf.getBackend());
-
-        loading.textContent = 'Loading FaceMesh model...';
-
-        // Use TFJS runtime which is more compatible
-        model = await faceLandmarksDetection.createDetector(
-          faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-          {
-            runtime: 'tfjs'
-          }
-        );
-
-        console.log('Model loaded:', model);
-        loading.textContent = 'Model loaded! Click START TRACKING';
-        startButton.style.display = 'block';
-      } catch (err) {
-        loading.textContent = 'Error loading model: ' + err.message;
-        console.error('Model load error:', err);
-      }
+    // Eye Aspect Ratio: vertical opening over horizontal width, so it is
+    // invariant to how far away the face is.
+    function ear(p) {
+      return (dist(p[1], p[5]) + dist(p[2], p[4])) / (2 * dist(p[0], p[3]));
     }
 
-    // Start webcam
-    async function startWebcam() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user'
-          }
-        });
-
-        video.srcObject = stream;
-
-        video.onloadedmetadata = async () => {
-          await video.play();
-
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-
-          console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-
-          videoContainer.style.display = 'block';
-          debugPanel.style.display = 'block';
-          startButton.style.display = 'none';
-          loading.style.display = 'none';
-
-          // Warm up the model with a test frame
-          console.log('Warming up model...');
-          await model.estimateFaces(video);
-          console.log('Model warmed up, starting tracking...');
-
-          isTracking = true;
-          detectFace();
-        };
-      } catch (err) {
-        loading.textContent = 'Error accessing camera: ' + err.message;
-        console.error(err);
-      }
+    function boxFor(pts) {
+      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      const w = Math.max(Math.max(...xs) - Math.min(...xs), 12) * CROP_PAD;
+      return { x: cx - w / 2, y: cy - w / CROP_ASPECT / 2, w, h: w / CROP_ASPECT };
     }
 
-    // Calculate Euclidean distance between two points
-    function distance(p1, p2) {
-      return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-    }
-
-    // Calculate Eye Aspect Ratio (EAR)
-    function calculateEAR(eyeLandmarks) {
-      // EAR = (||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)
-      const vertical1 = distance(eyeLandmarks[1], eyeLandmarks[5]);
-      const vertical2 = distance(eyeLandmarks[2], eyeLandmarks[4]);
-      const horizontal = distance(eyeLandmarks[0], eyeLandmarks[3]);
-
-      return (vertical1 + vertical2) / (2.0 * horizontal);
-    }
-
-    // Get eye center from landmarks
-    function getEyeCenter(eyeLandmarks) {
-      const sumX = eyeLandmarks.reduce((sum, p) => sum + p.x, 0);
-      const sumY = eyeLandmarks.reduce((sum, p) => sum + p.y, 0);
+    function ease(prev, next) {
+      if (!prev) return next;
       return {
-        x: sumX / eyeLandmarks.length,
-        y: sumY / eyeLandmarks.length
+        x: lerp(prev.x, next.x, SMOOTH), y: lerp(prev.y, next.y, SMOOTH),
+        w: lerp(prev.w, next.w, SMOOTH), h: lerp(prev.h, next.h, SMOOTH)
       };
     }
 
-    // Detect face and track eyes
-    async function detectFace() {
-      if (!isTracking) return;
+    function drawEye(panel, pts, open) {
+      const cv = panel.cv, ctx = panel.ctx;
+      const W = cv.width, H = cv.height;
+      const b = panel.box;
+      ctx.clearRect(0, 0, W, H);
+      if (!b) return;
 
+      // Mirror the crop so it reads like a mirror rather than a photo of you.
+      ctx.save();
+      ctx.translate(W, 0);
+      ctx.scale(-1, 1);
       try {
-        // Make sure video is ready
-        if (video.readyState < 2) {
-          requestAnimationFrame(detectFace);
-          return;
-        }
+        ctx.drawImage(video, b.x, b.y, b.w, b.h, 0, 0, W, H);
+      } catch (e) { /* video not ready for this frame */ }
+      ctx.restore();
 
-        frameCount++;
+      // landmark ring, mapped into the mirrored crop
+      const px = p => W - ((p.x - b.x) / b.w) * W;
+      const py = p => ((p.y - b.y) / b.h) * H;
+      ctx.strokeStyle = open ? '#00ff00' : '#ff3b30';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      pts.forEach((p, i) => i ? ctx.lineTo(px(p), py(p)) : ctx.moveTo(px(p), py(p)));
+      ctx.closePath();
+      ctx.stroke();
 
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Run detection every 2 frames for better performance
-        if (frameCount % 2 !== 0) {
-          requestAnimationFrame(detectFace);
-          return;
-        }
-
-        const predictions = await model.estimateFaces(video, {
-          flipHorizontal: false
-        });
-
-        if (predictions.length > 0) {
-          console.log('Face detected! Keypoints:', predictions[0].keypoints.length);
-          const face = predictions[0];
-          const keypoints = face.keypoints;
-
-        // Extract eye landmarks
-        const leftEyeLandmarks = LEFT_EYE_INDICES.map(i => keypoints[i]);
-        const rightEyeLandmarks = RIGHT_EYE_INDICES.map(i => keypoints[i]);
-
-        // Calculate EAR for each eye
-        const leftEAR = calculateEAR(leftEyeLandmarks);
-        const rightEAR = calculateEAR(rightEyeLandmarks);
-
-        // Get eye centers
-        const leftEyeCenter = getEyeCenter(leftEyeLandmarks);
-        const rightEyeCenter = getEyeCenter(rightEyeLandmarks);
-
-        // Determine if eyes are open
-        const leftEyeOpenNow = leftEAR > EAR_THRESHOLD;
-        const rightEyeOpenNow = rightEAR > EAR_THRESHOLD;
-
-        // Draw eye contours
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 2;
-
-        // Left eye
-        ctx.beginPath();
-        leftEyeLandmarks.forEach((point, i) => {
-          if (i === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
-        });
-        ctx.closePath();
-        ctx.stroke();
-
-        // Right eye
-        ctx.beginPath();
-        rightEyeLandmarks.forEach((point, i) => {
-          if (i === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
-        });
-        ctx.closePath();
-        ctx.stroke();
-
-        // Draw eye centers
-        ctx.fillStyle = leftEyeOpenNow ? '#00ff00' : '#ff0000';
-        ctx.beginPath();
-        ctx.arc(leftEyeCenter.x, leftEyeCenter.y, 5, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.fillStyle = rightEyeOpenNow ? '#00ff00' : '#ff0000';
-        ctx.beginPath();
-        ctx.arc(rightEyeCenter.x, rightEyeCenter.y, 5, 0, 2 * Math.PI);
-        ctx.fill();
-
-        // Update debug info
-        document.getElementById('leftEyePos').textContent =
-          `(${Math.round(leftEyeCenter.x)}, ${Math.round(leftEyeCenter.y)}) EAR: ${leftEAR.toFixed(3)}`;
-        document.getElementById('rightEyePos').textContent =
-          `(${Math.round(rightEyeCenter.x)}, ${Math.round(rightEyeCenter.y)}) EAR: ${rightEAR.toFixed(3)}`;
-
-        // Update eye indicators
-        const leftIndicator = document.getElementById('leftEyeIndicator');
-        const rightIndicator = document.getElementById('rightEyeIndicator');
-
-        leftIndicator.className = 'eye-indicator ' + (leftEyeOpenNow ? 'eye-open' : 'eye-closed');
-        rightIndicator.className = 'eye-indicator ' + (rightEyeOpenNow ? 'eye-open' : 'eye-closed');
-
-        // Detect blinks
-        const bothEyesClosed = !leftEyeOpenNow && !rightEyeOpenNow;
-
-        if (bothEyesClosed && !wasBlinking) {
-          // Blink started
-          const now = Date.now();
-          if (now - lastBlinkTime > 300) { // Debounce (300ms between blinks)
-            blinkCount++;
-            lastBlinkTime = now;
-            document.getElementById('blinkCount').textContent = blinkCount;
-            document.getElementById('blinkStatus').textContent = 'YES!';
-
-            // Flash the canvas
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          }
-          wasBlinking = true;
-        } else if (!bothEyesClosed) {
-          wasBlinking = false;
-          document.getElementById('blinkStatus').textContent = 'NO';
-        }
-        } else {
-          // No face detected - show debug message
-          ctx.fillStyle = '#00ff00';
-          ctx.font = '20px Courier New';
-          ctx.fillText('No face detected', 10, 30);
-          ctx.font = '14px Courier New';
-          ctx.fillText('Move closer or adjust lighting', 10, 55);
-        }
-      } catch (err) {
-        console.error('Detection error:', err);
-        ctx.fillStyle = '#ff0000';
-        ctx.font = '16px Courier New';
-        ctx.fillText('Error: ' + err.message, 10, 30);
-      }
-
-      requestAnimationFrame(detectFace);
+      panel.wrap.classList.toggle('closed', !open);
     }
 
-    // Event listeners
-    startButton.addEventListener('click', startWebcam);
+    function sizeCanvases() {
+      for (const p of Object.values(panels)) {
+        const w = Math.max(p.cv.clientWidth, 1);
+        p.cv.width = Math.round(w);
+        p.cv.height = Math.round(w / CROP_ASPECT);
+      }
+    }
+    window.addEventListener('resize', sizeCanvases);
 
-    // Initialize
+    function setOverlay(html, danger) {
+      overlay.innerHTML = html;
+      overlay.classList.toggle('danger', !!danger);
+    }
+
+    function toSearching(msg) {
+      state = 'searching';
+      stableFrames = 0;
+      calibration = [];
+      lastShownCount = null;
+      againButton.style.display = 'none';
+      timeVal.textContent = '0.00';
+      setOverlay('<div class="msg">' + (msg || 'LOOKING FOR YOUR EYES') + '</div>');
+      statusEl.textContent = 'Face the camera and hold still.';
+    }
+
+    function beginCountdown() {
+      state = 'countdown';
+      countdownEnds = performance.now() + COUNTDOWN_MS;
+      lastShownCount = null;
+
+      // Calibrate to this face: open-eye EAR varies enough between people and
+      // camera angles that a fixed 0.21 misfires. 62% of the resting average
+      // sits comfortably between open and closed.
+      if (calibration.length) {
+        const avg = calibration.reduce((s, v) => s + v, 0) / calibration.length;
+        earThreshold = Math.min(0.28, Math.max(0.12, avg * 0.62));
+      }
+      statusEl.textContent = 'Locked on. Threshold ' + earThreshold.toFixed(3);
+    }
+
+    function beginRound() {
+      state = 'live';
+      roundStart = performance.now();
+      setOverlay('');
+      statusEl.textContent = "Don't blink.";
+    }
+
+    function endRound(reason) {
+      const elapsed = (performance.now() - roundStart) / 1000;
+      state = 'ended';
+      lastTime = elapsed;
+      timeVal.textContent = elapsed.toFixed(2);
+
+      if (reason === 'blink') {
+        blinkCount++;
+        blinkVal.textContent = blinkCount;
+        const isBest = elapsed > best;
+        if (isBest) {
+          best = elapsed;
+          localStorage.setItem(BEST_KEY, String(best));
+          bestVal.textContent = best.toFixed(2);
+        }
+        setOverlay(
+          '<div class="big pop">BLINK</div><div class="msg">' +
+          elapsed.toFixed(2) + 's' + (isBest ? ' — NEW BEST' : '') + '</div>', true);
+        statusEl.textContent = isBest ? 'A new personal best.' : 'Best so far: ' + best.toFixed(2) + 's';
+      } else {
+        setOverlay('<div class="msg">LOST YOUR EYES</div>', true);
+        statusEl.textContent = 'Round abandoned — the camera lost track.';
+      }
+      againButton.style.display = 'inline-block';
+    }
+
+    async function loadModel() {
+      try {
+        loading.textContent = 'Loading TensorFlow backend…';
+        await tf.setBackend('webgl');
+        await tf.ready();
+        loading.textContent = 'Loading FaceMesh model…';
+        model = await faceLandmarksDetection.createDetector(
+          faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+          { runtime: 'tfjs' }
+        );
+        loading.textContent = 'Ready.';
+        startButton.style.display = 'inline-block';
+      } catch (err) {
+        loading.textContent = 'Error loading model: ' + err.message;
+        console.error('[blink] model load failed', err);
+      }
+    }
+
+    async function start() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+        });
+        video.srcObject = stream;
+        await new Promise(res => {
+          if (video.readyState >= 2) return res();
+          video.onloadedmetadata = res;
+        });
+        await video.play().catch(() => {});
+
+        loading.style.display = 'none';
+        startButton.style.display = 'none';
+        stage.style.display = 'block';
+        sizeCanvases();
+
+        try { await model.estimateFaces(video); } catch (e) {}
+
+        toSearching();
+        requestAnimationFrame(loop);
+      } catch (err) {
+        loading.textContent = 'Error accessing camera: ' + err.message;
+        console.error('[blink] camera failed', err);
+      }
+    }
+
+    async function loop() {
+      frame++;
+      // Detection every other frame keeps the crops at full framerate while
+      // halving the model cost.
+      if (frame % 2 === 0) {
+        try {
+          await step();
+        } catch (err) {
+          console.error('[blink] detect error', err);
+        }
+      }
+      if (state === 'live') timeVal.textContent = ((performance.now() - roundStart) / 1000).toFixed(2);
+      requestAnimationFrame(loop);
+    }
+
+    async function step() {
+      if (video.readyState < 2) return;
+      const faces = await model.estimateFaces(video, { flipHorizontal: false });
+
+      if (!faces.length) {
+        if (state === 'live') return endRound('lost');
+        if (state === 'countdown') return toSearching('LOST YOU — TRY AGAIN');
+        if (state === 'searching') { stableFrames = 0; calibration = []; }
+        return;
+      }
+
+      const kp = faces[0].keypoints;
+      const a = EYE_A.map(i => kp[i]);
+      const b = EYE_B.map(i => kp[i]);
+      if (a.some(p => !p) || b.some(p => !p)) return;
+
+      // Mirrored view puts the subject's left eye on the viewer's left, so the
+      // left panel takes whichever ring sits further right in the raw frame.
+      const [ptsL, ptsR] = meanX(a) > meanX(b) ? [a, b] : [b, a];
+
+      const earL = ear(ptsL), earR = ear(ptsR);
+      const gate = state === 'searching' ? LOCK_MIN_EAR : earThreshold;
+      const openL = earL > gate, openR = earR > gate;
+
+      panels.left.box  = ease(panels.left.box,  boxFor(ptsL));
+      panels.right.box = ease(panels.right.box, boxFor(ptsR));
+      drawEye(panels.left,  ptsL, openL);
+      drawEye(panels.right, ptsR, openR);
+      panels.left.ear.textContent  = earL.toFixed(3);
+      panels.right.ear.textContent = earR.toFixed(3);
+
+      const bothOpen = openL && openR;
+      const bothShut = !openL && !openR;
+
+      if (state === 'searching') {
+        if (bothOpen) {
+          stableFrames++;
+          calibration.push((earL + earR) / 2);
+          if (calibration.length > 40) calibration.shift();
+          const left = Math.max(0, LOCK_FRAMES - stableFrames);
+          setOverlay('<div class="msg">' + (left ? 'HOLD STILL…' : 'LOCKED') + '</div>');
+          if (stableFrames >= LOCK_FRAMES) beginCountdown();
+        } else {
+          stableFrames = 0;
+        }
+        return;
+      }
+
+      if (state === 'countdown') {
+        const remain = countdownEnds - performance.now();
+        if (remain <= 0) return beginRound();
+        const n = Math.ceil(remain / 1000);
+        if (n !== lastShownCount) {
+          lastShownCount = n;
+          setOverlay('<div class="big pop">' + n + '</div><div class="msg">GET READY</div>');
+        }
+        return;
+      }
+
+      if (state === 'live' && bothShut) endRound('blink');
+    }
+
+    startButton.addEventListener('click', start);
+    againButton.addEventListener('click', () => {
+      blinkVal.textContent = blinkCount;
+      toSearching();
+    });
+
     loadModel();
   </script>
-
-  <!-- Contact Section -->
-  <div style="position: fixed; bottom: 10px; left: 10px; font-size: 11px; opacity: 0.6; color: #999; z-index: 1000;">
-    Questions or feedback? <a href="mailto:holla@felixflor.es" style="color: #667eea; text-decoration: none;">holla@felixflor.es</a>
-  </div>
 </body>
 </html>

@@ -45,7 +45,7 @@ STATIC = [
     ("philosopher-chat.html", "fa-comments",      "Philosopher Chat",         "Five philosophers argue your question. Socrates questions, Nietzsche unmasks."),
     ("tiltrush.html",         "fa-mobile-screen", "TiltRush",                 "Motion-controlled mobile game."),
     ("asteroids.html",        "fa-meteor",        "Asteroids",                "Arrow keys to thrust, space to shoot."),
-    ("blinking.html",         "fa-eye-slash",     "Blinking Contest",         "Webcam eye tracking that counts your blinks."),
+    ("blinking.html",         "fa-eye-slash",     "Blinking Contest",         "Two cropped eyes, a countdown, and a timer. Try not to blink."),
     ("tinnitus-therapy.html", "fa-ear-listen",    "Tinnitus Therapy",         "Notched sound generator for relief."),
 ]
 
