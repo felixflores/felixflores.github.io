@@ -227,8 +227,14 @@
     // angle push some people's open-eye EAR near 0.15, and gating lock-on at
     // the blink threshold would mean they could never start a round at all.
     const LOCK_MIN_EAR = 0.13;
-    // Real blink threshold, calibrated against this face during lock.
+    // Closure is judged as a fraction of this face's own resting EAR. An
+    // absolute threshold misses people whose eyelid mesh never fully collapses
+    // and fires early on anyone with narrow eyes.
+    const CLOSE_RATIO = 0.72;   // mean of both eyes drops this far -> blink
+    const HARD_RATIO  = 0.55;   // one eye this far down counts on its own
+    let baseline = 0.30;
     let earThreshold = 0.21;
+    let minRatio = 1;
 
     let model = null;
     let state = 'idle';          // idle | searching | countdown | live | ended
@@ -346,10 +352,12 @@
       // camera angles that a fixed 0.21 misfires. 62% of the resting average
       // sits comfortably between open and closed.
       if (calibration.length) {
-        const avg = calibration.reduce((s, v) => s + v, 0) / calibration.length;
-        earThreshold = Math.min(0.28, Math.max(0.12, avg * 0.62));
+        baseline = calibration.reduce((s, v) => s + v, 0) / calibration.length;
+        earThreshold = baseline * CLOSE_RATIO;
       }
-      statusEl.textContent = 'Locked on. Threshold ' + earThreshold.toFixed(3);
+      minRatio = 1;
+      statusEl.textContent = 'Locked on. Open ' + baseline.toFixed(3) +
+                             ' · blink under ' + earThreshold.toFixed(3);
     }
 
     function beginRound() {
@@ -377,7 +385,8 @@
         setOverlay(
           '<div class="big pop">BLINK</div><div class="msg">' +
           elapsed.toFixed(2) + 's' + (isBest ? ' — NEW BEST' : '') + '</div>', true);
-        statusEl.textContent = isBest ? 'A new personal best.' : 'Best so far: ' + best.toFixed(2) + 's';
+        statusEl.textContent = (isBest ? 'A new personal best. ' : 'Best so far: ' + best.toFixed(2) + 's. ') +
+                               '(dipped to ' + (minRatio * 100).toFixed(0) + '% of open)';
       } else {
         setOverlay('<div class="msg">LOST YOUR EYES</div>', true);
         statusEl.textContent = 'Round abandoned — the camera lost track.';
@@ -393,7 +402,7 @@
         loading.textContent = 'Loading FaceMesh model…';
         model = await faceLandmarksDetection.createDetector(
           faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-          { runtime: 'tfjs' }
+          { runtime: 'tfjs', refineLandmarks: true }
         );
         loading.textContent = 'Ready.';
         startButton.style.display = 'inline-block';
@@ -441,9 +450,9 @@
 
     async function loop() {
       frame++;
-      // Detection every other frame keeps the crops at full framerate while
-      // halving the model cost.
-      if (frame % 2 === 0) {
+      // A blink's closed phase can be under 100ms, so during a round we detect
+      // as fast as the model allows. Idle states can afford to halve the cost.
+      if (state === 'live' || frame % 2 === 0) {
         try {
           await step();
         } catch (err) {
@@ -494,7 +503,7 @@
       const [ptsL, ptsR] = meanX(a) > meanX(b) ? [a, b] : [b, a];
 
       const earL = ear(ptsL), earR = ear(ptsR);
-      const gate = state === 'searching' ? LOCK_MIN_EAR : earThreshold;
+      const gate = state === 'searching' ? LOCK_MIN_EAR : baseline * CLOSE_RATIO;
       const openL = earL > gate, openR = earR > gate;
 
       panels.left.box  = ease(panels.left.box,  boxFor(ptsL));
@@ -505,7 +514,9 @@
       panels.right.ear.textContent = earR.toFixed(3);
 
       const bothOpen = openL && openR;
-      const bothShut = !openL && !openR;
+      const meanEar = (earL + earR) / 2;
+      const ratio = baseline > 0 ? meanEar / baseline : 1;
+      const worst = baseline > 0 ? Math.min(earL, earR) / baseline : 1;
 
       if (state === 'searching') {
         if (bothOpen) {
@@ -532,7 +543,12 @@
         return;
       }
 
-      if (state === 'live' && bothShut) endRound('blink');
+      if (state === 'live') {
+        minRatio = Math.min(minRatio, ratio);
+        if (ratio < CLOSE_RATIO || worst < HARD_RATIO) return endRound('blink');
+        // let the baseline follow slow drift (posture, lighting) but never a blink
+        if (ratio > 0.92) baseline = baseline * 0.97 + meanEar * 0.03;
+      }
     }
 
     startButton.addEventListener('click', start);
