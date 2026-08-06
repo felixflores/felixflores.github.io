@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab — Felix Flores</title>
+  <meta name="description" content="Experiments, utilities, and things running on a laptop at home.">
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #f5f5f7;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    .wrap { max-width: 720px; margin: 0 auto; padding: 80px 24px 60px; }
+
+    .back {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: #6e6e73; text-decoration: none; font-size: 13px;
+      margin-bottom: 40px; transition: color 0.2s ease;
+    }
+    .back:hover { color: #f5f5f7; }
+
+    h1 { font-size: 34px; font-weight: 600; letter-spacing: -1px; margin-bottom: 8px; }
+    .lede { color: #6e6e73; font-size: 16px; margin-bottom: 48px; }
+
+    .section-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; margin: 44px 0 6px;
+    }
+    h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #86868b; }
+    .section-note { font-size: 12px; color: #4a4a4d; }
+    .section-sub { font-size: 13px; color: #4a4a4d; margin-bottom: 14px; }
+
+    ul { list-style: none; }
+
+    .row {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 16px;
+      background: rgba(10, 10, 12, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      text-decoration: none; color: inherit;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .row-item + .row-item { margin-top: 8px; }
+    .row:hover {
+      background: rgba(10, 10, 12, 0.7);
+      border-color: rgba(255, 255, 255, 0.12);
+      transform: translateX(3px);
+    }
+
+    .row-icon { font-size: 16px; color: rgba(255, 255, 255, 0.45); width: 22px; text-align: center; flex-shrink: 0; }
+    .row-text { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; }
+    .row-name { font-size: 15px; font-weight: 600; color: #f5f5f7; letter-spacing: -0.2px; }
+    .row-desc { font-size: 13px; color: #86868b; line-height: 1.4; }
+    .row-arrow { color: #4af; font-size: 14px; opacity: 0; transition: opacity 0.2s ease; flex-shrink: 0; }
+    .row:hover .row-arrow { opacity: 1; }
+
+    .footer { margin-top: 64px; text-align: center; color: #3a3a3c; font-size: 13px; }
+    .footer a { color: #4af; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 500px) {
+      .wrap { padding: 48px 18px 40px; }
+      h1 { font-size: 27px; }
+      .row-arrow { display: none; }
+    }
+  </style>
+</head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-R0M5DGW99S"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-R0M5DGW99S');
+</script>
+<body>
+  <div class="wrap">
+    <a class="back" href="index.html">← Felix Flores</a>
+
+    <h1>Lab</h1>
+    <p class="lede">Experiments, utilities, and half-finished things.</p>
+
+    <div class="section-head">
+      <h2>Running now</h2>
+      <span class="section-note">self-hosted</span>
+    </div>
+    <p class="section-sub">These run on a laptop at home. If one doesn't load, it's asleep — try later.</p>
+    <ul>
+      <li class="row-item">
+        <a class="row" href="https://super-vision.felixflor.es" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-eye row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Super Color Vision</span>
+            <span class="row-desc">Find the odd tile as the shade difference shrinks each round.</span>
+          </span>
+          <span class="row-arrow">↗</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="https://hibla.felixflor.es" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-font row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Hibla</span>
+            <span class="row-desc">A typeface built so letters stay countable. Type specimen.</span>
+          </span>
+          <span class="row-arrow">↗</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="https://wesley.felixflor.es" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-gamepad row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">The Wesley</span>
+            <span class="row-desc">Feature-request history for a game built to order.</span>
+          </span>
+          <span class="row-arrow">↗</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="https://una.felixflor.es" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-shapes row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Una&#x27;s Toy Box</span>
+            <span class="row-desc">A small pile of toys. Pick one and play.</span>
+          </span>
+          <span class="row-arrow">↗</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="https://stats-collector.felixflor.es" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-chart-simple row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Video Stats Report</span>
+            <span class="row-desc">Reporting over video stats.</span>
+          </span>
+          <span class="row-arrow">↗</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="section-head">
+      <h2>Experiments</h2>
+    </div>
+    <p class="section-sub">Static, always up.</p>
+    <ul>
+      <li class="row-item">
+        <a class="row" href="buddhabrot_bg.html">
+          <i class="fa-solid fa-burst row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Nebulabrot Explorer</span>
+            <span class="row-desc">Interactive Buddhabrot fractal with parallel Web Workers.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="unaisa.html">
+          <i class="fa-solid fa-scroll row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Unaisa Protocol</span>
+            <span class="row-desc">Decentralized content addressing via Merkle chains.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="tiltrush.html">
+          <i class="fa-solid fa-mobile-screen row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">TiltRush</span>
+            <span class="row-desc">Motion-controlled mobile game.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="tinnitus-therapy.html">
+          <i class="fa-solid fa-ear-listen row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Tinnitus Therapy</span>
+            <span class="row-desc">Notched sound generator for relief.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="alien-spacecraft.html">
+          <i class="fa-solid fa-satellite row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Compressing Civilization</span>
+            <span class="row-desc">What would you send if you had one payload?</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="philosopher-chat.html">
+          <i class="fa-solid fa-comments row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Philosopher Chat</span>
+            <span class="row-desc">Tree-of-thought demo with branching conversation.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="experiment.html">
+          <i class="fa-solid fa-brain row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">TLog — Thought Space</span>
+            <span class="row-desc">A space for thinking out loud.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="journal-v2.html">
+          <i class="fa-solid fa-code-branch row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Branch Journal v2</span>
+            <span class="row-desc">Journalling with branches.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="journal.html">
+          <i class="fa-solid fa-code-branch row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Branch Journal</span>
+            <span class="row-desc">The original version.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="asteroids.html">
+          <i class="fa-solid fa-meteor row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Asteroids</span>
+            <span class="row-desc">The classic, rebuilt.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="blinking.html">
+          <i class="fa-solid fa-eye-slash row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Blinking Contest</span>
+            <span class="row-desc">Try not to blink.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+      <li class="row-item">
+        <a class="row" href="photos.html">
+          <i class="fa-solid fa-image row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Photos</span>
+            <span class="row-desc">A few pictures.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="section-head">
+      <h2>Elsewhere</h2>
+    </div>
+    <ul>
+      <li class="row-item">
+        <a class="row" href="blog.html">
+          <i class="fa-solid fa-hammer row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Blog</span>
+            <span class="row-desc">Under construction since approximately 1999.</span>
+          </span>
+          <span class="row-arrow">→</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="footer">
+      <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
+    </div>
+  </div>
+</body>
+</html>
