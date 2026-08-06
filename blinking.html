@@ -122,6 +122,12 @@
     .stat .label { font-size: 11px; letter-spacing: 2px; opacity: 0.5; }
     .stat .value { font-size: clamp(22px, 4.4vw, 34px); text-shadow: 0 0 14px #00ff00; }
 
+    .trace {
+      display: block; width: 100%; max-width: 788px; height: 64px;
+      margin: 18px auto 0; border: 1px solid rgba(0, 255, 0, 0.28);
+      border-radius: 6px; background: rgba(0, 40, 0, 0.35);
+    }
+
     .status { margin-top: 18px; font-size: 13px; letter-spacing: 2px; opacity: 0.7; min-height: 20px; }
 
     button {
@@ -182,6 +188,7 @@
         <div class="stat"><div class="label">BLINKS</div><div class="value" id="blinkVal">0</div></div>
       </div>
 
+      <canvas id="trace" class="trace" title="eye openness over the last 4 seconds"></canvas>
       <div class="status" id="status"></div>
     </div>
 
@@ -232,6 +239,12 @@
     // and fires early on anyone with narrow eyes.
     const CLOSE_RATIO = 0.72;   // mean of both eyes drops this far -> blink
     const HARD_RATIO  = 0.55;   // one eye this far down counts on its own
+    // Glasses and poor eyelid tracking can leave the mesh barely collapsing, so
+    // a blink may never cross an absolute line. It is still a fast dip, which a
+    // slow squint is not — so also fire on rate of change.
+    const DIP_WINDOW  = 170;    // ms to look back over
+    const DIP_FRAC    = 0.20;   // drop this fraction within the window -> blink
+    let history = [];           // {t, ratio} for the trace + dip test
     let baseline = 0.30;
     let earThreshold = 0.21;
     let minRatio = 1;
@@ -318,12 +331,57 @@
       panel.wrap.classList.toggle('closed', !open);
     }
 
+    // Live trace of eye openness against the trigger line. If a blink shows as
+    // a visible dip that never crosses, the threshold is wrong; if the line
+    // barely moves at all, the eyelid landmarks are not tracking.
+    const trace = document.getElementById('trace');
+    const traceCtx = trace.getContext('2d');
+    function drawTrace() {
+      const W = trace.width, H = trace.height;
+      if (!W) return;
+      traceCtx.clearRect(0, 0, W, H);
+      const now = performance.now(), SPAN = 4000;
+      const y = r => H - Math.max(0, Math.min(1.15, r)) / 1.15 * H;
+
+      traceCtx.setLineDash([4, 5]);
+      traceCtx.strokeStyle = 'rgba(255,80,60,0.75)';
+      traceCtx.lineWidth = 1;
+      traceCtx.beginPath();
+      traceCtx.moveTo(0, y(CLOSE_RATIO)); traceCtx.lineTo(W, y(CLOSE_RATIO));
+      traceCtx.stroke();
+      traceCtx.setLineDash([]);
+
+      if (history.length > 1) {
+        traceCtx.strokeStyle = '#00ff00';
+        traceCtx.lineWidth = 1.6;
+        traceCtx.beginPath();
+        let started = false;
+        for (const h of history) {
+          const age = now - h.t;
+          if (age > SPAN) continue;
+          const px = W - (age / SPAN) * W;
+          started ? traceCtx.lineTo(px, y(h.ratio)) : traceCtx.moveTo(px, y(h.ratio));
+          started = true;
+        }
+        traceCtx.stroke();
+      }
+      traceCtx.font = '10px Courier New';
+      traceCtx.fillStyle = 'rgba(0,255,0,0.45)';
+      traceCtx.textAlign = 'right';
+      traceCtx.fillText('EYES OPEN', W - 5, 11);
+      traceCtx.textAlign = 'left';
+      traceCtx.fillStyle = 'rgba(255,80,60,0.8)';
+      traceCtx.fillText('BLINK', 4, y(CLOSE_RATIO) + 11);
+    }
+
     function sizeCanvases() {
       for (const p of Object.values(panels)) {
         const w = Math.max(p.cv.clientWidth, 1);
         p.cv.width = Math.round(w);
         p.cv.height = Math.round(w / CROP_ASPECT);
       }
+      trace.width = Math.max(trace.clientWidth, 1);
+      trace.height = Math.max(trace.clientHeight, 1);
     }
     window.addEventListener('resize', sizeCanvases);
 
@@ -441,28 +499,40 @@
         try { await model.estimateFaces(work); } catch (e) {}
 
         toSearching();
-        requestAnimationFrame(loop);
+        detectLoop();
+        requestAnimationFrame(renderLoop);
       } catch (err) {
         loading.textContent = 'Error accessing camera: ' + err.message;
         console.error('[blink] camera failed', err);
       }
     }
 
-    async function loop() {
-      frame++;
-      // A blink's closed phase can be under 100ms, so during a round we detect
-      // as fast as the model allows. Idle states can afford to halve the cost.
-      if (state === 'live' || frame % 2 === 0) {
+    // Detection runs in its own loop rather than inside requestAnimationFrame:
+    // rAF would idle until the next vsync after every await, capping sampling
+    // near 18Hz and letting short blinks fall between frames.
+    let running = false;
+    async function detectLoop() {
+      running = true;
+      while (running) {
+        frame++;
         try {
           await step();
         } catch (err) {
           lastErr = 'ERR ' + err.message;
           console.error('[blink] detect error', err);
         }
+        // Always yield to a macrotask. Awaiting a promise that resolves
+        // immediately only drains the microtask queue, which would starve
+        // rendering and timers and lock the page up.
+        await new Promise(r => setTimeout(r, state === 'live' ? 0 : 24));
       }
+    }
+
+    function renderLoop() {
       if (state === 'searching' && frame % 20 === 0) statusEl.textContent = diag();
       if (state === 'live') timeVal.textContent = ((performance.now() - roundStart) / 1000).toFixed(2);
-      requestAnimationFrame(loop);
+      drawTrace();
+      requestAnimationFrame(renderLoop);
     }
 
     function diag() {
@@ -543,10 +613,22 @@
         return;
       }
 
+      const now = performance.now();
+      history.push({ t: now, ratio });
+      while (history.length && now - history[0].t > 4000) history.shift();
+
       if (state === 'live') {
         minRatio = Math.min(minRatio, ratio);
-        if (ratio < CLOSE_RATIO || worst < HARD_RATIO) return endRound('blink');
-        // let the baseline follow slow drift (posture, lighting) but never a blink
+
+        // deepest reading in the recent window: a blink drops away from it fast
+        let recentMax = ratio;
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (now - history[i].t > DIP_WINDOW) break;
+          if (history[i].ratio > recentMax) recentMax = history[i].ratio;
+        }
+        const dipped = recentMax > 0 && (recentMax - ratio) / recentMax > DIP_FRAC;
+
+        if (ratio < CLOSE_RATIO || worst < HARD_RATIO || dipped) return endRound('blink');
         if (ratio > 0.92) baseline = baseline * 0.97 + meanEar * 0.03;
       }
     }
