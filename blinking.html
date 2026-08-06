@@ -122,6 +122,26 @@
     .stat .label { font-size: 11px; letter-spacing: 2px; opacity: 0.5; }
     .stat .value { font-size: clamp(22px, 4.4vw, 34px); text-shadow: 0 0 14px #00ff00; }
 
+    .proof {
+      display: none; max-width: 788px; margin: 20px auto 0;
+      border: 1px solid rgba(255, 59, 48, 0.55); border-radius: 8px;
+      padding: 10px; background: rgba(40, 0, 0, 0.25);
+    }
+    .proof.on { display: block; }
+    .proof-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 10px; letter-spacing: 2px; color: #ff8a80; margin-bottom: 8px;
+    }
+    #replayCv { display: block; width: 100%; height: auto; aspect-ratio: 3 / 1; border-radius: 4px; background: #000; }
+    .proof-ctl { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+    .proof-ctl input[type=range] { flex: 1; accent-color: #ff3b30; }
+    .proof-read { font-size: 11px; color: #ff8a80; min-width: 120px; text-align: right; }
+    button.mini {
+      margin: 0; padding: 5px 10px; font-size: 10px; letter-spacing: 1px;
+      border-color: rgba(255, 59, 48, 0.6); color: #ff8a80;
+    }
+    button.mini:hover { background: #ff3b30; color: #000; box-shadow: 0 0 12px #ff3b30; }
+
     .trace {
       display: block; width: 100%; max-width: 788px; height: 64px;
       margin: 18px auto 0; border: 1px solid rgba(0, 255, 0, 0.28);
@@ -188,6 +208,20 @@
         <div class="stat"><div class="label">BLINKS</div><div class="value" id="blinkVal">0</div></div>
       </div>
 
+      <div class="proof" id="proof">
+        <div class="proof-head">
+          <span id="proofTitle">PROOF — LAST 1.6s AT ¼ SPEED</span>
+          <span id="proofReason"></span>
+        </div>
+        <canvas id="replayCv"></canvas>
+        <div class="proof-ctl">
+          <button type="button" class="mini" id="proofPlay">❚❚</button>
+          <input type="range" id="proofScrub" min="0" max="0" value="0" step="1">
+          <span class="proof-read" id="proofRead">—</span>
+          <button type="button" class="mini" id="proofSave">SAVE PNG</button>
+        </div>
+      </div>
+
       <canvas id="trace" class="trace" title="eye openness over the last 4 seconds"></canvas>
       <div class="status" id="status"></div>
     </div>
@@ -244,10 +278,21 @@
     // slow squint is not — so also fire on rate of change.
     const DIP_WINDOW  = 170;    // ms to look back over
     const DIP_FRAC    = 0.20;   // drop this fraction within the window -> blink
+    // Opening the eyes WIDER pushes the reading above baseline, and relaxing
+    // back to normal is a fast drop from that peak — indistinguishable from a
+    // blink to the dip test alone. So the peak is capped at baseline (widening
+    // cannot raise the bar) and the reading must also actually be low.
+    const DIP_CEILING = 0.85;
     let history = [];           // {t, ratio} for the trace + dip test
+    // A real blink spans several samples at this rate; a single frame of bad
+    // landmarks does not. Requiring two in a row kills the noise spikes that
+    // were ending rounds on their own.
+    const CLOSE_STREAK = 2;
+    let closedStreak = 0;
     let baseline = 0.30;
     let earThreshold = 0.21;
     let minRatio = 1;
+    let triggerReason = '';
 
     let model = null;
     let state = 'idle';          // idle | searching | countdown | live | ended
@@ -331,6 +376,42 @@
       panel.wrap.classList.toggle('closed', !open);
     }
 
+    // Rolling buffer of the last couple of seconds of both eye crops, so a
+    // round that ends can show what actually happened instead of asserting it.
+    // Canvases are preallocated and cycled — reallocating 30 times a second
+    // would churn the heap badly.
+    const REPLAY_FRAMES = 44, RW = 180, RH = 120;
+    const ring = [];
+    for (let i = 0; i < REPLAY_FRAMES; i++) {
+      const cv = document.createElement('canvas');
+      cv.width = RW * 2; cv.height = RH;
+      ring.push({ cv, ctx: cv.getContext('2d'), t: 0, ratio: 1, used: false });
+    }
+    let ringHead = 0;
+    let proofFrames = [];
+
+    function capture(ratio) {
+      const slot = ring[ringHead];
+      ringHead = (ringHead + 1) % REPLAY_FRAMES;
+      slot.ctx.clearRect(0, 0, RW * 2, RH);
+      try {
+        slot.ctx.drawImage(panels.left.cv, 0, 0, RW, RH);
+        slot.ctx.drawImage(panels.right.cv, RW, 0, RW, RH);
+      } catch (e) { /* panel not sized yet */ }
+      slot.t = performance.now();
+      slot.ratio = ratio;
+      slot.used = true;
+    }
+
+    function collectProof() {
+      const out = [];
+      for (let i = 0; i < REPLAY_FRAMES; i++) {
+        const slot = ring[(ringHead + i) % REPLAY_FRAMES];   // oldest first
+        if (slot.used) out.push(slot);
+      }
+      return out;
+    }
+
     // Live trace of eye openness against the trigger line. If a blink shows as
     // a visible dip that never crosses, the threshold is wrong; if the line
     // barely moves at all, the eyelid landmarks are not tracking.
@@ -385,6 +466,76 @@
     }
     window.addEventListener('resize', sizeCanvases);
 
+    const proofEl    = document.getElementById('proof');
+    const replayCv   = document.getElementById('replayCv');
+    const replayCtx  = replayCv.getContext('2d');
+    const proofScrub = document.getElementById('proofScrub');
+    const proofRead  = document.getElementById('proofRead');
+    const proofPlay  = document.getElementById('proofPlay');
+    let proofTimer = null, proofIdx = 0, proofPlaying = false;
+
+    function drawProofFrame(i) {
+      const f = proofFrames[i];
+      if (!f) return;
+      replayCv.width = f.cv.width; replayCv.height = f.cv.height;
+      replayCtx.drawImage(f.cv, 0, 0);
+      const last = proofFrames[proofFrames.length - 1];
+      const msBefore = Math.round(last.t - f.t);
+      // the trigger frame is the final one; mark it
+      if (i === proofFrames.length - 1) {
+        replayCtx.strokeStyle = '#ff3b30'; replayCtx.lineWidth = 4;
+        replayCtx.strokeRect(2, 2, replayCv.width - 4, replayCv.height - 4);
+      }
+      proofRead.textContent = '-' + msBefore + 'ms · ' + (f.ratio * 100).toFixed(0) + '%';
+      proofScrub.value = String(i);
+    }
+
+    function stopProof() {
+      proofPlaying = false;
+      if (proofTimer) { clearInterval(proofTimer); proofTimer = null; }
+      proofPlay.textContent = '▶';
+    }
+
+    function startProof() {
+      if (!proofFrames.length) return;
+      proofPlaying = true;
+      proofPlay.textContent = '❚❚';
+      if (proofTimer) clearInterval(proofTimer);
+      // quarter speed, so a 100ms blink is actually watchable
+      proofTimer = setInterval(() => {
+        proofIdx = (proofIdx + 1) % proofFrames.length;
+        drawProofFrame(proofIdx);
+      }, 120);
+    }
+
+    proofPlay.addEventListener('click', () => proofPlaying ? stopProof() : startProof());
+    proofScrub.addEventListener('input', () => {
+      stopProof();
+      proofIdx = +proofScrub.value;
+      drawProofFrame(proofIdx);
+    });
+    document.getElementById('proofSave').addEventListener('click', () => {
+      if (!proofFrames.length) return;
+      // contact sheet of the final moments, newest last — something keepable
+      const take = proofFrames.slice(-6);
+      const sheet = document.createElement('canvas');
+      sheet.width = take[0].cv.width;
+      sheet.height = take[0].cv.height * take.length;
+      const sc = sheet.getContext('2d');
+      sc.fillStyle = '#000'; sc.fillRect(0, 0, sheet.width, sheet.height);
+      take.forEach((f, i) => {
+        sc.drawImage(f.cv, 0, i * f.cv.height);
+        sc.fillStyle = i === take.length - 1 ? '#ff3b30' : 'rgba(0,255,0,0.85)';
+        sc.font = 'bold 14px Courier New';
+        sc.fillText('-' + Math.round(take[take.length - 1].t - f.t) + 'ms  ' +
+                    (f.ratio * 100).toFixed(0) + '%', 8, i * f.cv.height + 18);
+      });
+      const a = document.createElement('a');
+      a.download = 'blink-proof.png';
+      a.href = sheet.toDataURL('image/png');
+      a.click();
+    });
+
     function setOverlay(html, danger) {
       overlay.innerHTML = html;
       overlay.classList.toggle('danger', !!danger);
@@ -396,6 +547,8 @@
       calibration = [];
       lastShownCount = null;
       againButton.style.display = 'none';
+      stopProof();
+      proofEl.classList.remove('on');
       timeVal.textContent = '0.00';
       setOverlay('<div class="msg">' + (msg || 'LOOKING FOR YOUR EYES') + '</div>');
       statusEl.textContent = 'Face the camera and hold still.';
@@ -414,6 +567,8 @@
         earThreshold = baseline * CLOSE_RATIO;
       }
       minRatio = 1;
+      closedStreak = 0;
+      triggerReason = '';
       statusEl.textContent = 'Locked on. Open ' + baseline.toFixed(3) +
                              ' · blink under ' + earThreshold.toFixed(3);
     }
@@ -432,6 +587,15 @@
       timeVal.textContent = elapsed.toFixed(2);
 
       if (reason === 'blink') {
+        proofFrames = collectProof();
+        if (proofFrames.length) {
+          proofScrub.max = String(proofFrames.length - 1);
+          proofIdx = 0;
+          proofEl.classList.add('on');
+          document.getElementById('proofReason').textContent = triggerReason ? 'TRIGGER: ' + triggerReason.toUpperCase() : '';
+          drawProofFrame(0);
+          startProof();
+        }
         blinkCount++;
         blinkVal.textContent = blinkCount;
         const isBest = elapsed > best;
@@ -613,6 +777,7 @@
         return;
       }
 
+      capture(ratio);
       const now = performance.now();
       history.push({ t: now, ratio });
       while (history.length && now - history[0].t > 4000) history.shift();
@@ -626,10 +791,24 @@
           if (now - history[i].t > DIP_WINDOW) break;
           if (history[i].ratio > recentMax) recentMax = history[i].ratio;
         }
-        const dipped = recentMax > 0 && (recentMax - ratio) / recentMax > DIP_FRAC;
+        recentMax = Math.min(recentMax, 1);
+        const dipped = recentMax > 0 && ratio < DIP_CEILING &&
+                       (recentMax - ratio) / recentMax > DIP_FRAC;
 
-        if (ratio < CLOSE_RATIO || worst < HARD_RATIO || dipped) return endRound('blink');
-        if (ratio > 0.92) baseline = baseline * 0.97 + meanEar * 0.03;
+        let why = '';
+        if (ratio < CLOSE_RATIO) why = 'closed (' + (ratio * 100).toFixed(0) + '% of open)';
+        else if (worst < HARD_RATIO) why = 'one eye shut (' + (worst * 100).toFixed(0) + '%)';
+        else if (dipped) why = 'fast drop (' + ((1 - ratio / recentMax) * 100).toFixed(0) + '% in ' + DIP_WINDOW + 'ms)';
+
+        if (why) {
+          closedStreak++;
+          if (closedStreak >= CLOSE_STREAK) { triggerReason = why; return endRound('blink'); }
+        } else {
+          closedStreak = 0;
+          // track slow drift, but ignore readings outside a sane band so a
+          // held-wide eye cannot inflate what counts as "open"
+          if (ratio > 0.92 && ratio < 1.08) baseline = baseline * 0.97 + meanEar * 0.03;
+        }
       }
     }
 
