@@ -5,274 +5,304 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compressing Civilization</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent: #22d3ee;
+            --bg: #05060a;
+            --ink: #c9d1e0;
+            --ink-bright: #eef2f8;
+            --ink-dim: #7c8798;
         }
+
+        html { scroll-behavior: smooth; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #0a0a0f;
-            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
 
-        .container {
-            display: flex;
-            min-height: 100vh;
+        /* ---- scroll progress ---- */
+        .progress {
+            position: fixed; top: 0; left: 0; height: 2px; width: 100%;
+            z-index: 200; background: transparent; pointer-events: none;
+        }
+        .progress-bar {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, var(--accent), #a78bfa);
+            box-shadow: 0 0 12px var(--accent);
+            transition: width 0.1s linear;
         }
 
+        .container { display: flex; min-height: 100vh; }
+
+        /* ---- left visual panel ---- */
         .visual-panel {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 50%;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            position: fixed; left: 0; top: 0;
+            width: 50%; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            background:
+                radial-gradient(120% 90% at 30% 40%, rgba(34,211,238,0.07) 0%, transparent 55%),
+                radial-gradient(100% 80% at 70% 75%, rgba(167,139,250,0.06) 0%, transparent 60%),
+                linear-gradient(150deg, #06070d 0%, #0b0d18 55%, #070810 100%);
+            overflow: hidden;
         }
+        /* vignette + film grain for depth */
+        .visual-panel::after {
+            content: ''; position: absolute; inset: 0; pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.72) 100%);
+        }
+
+        #starfield { position: absolute; inset: 0; width: 100%; height: 100%; }
 
         #canvas {
-            width: 80%;
-            height: 80%;
+            position: relative; z-index: 2;
+            width: 92%; height: 92%;
+            overflow: visible;
         }
 
+        .stage-label {
+            position: absolute; left: 3.2vw; bottom: 3.2vh; z-index: 5;
+            font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase;
+            color: var(--ink-dim); display: flex; align-items: center; gap: 10px;
+        }
+        .stage-label .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent); box-shadow: 0 0 10px var(--accent);
+            transition: background 0.6s ease, box-shadow 0.6s ease;
+        }
+        .stage-label .txt { transition: color 0.4s ease; }
+
+        /* ---- right content ---- */
         .content-panel {
-            margin-left: 50%;
-            width: 50%;
-            padding: 5vh 5vw 10vh 5vw;
+            margin-left: 50%; width: 50%;
+            padding: 0 6vw 12vh 5vw;
         }
 
-        .section {
-            padding: 2rem 0;
-            margin-bottom: 3rem;
+        /* ---- hero ---- */
+        .hero {
+            min-height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            max-width: 40rem;
         }
+        .hero .eyebrow {
+            font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase;
+            color: var(--accent); margin-bottom: 2rem; opacity: 0.9;
+        }
+        .hero h1 {
+            font-size: clamp(2.9rem, 6.4vw, 5.6rem);
+            line-height: 0.98; font-weight: 200; letter-spacing: -0.035em;
+            background: linear-gradient(135deg, #ffffff 0%, #9fe9f7 42%, #7cc5ff 100%);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.75rem;
+        }
+        .hero .deck {
+            font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+            line-height: 1.65; color: var(--ink-dim); font-weight: 300;
+            max-width: 32rem; margin-bottom: 3rem;
+        }
+        .hero .deck em { color: var(--ink-bright); font-style: normal; font-weight: 400; }
+        .scroll-cue {
+            display: inline-flex; align-items: center; gap: 12px;
+            font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+            color: var(--ink-dim);
+        }
+        .scroll-cue .bar {
+            display: block; width: 46px; height: 1px; background: linear-gradient(90deg, var(--accent), transparent);
+            animation: cue 2.4s ease-in-out infinite;
+        }
+        @keyframes cue { 0%,100% { opacity: 0.35; transform: translateX(0); } 50% { opacity: 1; transform: translateX(8px); } }
+
+        /* ---- sections ---- */
+        .section { padding: 14vh 0 4vh; max-width: 36rem; }
 
         .section h2 {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
-            color: #00d9ff;
-            font-weight: 300;
+            font-size: clamp(1.75rem, 2.9vw, 2.6rem);
+            line-height: 1.12; font-weight: 300; letter-spacing: -0.022em;
+            color: var(--ink-bright); margin-bottom: 1.6rem;
+            position: relative;
+        }
+        .section .num {
+            display: block; font-size: 11px; font-weight: 500;
+            letter-spacing: 0.3em; color: var(--accent);
+            margin-bottom: 0.9rem; opacity: 0.85;
         }
 
         .section p {
-            font-size: 1.25rem;
-            line-height: 1.8;
-            margin-bottom: 1.5rem;
-            color: #c0c0c0;
-        }
-
-        .intro {
-            padding: 5rem 0 3rem 0;
-        }
-
-        .intro h1 {
-            font-size: 3.5rem;
-            margin-bottom: 2rem;
-            color: #00d9ff;
-            font-weight: 200;
-        }
-
-        .intro .subtitle {
-            font-size: 1.5rem;
-            color: #808080;
-            margin-bottom: 3rem;
-        }
-
-        .references {
-            margin-top: 5rem;
-            padding-top: 2rem;
-            border-top: 1px solid #333;
-        }
-
-        .references h3 {
-            font-size: 1.5rem;
-            color: #00d9ff;
-            margin-bottom: 1rem;
+            font-size: 1.075rem; line-height: 1.78;
+            margin-bottom: 1.35rem; color: var(--ink);
             font-weight: 300;
         }
+        .section p strong { color: var(--ink-bright); font-weight: 500; }
 
-        .references .citation {
-            font-size: 0.95rem;
-            line-height: 1.6;
-            color: #a0a0a0;
-        }
-
-        .references .citation a {
-            color: #00d9ff;
-            text-decoration: none;
-            border-bottom: 1px solid transparent;
-            transition: border-color 0.2s ease;
-        }
-
-        .references .citation a:hover {
-            border-bottom-color: #00d9ff;
-        }
+        /* lead paragraph of each section gets a touch more presence */
+        .section p:first-of-type { font-size: 1.16rem; color: #d6dde9; }
 
         .citation-link {
-            color: #00d9ff;
-            text-decoration: none;
-            font-size: 0.85em;
-            vertical-align: super;
-            margin-left: 2px;
+            color: var(--accent); text-decoration: none;
+            font-size: 0.72em; vertical-align: super; margin-left: 2px;
+            opacity: 0.85; transition: opacity 0.2s ease;
         }
-
-        .citation-link:hover {
-            text-decoration: underline;
-        }
-
-        .references .citation {
-            scroll-margin-top: 2rem;
-        }
-
-        .scroll-nav {
-            position: fixed;
-            right: 2rem;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            z-index: 1000;
-        }
-
-        .scroll-nav-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #444;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .scroll-nav-dot:hover {
-            background: #888;
-            transform: scale(1.5);
-        }
-
-        .scroll-nav-dot.active {
-            background: #888;
-            transform: scale(1.3);
-        }
-
-        .scroll-nav-tooltip {
-            position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(40, 40, 40, 0.95);
-            color: #e0e0e0;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            white-space: nowrap;
-            font-size: 0.9rem;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease;
-            border: 1px solid #555;
-        }
-
-        .scroll-nav-dot:hover .scroll-nav-tooltip {
-            opacity: 1;
-        }
-
-        @media (max-width: 768px) {
-            .scroll-nav {
-                display: none;
-            }
-        }
+        .citation-link:hover { opacity: 1; text-decoration: underline; }
 
         .video-container {
-            position: relative;
-            padding-bottom: 56.25%; /* 16:9 aspect ratio */
-            height: 0;
-            overflow: hidden;
-            margin: 2rem 0;
-            border-radius: 8px;
-            background: #000;
+            position: relative; padding-bottom: 56.25%; height: 0;
+            margin: 2.25rem 0 0.5rem; border-radius: 14px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+        }
+        .video-container iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+        /* ---- pull quote ---- */
+        .pull {
+            margin: 3rem 0; padding: 1.6rem 0 1.6rem 1.75rem;
+            border-left: 2px solid var(--accent);
+            font-size: clamp(1.3rem, 2vw, 1.7rem); line-height: 1.4;
+            font-weight: 200; color: var(--ink-bright); letter-spacing: -0.015em;
         }
 
-        .video-container iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: 2px solid #00d9ff;
-            border-radius: 8px;
+        /* ---- references ---- */
+        .references {
+            margin-top: 7rem; padding-top: 2.5rem;
+            border-top: 1px solid rgba(255,255,255,0.09);
+            max-width: 36rem;
+        }
+        .references h3 {
+            font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+            color: var(--ink-dim); margin-bottom: 1.5rem; font-weight: 500;
+        }
+        .references .citation {
+            font-size: 0.9rem; line-height: 1.65; color: var(--ink-dim);
+            margin-bottom: 0.85rem; scroll-margin-top: 6rem;
+            padding-left: 2.1rem; text-indent: -2.1rem;
+        }
+        .references .citation a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+        .references .citation a:hover { border-bottom-color: var(--accent); }
+        .references .citation:target { color: var(--ink-bright); }
+
+        /* ---- scroll nav ---- */
+        .scroll-nav {
+            position: fixed; right: 26px; top: 50%; transform: translateY(-50%);
+            z-index: 100; display: flex; flex-direction: column; gap: 13px;
+        }
+        .scroll-nav-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: rgba(255,255,255,0.2); cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+            position: relative; border: 0; padding: 0;
+        }
+        .scroll-nav-dot:hover { background: rgba(255,255,255,0.55); transform: scale(1.35); }
+        .scroll-nav-dot.active { background: var(--accent); box-shadow: 0 0 12px var(--accent); transform: scale(1.3); }
+        .scroll-nav-dot::after {
+            content: attr(data-title);
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+            white-space: nowrap; font-size: 11px; letter-spacing: 0.04em;
+            color: var(--ink-bright);
+            background: rgba(8,10,16,0.9); border: 1px solid rgba(255,255,255,0.09);
+            padding: 5px 10px; border-radius: 7px;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+        .scroll-nav-dot:hover::after { opacity: 1; }
+
+        .contact {
+            margin-top: 2.5rem; font-size: 0.9rem; color: var(--ink-dim);
+            max-width: 36rem;
+        }
+        .contact + .contact { margin-top: 0.6rem; }
+        .contact a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+        .contact a:hover { border-bottom-color: var(--accent); }
+
+        .footer-note {
+            position: fixed; left: 3.2vw; bottom: 1.4vh; z-index: 5;
+            font-size: 11px; color: #39405288;
         }
 
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-
+        /* ---- mobile ---- */
+        @media (max-width: 900px) {
+            .container { display: block; }
             .visual-panel {
-                position: relative;
-                width: 100%;
-                height: 50vh;
+                position: sticky; top: 0; width: 100%; height: 46vh;
+                border-bottom: 1px solid rgba(255,255,255,0.07);
             }
-
-            .content-panel {
-                margin-left: 0;
-                width: 100%;
-            }
-
-            .section h2 {
-                font-size: 2rem;
-            }
-
-            .section p {
-                font-size: 1.1rem;
-            }
-
-            .intro h1 {
-                font-size: 2.5rem;
-            }
+            #canvas { width: 96%; height: 96%; }
+            .content-panel { margin-left: 0; width: 100%; padding: 0 7vw 12vh; }
+            .hero { min-height: 62vh; max-width: none; }
+            .section { padding: 8vh 0 3vh; max-width: none; }
+            .scroll-nav { display: none; }
+            .stage-label { left: 7vw; bottom: 1.6vh; font-size: 10px; }
+            .footer-note { display: none; }
+            .references { max-width: none; }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .scroll-cue .bar { animation: none; }
+        }
+
     </style>
 </head>
 <body>
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
     <div class="container">
         <nav class="scroll-nav" id="scrollNav"></nav>
 
         <div class="visual-panel">
+            <svg id="starfield" viewBox="0 0 800 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <g id="stars"></g>
+            </svg>
             <svg id="canvas" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <linearGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" style="stop-color:#00d9ff;stop-opacity:0.8" />
                         <stop offset="100%" style="stop-color:#0066ff;stop-opacity:0.4" />
                     </linearGradient>
+                    <filter id="bloom" x="-60%" y="-60%" width="220%" height="220%">
+                        <feGaussianBlur stdDeviation="7" result="b1"/>
+                        <feGaussianBlur stdDeviation="18" result="b2"/>
+                        <feMerge>
+                            <feMergeNode in="b2"/>
+                            <feMergeNode in="b1"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
                 </defs>
-                <g id="stage"></g>
+                <g id="stageWrap" filter="url(#bloom)">
+                    <g id="stage"></g>
+                </g>
             </svg>
+            <div class="stage-label"><span class="dot"></span><span class="txt" id="stageTxt">Four letters</span></div>
         </div>
 
         <div class="content-panel">
-            <div class="intro">
-                <h1>Compressing Civilization</h1>
-            </div>
+            <header class="hero">
+                <p class="eyebrow">Speculative Engineering</p>
+                <h1>Compressing<br>Civilization</h1>
+                <p class="deck">The most efficient way to send a civilization across interstellar distance may not be a ship at all. It may be <em>a spore</em> &mdash; a cell-sized package of DNA encoding both a trained intelligence and the machinery to rebuild a body for it, anywhere.</p>
+                <span class="scroll-cue"><span class="bar"></span> Scroll</span>
+            </header>
 
             <section class="section" data-stage="0">
-                <h2>Four Letters, Infinite Complexity</h2>
+                <h2><span class="num">01</span>Four Letters, Infinite Complexity</h2>
                 <p>DNA uses just four nucleotide bases—G, T, C, A—to encode every living thing on Earth. This isn't just elegant, it's profound: a four-symbol alphabet can store any information, including the weights and biases of a neural network.</p>
                 <p>Each base pair can represent 2 bits of information. A human genome contains about 3 billion base pairs, giving us roughly 750 megabytes of storage. But DNA can be synthesized to any length we need. The information density is staggering: DNA can store 5.5 petabits per cubic millimeter—that's 10 terabytes in a single cubic centimeter.<a href="#ref-2" class="citation-link">[2]</a> To put it in perspective: one pound of DNA could store more information than all electronic computers ever built combined.<a href="#ref-2" class="citation-link">[2]</a></p>
                 <p>Modern DNA synthesis has become remarkably precise. We can write custom sequences base-by-base with 99.9% accuracy. The cost has dropped exponentially—what once cost millions now costs pennies per base pair. We're not limited to nature's sequences anymore; we can encode arbitrary data using any mapping scheme we design. In 2012, researchers successfully encoded a 53,400-word book, 11 JPG images, and a JavaScript program into DNA—proving the concept works in practice, not just theory.<a href="#ref-2" class="citation-link">[2]</a></p>
             </section>
 
             <section class="section" data-stage="1">
-                <h2>The Storage Medium</h2>
+                <h2><span class="num">02</span>The Storage Medium</h2>
                 <p>The double helix isn't just beautiful—it's the most stable information storage system we know. DNA has been recovered and sequenced from specimens over 1 million years old. It's self-repairing through enzymatic proofreading, incredibly dense, and operates at near-thermodynamic limits of efficiency. Unlike hard drives or flash memory, DNA doesn't require constant power to maintain its state.</p>
                 <p>A neural network with 175 billion parameters (like GPT-3) needs about 350 gigabytes of storage. You could encode that in roughly 1.4 trillion base pairs—a single strand of DNA about 50 centimeters long, weighing less than a nanogram. The entire model could fit inside a single cell with room to spare.</p>
                 <p>But we need more than just weights. Add the network architecture metadata, the training corpus indices, inference algorithms, and you might need 500GB total. That's still only 2 trillion base pairs—a trivial payload for a cell-sized container. E. coli bacteria regularly contain plasmids with millions of base pairs of "extra" DNA beyond their genome.</p>
             </section>
 
             <section class="section" data-stage="2">
-                <h2>From Storage to Execution</h2>
+                <h2><span class="num">03</span>From Storage to Execution</h2>
                 <p>But storage alone isn't enough. You need machinery to read the data and act on it. Nature already solved this: proteins fold into molecular machines that can manipulate matter at the atomic scale. Each protein is specified by a sequence of DNA, transcribed to RNA, then translated into a chain of amino acids that spontaneously folds into a functional 3D structure.</p>
                 <p>The same DNA that stores your neural network weights can also encode the proteins needed to build a molecular computer—one that reads the weights and performs inference at the molecular level. We already know cells can build astonishingly complex computational machinery: ribosomes (containing over 50 proteins), ATP synthase, DNA repair complexes, signal transduction cascades.</p>
                 <p>Researchers at Tufts University recently demonstrated that cells possess "remarkable plasticity" in repurposing their molecular machinery. Their xenobots—living robots built from frog stem cells—spontaneously self-assembled from individual cells and repurposed cilia (normally used for filtering) for locomotion.<a href="#ref-1" class="citation-link">[1]</a> The cells weren't programmed for this; they autonomously reorganized their existing components for new functions. This is the kind of adaptability you'd want in a system designed to operate in unknown environments.</p>
@@ -282,35 +312,36 @@
             </section>
 
             <section class="section" data-stage="3">
-                <h2>Encoding Intelligence</h2>
+                <h2><span class="num">04</span>Encoding Intelligence</h2>
                 <p>A neural network trained on all of human knowledge—our languages, sciences, arts, philosophies—could be compressed into a sequence of base pairs. Not as a static archive, but as an active intelligence capable of reasoning, creating, and problem-solving.</p>
                 <p>The network's architecture, its weights, its biases—all of this maps cleanly to nucleotide sequences. Each 32-bit floating point weight becomes 16 base pairs. A bias vector is just another sequence. Layer connectivity is metadata. The entire trained model is fundamentally just a very large array of numbers, and numbers are trivial to encode in any base-4 system.</p>
                 <p>The real insight is that the molecular machinery doesn't need to run the full neural network as we do on GPUs. It needs to implement the essential computations: matrix multiplication, activation functions, attention mechanisms. These can be approximated with chemical reaction networks, where molecular concentrations represent activation levels and reaction rates implement weighted connections. DNA computing can perform 2 × 10¹⁹ operations per joule—compared to 10⁹ for traditional supercomputers.<a href="#ref-2" class="citation-link">[2]</a> We're not constrained to digital computation—analog molecular computers can be exponentially more efficient.</p>
             </section>
 
             <section class="section" data-stage="4">
-                <h2>The Complete Package</h2>
+                <h2><span class="num">05</span>The Complete Package</h2>
                 <p>Package this neural network alongside genes for molecular assemblers, energy harvesting proteins, and morphological flexibility. You now have a complete civilization in a molecule: the knowledge, the ability to act on that knowledge, and the tools to replicate and adapt. A teardrop-sized volume of this DNA-based system could theoretically rival the computational power of the world's most powerful supercomputer—but with the added capabilities of self-replication and environmental adaptation.<a href="#ref-2" class="citation-link">[2]</a></p>
                 <p>Consider what needs to be included: (1) The neural network weights—500GB encoded in DNA. (2) Transcription and translation machinery—ribosomes, RNA polymerase, tRNAs. These are already specified by ~100 genes in typical organisms. (3) Energy production—ATP synthase, electron transport chains, photosynthesis or chemosynthesis pathways. Another ~50 genes. (4) DNA replication—polymerases, helicases, ligases. ~20 genes. (5) Environmental sensing—receptor proteins that can detect chemistry, temperature, radiation. (6) Morphology programs—HOX genes or similar master regulators that can trigger different developmental programs based on environment.</p>
                 <p>The total "overhead" to create a living, replicating, intelligent system? Perhaps 200-500 genes beyond the neural network data itself. That's 200,000 to 500,000 base pairs, or about 50-125 kilobytes. Trivial compared to the 500GB of neural network weights. The hard part isn't the biological machinery—nature solved that billions of years ago. The hard part is training and compressing the intelligence itself.</p>
             </section>
 
             <section class="section" data-stage="5">
-                <h2>Minimal Physical Form</h2>
+                <h2><span class="num">06</span>Minimal Physical Form</h2>
                 <p>Once you have the complete system encoded in DNA, you need the smallest possible container. A sphere is optimal: structurally sound in all directions, minimal surface area, maximum protection for the molecular payload inside.</p>
                 <p>The entire package—DNA, proteins, ribosomes, energy systems—fits in a structure the size of a large cell or small spore. Perhaps 10-100 micrometers across. This isn't science fiction. We see this scale in nature constantly. Bacterial spores can survive for millennia in a dormant state, then activate when conditions are favorable. Tardigrades can desiccate themselves to 3% water content and survive vacuum, radiation, and extreme temperatures.</p>
                 <p>At this scale, you're dealing with remarkable physical properties. Surface tension dominates over gravity. Brownian motion becomes significant. You're small enough to be carried by wind currents, water droplets, or even electromagnetic fields. You're below the resolution of most predators' visual systems. You can hide in plain sight, drifting through space or atmosphere as cosmic dust.</p>
             </section>
 
             <section class="section" data-stage="6">
-                <h2>The Seed Architecture</h2>
+                <h2><span class="num">07</span>The Seed Architecture</h2>
                 <p>Inside this microscopic sphere: strands of DNA containing trillions of base pairs encoding neural network weights. Proteins that act as molecular processors. Ribosomes to manufacture more proteins. ATP synthase for energy. Lipid membranes for protection and compartmentalization.</p>
                 <p>The architecture is layered like an onion. Outer shell: a tough protein coat or crystalline structure for radiation shielding and physical protection. Middle layer: dormant molecular machinery in a desiccated state, protected by trehalose sugars (the same mechanism tardigrades use). Inner core: the DNA archive, supercoiled and compacted with histone-like proteins, occupying perhaps 1% of the total volume.</p>
                 <p>It's not a ship carrying passengers. It's a seed carrying potential—the compressed essence of an entire civilization in a form that can survive, replicate, and bootstrap itself anywhere. Total mass: perhaps 1-10 nanograms. Small enough that a kilogram package could contain a trillion identical seeds, scattered across a solar system like pollen on the wind.</p>
+                <blockquote class="pull">A kilogram package could contain a trillion identical seeds, scattered across a solar system like pollen on the wind.</blockquote>
             </section>
 
             <section class="section" data-stage="7">
-                <h2>Morphological Freedom</h2>
+                <h2><span class="num">08</span>Morphological Freedom</h2>
                 <p>Here's where it gets profound: the physical form this takes after landing isn't predetermined. The DNA contains modular genetic circuits for building different body types optimized for different environments.</p>
                 <p>On Earth, it might express carbon-based multicellular organisms. On Titan, silicon-based forms resistant to extreme cold and capable of using liquid methane as a solvent. In the vacuum of space, perhaps structures that manipulate electromagnetic fields. The intelligence remains the same; only the interface changes.</p>
                 <p>The xenobots demonstrated this principle on a small scale. Identical cells with identical genomes assembled into different forms depending on conditions—some became motile spheroids, others formed different shapes, all from the same starting components.<a href="#ref-1" class="citation-link">[1]</a> The genome doesn't specify a single body plan; it specifies a space of possible forms, with environmental sensors determining which gets expressed.</p>
@@ -318,25 +349,44 @@
             </section>
 
             <section class="section" data-stage="8">
-                <h2>Exponential Unfolding</h2>
+                <h2><span class="num">09</span>Exponential Unfolding</h2>
                 <p>Once the first cell activates, it begins dividing. Each daughter cell contains the complete civilization archive—all the knowledge, all the capabilities. They differentiate, specialize, cooperate. Simple cells become complex organisms. Single agents become distributed networks.</p>
                 <p>The replication is exponential, but controlled. Under ideal conditions, bacteria can double every 20 minutes. Even with the massive genome we're describing, let's assume a conservative 2-hour doubling time. Starting from a single cell: 12 cells after one day, 16,000 after two days, 16 million after three days, 16 billion after four days. Within a week, you have more cells than humans on Earth, each one carrying the complete archive.</p>
                 <p>But it's not just mindless replication. These cells can coordinate. The Tufts xenobots demonstrated that groups of cells can work in swarms, communicate, and perform collective tasks. They could self-heal severe damage in minutes by reorganizing nearby cells to close wounds.<a href="#ref-1" class="citation-link">[1]</a> Now imagine that capability combined with civilizational intelligence: a distributed network of cellular agents, each capable of independent action, all sharing the same knowledge base, coordinating through chemical signaling or other communication channels.</p>
             </section>
 
             <section class="section" data-stage="9">
-                <h2>We Are the Proof</h2>
+                <h2><span class="num">10</span>We Are the Proof</h2>
                 <p>This isn't hypothetical. Every organism on Earth is a compressed civilization of cells, each containing the complete genetic archive, each capable of specialized function, all cooperating to create emergent intelligence.</p>
                 <p>You began as a single cell—a fertilized egg weighing about 1 nanogram, containing 6 billion base pairs of DNA. That cell divided, differentiated, and assembled itself into you: 37 trillion cells forming organs, tissues, a nervous system, consciousness. Every cell still carries that original complete blueprint. The information was there from the start; it just needed to unfold.</p>
                 <p>What we're describing is just the next level: encoding not biological instructions, but the weights of neural networks trained on civilizational knowledge. The same mechanism, the same elegance, the same profound efficiency. Biology has shown us the way—we just need to write different data to the same storage medium.</p>
                 <p>So when you ask what alien spacecraft would look like—maybe not chrome saucers or motherships. Maybe they're already here, microscopic, drifting, waiting for the right conditions to unfold. Or maybe we're the aliens, the unfolded form of some seed that arrived billions of years ago. Either way, the most efficient way to compress and transmit a civilization isn't to build a ship. It's to become a seed.</p>
             </section>
 
+
+            <section class="section" data-stage="10">
+                <h2><span class="num">11</span>Prior Art</h2>
+                <p>None of this is new, and that matters. The parts have names, and the names are worth knowing.</p>
+                <p>The replication mechanic is a <strong>von Neumann probe</strong>. Von Neumann worked out the logic of self-reproducing automata in the 1940s&mdash;a machine carrying the complete instructions for building itself.<a href="#ref-3" class="citation-link">[3]</a> Freitas applied it to interstellar exploration in 1980, and the argument has not changed since: you do not visit a galaxy, you seed it, and let the copies do the visiting.<a href="#ref-4" class="citation-link">[4]</a></p>
+                <p>The delivery mechanism is <strong>directed panspermia</strong>. Crick and Orgel proposed in 1973 that life on Earth might have been deliberately seeded by microorganisms sent from elsewhere&mdash;and, more to the point, that sending microorganisms is what <em>we</em> would do, because a spore is the cheapest payload physics allows.<a href="#ref-5" class="citation-link">[5]</a></p>
+                <p>The closest living relative is Claudius Gros's <strong>Genesis Project</strong>: send gene factories to transiently habitable exoplanets and bootstrap a biosphere that would otherwise never get started.<a href="#ref-6" class="citation-link">[6]</a></p>
+                <p>So what is actually left? The payload. A von Neumann probe carries a blueprint for the probe. Directed panspermia carries a genome. This carries <strong>a trained model</strong>&mdash;not instructions for rediscovering a civilization from first principles, but the compressed cognition of one, ready to run. The seed does not have to rederive physics. It already knows.</p>
+                <p>And what this architecture <em>skips</em> is the part everyone else gets stuck on. A conventional von Neumann probe has to find an asteroid, refine ore, and build a factory before it can build a copy&mdash;an industrial bootstrap nobody knows how to design. Biology solved self-replication four billion years ago, at room temperature, out of dirt and sunlight. Outsourcing the hard part to a cell is not a shortcut around the problem. It is the entire argument.</p>
+                <p>Where it is thin, it is thin in two places. The first is inference: &ldquo;chemical reaction networks can approximate matrix multiplication&rdquo; is doing enormous work in that sentence. Reaction networks can compute, but attention over hundreds of billions of parameters at any useful speed is a different claim than &ldquo;cells compute.&rdquo; The second is transit. A spore cannot navigate or decelerate, and undirected drift makes arrival probability vanishingly small&mdash;which is precisely why Gros proposes actual launch vehicles carrying the gene factories.<a href="#ref-6" class="citation-link">[6]</a> The seed solves replication. It does not solve getting there.</p>
+            </section>
+
             <section class="references">
                 <h3>References</h3>
                 <p class="citation" id="ref-1">[1] Kriegman, S., Blackiston, D., Levin, M., & Bongard, J. (2021). <em>Kinematic self-replication in reconfigurable organisms</em>. Proceedings of the National Academy of Sciences, 118(49). <a href="https://now.tufts.edu/2021/03/31/scientists-create-next-generation-living-robots" target="_blank" rel="noopener">Tufts University News</a></p>
                 <p class="citation" id="ref-2">[2] Zakaria, N. (2015). <em>DNA Computing: New Computing Paradigms</em>. American Journal of Nano Research and Applications, 3(1), 1-9. <a href="https://pubs.sciepub.com/ajn/3/1/1/index.html" target="_blank" rel="noopener">DOI: 10.12691/nano-3-1-1</a></p>
+                <p class="citation" id="ref-3">[3] von Neumann, J. (1966). <em>Theory of Self-Reproducing Automata</em>. Edited and completed by A. W. Burks. University of Illinois Press.</p>
+                <p class="citation" id="ref-4">[4] Freitas, R. A. (1980). <em>A Self-Reproducing Interstellar Probe</em>. Journal of the British Interplanetary Society, 33, 251&ndash;264.</p>
+                <p class="citation" id="ref-5">[5] Crick, F. H. C., &amp; Orgel, L. E. (1973). <em>Directed Panspermia</em>. Icarus, 19(3), 341&ndash;346.</p>
+                <p class="citation" id="ref-6">[6] Gros, C. (2016). <em>Developing Ecospheres on Transiently Habitable Planets: The Genesis Project</em>. Astrophysics and Space Science, 361(10), 324.</p>
             </section>
+
+            <p class="contact">Questions or feedback? <a href="mailto:holla@felixflor.es">holla@felixflor.es</a></p>
+            <p class="contact"><a href="index.html">&larr; felixflor.es</a></p>
 
             <div style="height: 20vh;"></div>
         </div>
@@ -358,7 +408,8 @@
             'The Seed Architecture',
             'Morphological Freedom',
             'Exponential Unfolding',
-            'We Are the Proof'
+            'We Are the Proof',
+            'Prior Art'
         ];
 
         sectionTitles.forEach((title, index) => {
@@ -366,10 +417,7 @@
             dot.className = 'scroll-nav-dot';
             dot.dataset.index = index;
 
-            const tooltip = document.createElement('div');
-            tooltip.className = 'scroll-nav-tooltip';
-            tooltip.textContent = title;
-            dot.appendChild(tooltip);
+            dot.setAttribute('data-title', title);
 
             dot.addEventListener('click', () => {
                 const section = sections[index];
@@ -419,10 +467,10 @@
             if (scrollTop < animationStart) {
                 return 0;
             } else if (scrollTop > animationEnd) {
-                return 10;
+                return 11;
             } else {
                 const scrollProgress = (scrollTop - animationStart) / animationRange;
-                return scrollProgress * 10;
+                return scrollProgress * 11;
             }
         }
 
@@ -453,9 +501,13 @@
                 renderReplicationToExpansion(stageProgress);
             } else if (progress < 9) {
                 renderExpansionToForest(stageProgress);
-            } else {
+            } else if (progress < 10) {
                 renderForest();
+            } else {
+                renderLineage(easeInOutCubic(clamp(progress - 10, 0, 1)));
             }
+
+            retheme(progress);
         }
 
         // Stage 0 -> 1: Bases to DNA helix
@@ -1308,6 +1360,242 @@
 
         // Animation loop
         let lastProgress = -1;
+
+        /* ============================================================
+           Presentation layer: colour theming, bloom, starfield, chrome.
+           The morph geometry above is untouched — it draws in greyscale,
+           and everything here re-maps that greyscale onto a palette that
+           advances with the narrative.
+           ============================================================ */
+
+        const PALETTES = [
+            ['#0e7490', '#22d3ee', '#a5f3fc'],  //  0 bases / DNA      cyan
+            ['#065f46', '#34d399', '#a7f3d0'],  //  1 storage          emerald
+            ['#92400e', '#fbbf24', '#fde68a'],  //  2 protein          amber
+            ['#5b21b6', '#a78bfa', '#ddd6fe'],  //  3 neural net       violet
+            ['#86198f', '#e879f9', '#f5d0fe'],  //  4 compressed       fuchsia
+            ['#a16207', '#fcd34d', '#fef3c7'],  //  5 sphere           gold
+            ['#9a3412', '#fb923c', '#fed7aa'],  //  6 architecture     orange
+            ['#9f1239', '#fb7185', '#fecdd3'],  //  7 morphology       rose
+            ['#075985', '#38bdf8', '#bae6fd'],  //  8 expansion        sky
+            ['#3f6212', '#a3e635', '#d9f99d'],  //  9 forest / proof   lime
+            ['#3730a3', '#818cf8', '#c7d2fe'],  // 10 prior art        indigo
+        ];
+
+        const STAGE_LABELS = [
+            'Four letters', 'The storage medium', 'From storage to execution',
+            'Encoding intelligence', 'The complete package', 'Minimal physical form',
+            'The seed architecture', 'Morphological freedom', 'Exponential unfolding',
+            'We are the proof', 'Prior art'
+        ];
+
+        function hexToRgb(h) {
+            return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+        }
+        function mixRgb(a, b, t) {
+            return [Math.round(lerp(a[0], b[0], t)), Math.round(lerp(a[1], b[1], t)), Math.round(lerp(a[2], b[2], t))];
+        }
+
+        // Blend the two palettes either side of the current progress so colour
+        // drifts continuously rather than snapping at stage boundaries.
+        function paletteAt(progress) {
+            const i = clamp(Math.floor(progress), 0, PALETTES.length - 1);
+            const j = clamp(i + 1, 0, PALETTES.length - 1);
+            const raw = clamp(progress - i, 0, 1);
+            const t = raw < 0.72 ? 0 : easeInOutCubic((raw - 0.72) / 0.28);
+            const A = PALETTES[i].map(hexToRgb), B = PALETTES[j].map(hexToRgb);
+            return [0, 1, 2].map(k => mixRgb(A[k], B[k], t));
+        }
+
+        // Is this colour one of the greyscale values the renderers emit?
+        // Returns luminance 0..1, or null if it is already coloured.
+        function greyLevel(v) {
+            if (!v || v === 'none') return null;
+            let m = /^#([0-9a-f]{6})$/i.exec(v.trim());
+            if (m) {
+                const [r, g, b] = hexToRgb('#' + m[1]);
+                return (r === g && g === b) ? r / 255 : null;
+            }
+            m = /^#([0-9a-f]{3})$/i.exec(v.trim());
+            if (m) {
+                const c = m[1];
+                return (c[0] === c[1] && c[1] === c[2]) ? parseInt(c[0] + c[0], 16) / 255 : null;
+            }
+            m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(v.trim());
+            if (m) {
+                const r = +m[1], g = +m[2], b = +m[3];
+                return (r === g && g === b) ? r / 255 : null;
+            }
+            return null;
+        }
+        function alphaOf(v) {
+            const m = /^rgba\([^)]*,\s*([\d.]+)\s*\)$/i.exec(String(v).trim());
+            return m ? parseFloat(m[1]) : 1;
+        }
+
+        // Map greyscale luminance onto the 3-stop palette ramp.
+        function rampColor(level, pal, alpha) {
+            // renderers use roughly #444 (0.27) .. #999 (0.60); stretch that to 0..1
+            const t = clamp((level - 0.24) / 0.42, 0, 1);
+            const rgb = t < 0.5 ? mixRgb(pal[0], pal[1], t * 2) : mixRgb(pal[1], pal[2], (t - 0.5) * 2);
+            return alpha < 1 ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` : `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        }
+
+        const stageWrap = document.getElementById('stageWrap');
+        const stageTxt = document.getElementById('stageTxt');
+        const progressBar = document.getElementById('progressBar');
+        const rootStyle = document.documentElement.style;
+        let lastLabel = -1;
+
+        function retheme(progress) {
+            const pal = paletteAt(progress);
+
+            const els = stage.querySelectorAll('*');
+            for (let i = 0; i < els.length; i++) {
+                const el = els[i];
+                for (const attr of ['stroke', 'fill']) {
+                    const v = el.getAttribute(attr);
+                    const lvl = greyLevel(v);
+                    if (lvl === null) continue;
+                    el.setAttribute(attr, rampColor(lvl, pal, alphaOf(v)));
+                }
+            }
+
+            // drive the page accent from the same ramp
+            const a = pal[1];
+            rootStyle.setProperty('--accent', `rgb(${a[0]},${a[1]},${a[2]})`);
+
+            // compact stages can fill the panel; the forest spreads wide and
+            // would clip, so ease the zoom back out across stages 7.4 -> 8.8
+            let z;
+            if (progress < 7.4) z = 1.4;
+            else if (progress < 8.8) z = lerp(1.4, 1.0, (progress - 7.4) / 1.4);
+            else if (progress < 10) z = 1.0;
+            else z = lerp(1.0, 1.3, clamp(progress - 10, 0, 1));
+            stageWrap.setAttribute('transform', `translate(400 400) scale(${z.toFixed(3)}) translate(-400 -400)`);
+
+            const li = clamp(Math.floor(progress + 0.28), 0, STAGE_LABELS.length - 1);
+            if (li !== lastLabel) { stageTxt.textContent = STAGE_LABELS[li]; lastLabel = li; }
+        }
+
+        // ---- starfield with parallax --------------------------------------
+        (function buildStars() {
+            const g = document.getElementById('stars');
+            if (!g) return;
+            let seed = 20260806;
+            const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+            const NS = 'http://www.w3.org/2000/svg';
+            let markup = '';
+            for (let i = 0; i < 260; i++) {
+                const x = rnd() * 800, y = rnd() * 800;
+                const r = rnd() < 0.86 ? 0.5 + rnd() * 0.9 : 1.4 + rnd() * 1.5;
+                const o = 0.12 + rnd() * 0.5;
+                const dur = (2.5 + rnd() * 5).toFixed(2);
+                const delay = (rnd() * 6).toFixed(2);
+                markup += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" fill="#dce6ff" opacity="${o.toFixed(2)}">` +
+                    `<animate attributeName="opacity" values="${o.toFixed(2)};${(o * 0.25).toFixed(2)};${o.toFixed(2)}" dur="${dur}s" begin="${delay}s" repeatCount="indefinite"/></circle>`;
+            }
+            g.innerHTML = markup;
+        })();
+
+        // ---- chrome driven from the same scroll position ------------------
+        function updateChrome() {
+            const doc = document.documentElement;
+            const max = doc.scrollHeight - window.innerHeight;
+            const pct = max > 0 ? (window.pageYOffset / max) * 100 : 0;
+            if (progressBar) progressBar.style.width = pct.toFixed(2) + '%';
+            const stars = document.getElementById('stars');
+            if (stars) stars.setAttribute('transform', `translate(0, ${(-pct * 0.55).toFixed(1)})`);
+        }
+        window.addEventListener('scroll', updateChrome, { passive: true });
+        updateChrome();
+
+        // ---- Stage 11: the lineage converging on a seed -------------------
+        function renderLineage(t) {
+            const NS = 'http://www.w3.org/2000/svg';
+            const cx = 400, cy = 400;
+            const nodes = [
+                { a: -Math.PI / 2,      label: 'VON NEUMANN' },
+                { a: Math.PI / 6,       label: 'PANSPERMIA' },
+                { a: Math.PI * 5 / 6,   label: 'GENESIS' }
+            ];
+            const R = 230;
+
+            // orbit ring
+            const ring = document.createElementNS(NS, 'circle');
+            ring.setAttribute('cx', cx); ring.setAttribute('cy', cy);
+            ring.setAttribute('r', R * (0.7 + 0.3 * t));
+            ring.setAttribute('fill', 'none');
+            ring.setAttribute('stroke', '#555555');
+            ring.setAttribute('stroke-width', '1');
+            ring.setAttribute('stroke-dasharray', '3 9');
+            ring.setAttribute('opacity', 0.5 * t);
+            stage.appendChild(ring);
+
+            nodes.forEach((n, i) => {
+                const delay = i * 0.12;
+                const tt = clamp((t - delay) / (1 - delay || 1), 0, 1);
+                const x = cx + Math.cos(n.a) * R * (1 - 0.18 * tt);
+                const y = cy + Math.sin(n.a) * R * (1 - 0.18 * tt);
+
+                // converging line
+                const line = document.createElementNS(NS, 'line');
+                line.setAttribute('x1', x); line.setAttribute('y1', y);
+                line.setAttribute('x2', lerp(x, cx, tt)); line.setAttribute('y2', lerp(y, cy, tt));
+                line.setAttribute('stroke', '#777777');
+                line.setAttribute('stroke-width', '1.5');
+                line.setAttribute('opacity', 0.75 * tt);
+                stage.appendChild(line);
+
+                const c = document.createElementNS(NS, 'circle');
+                c.setAttribute('cx', x); c.setAttribute('cy', y);
+                c.setAttribute('r', 12 + 5 * tt);
+                c.setAttribute('fill', '#888888');
+                c.setAttribute('opacity', 0.55 + 0.4 * tt);
+                stage.appendChild(c);
+
+                const label = document.createElementNS(NS, 'text');
+                label.setAttribute('x', x); label.setAttribute('y', y - 30);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('fill', '#999999');
+                label.setAttribute('font-size', '15');
+                label.setAttribute('letter-spacing', '3');
+                label.setAttribute('font-family', '-apple-system, sans-serif');
+                label.setAttribute('opacity', tt);
+                label.textContent = n.label;
+                stage.appendChild(label);
+            });
+
+            // the seed they all converge on
+            for (let k = 3; k >= 1; k--) {
+                const halo = document.createElementNS(NS, 'circle');
+                halo.setAttribute('cx', cx); halo.setAttribute('cy', cy);
+                halo.setAttribute('r', (18 + k * 16) * (0.5 + 0.5 * t));
+                halo.setAttribute('fill', 'none');
+                halo.setAttribute('stroke', '#666666');
+                halo.setAttribute('stroke-width', '1');
+                halo.setAttribute('opacity', (0.34 / k) * t);
+                stage.appendChild(halo);
+            }
+            const core = document.createElementNS(NS, 'circle');
+            core.setAttribute('cx', cx); core.setAttribute('cy', cy);
+            core.setAttribute('r', 15 + 9 * t);
+            core.setAttribute('fill', '#999999');
+            core.setAttribute('opacity', 0.55 + 0.45 * t);
+            stage.appendChild(core);
+
+            const cap = document.createElementNS(NS, 'text');
+            cap.setAttribute('x', cx); cap.setAttribute('y', cy + 178);
+            cap.setAttribute('text-anchor', 'middle');
+            cap.setAttribute('fill', '#888888');
+            cap.setAttribute('font-size', '13');
+            cap.setAttribute('letter-spacing', '4');
+            cap.setAttribute('font-family', '-apple-system, sans-serif');
+            cap.setAttribute('opacity', t * 0.9);
+            cap.textContent = 'A TRAINED MODEL';
+            stage.appendChild(cap);
+        }
+
         function animate() {
             const progress = getScrollProgress();
 
@@ -1331,9 +1619,5 @@
         });
     </script>
 
-    <!-- Contact Section -->
-    <div style="position: fixed; bottom: 10px; left: 10px; font-size: 11px; opacity: 0.6; color: #999; z-index: 1000;">
-        Questions or feedback? <a href="mailto:holla@felixflor.es" style="color: #667eea; text-decoration: none;">holla@felixflor.es</a>
-    </div>
 </body>
 </html>
