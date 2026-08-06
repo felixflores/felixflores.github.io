@@ -15,11 +15,8 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-      background: #0a0a0a;
-      color: #f5f5f7;
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      min-height: 100vh;
+      background: #0a0a0a; color: #f5f5f7; line-height: 1.6;
+      -webkit-font-smoothing: antialiased; min-height: 100vh;
     }
 
     .wrap { max-width: 720px; margin: 0 auto; padding: 80px 24px 60px; }
@@ -40,17 +37,15 @@
     }
     h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #86868b; }
     .section-note { font-size: 12px; color: #4a4a4d; }
-    .section-sub { font-size: 13px; color: #4a4a4d; margin-bottom: 14px; }
+    .section-sub { font-size: 13px; color: #4a4a4d; margin-bottom: 14px; transition: color 0.3s ease; }
 
     ul { list-style: none; }
 
     .row {
-      display: flex; align-items: center; gap: 16px;
-      padding: 14px 16px;
+      display: flex; align-items: center; gap: 16px; padding: 14px 16px;
       background: rgba(10, 10, 12, 0.4);
       border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      text-decoration: none; color: inherit;
+      border-radius: 12px; text-decoration: none; color: inherit;
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .row-item + .row-item { margin-top: 8px; }
@@ -66,6 +61,17 @@
     .row-desc { font-size: 13px; color: #86868b; line-height: 1.4; }
     .row-arrow { color: #4af; font-size: 14px; opacity: 0; transition: opacity 0.2s ease; flex-shrink: 0; }
     .row:hover .row-arrow { opacity: 1; }
+
+    /* live status, filled in from the status endpoint */
+    .dot {
+      display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+      margin-left: 9px; vertical-align: middle;
+      background: #3a3a3c; transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    .row-item[data-state="up"] .dot { background: #32d74b; box-shadow: 0 0 8px rgba(50,215,75,0.7); }
+    .row-item[data-state="down"] .dot { background: #48484a; }
+    .row-item[data-state="down"] .row { opacity: 0.42; }
+    .row-item[data-state="down"] .row:hover { opacity: 0.62; }
 
     .footer { margin-top: 64px; text-align: center; color: #3a3a3c; font-size: 13px; }
     .footer a { color: #4af; text-decoration: none; }
@@ -96,54 +102,64 @@
       <h2>Running now</h2>
       <span class="section-note">self-hosted</span>
     </div>
-    <p class="section-sub">These run on a laptop at home. If one doesn't load, it's asleep — try later.</p>
+    <p class="section-sub" id="hostedNote">These run on a laptop at home. Checking what's awake&hellip;</p>
     <ul>
-      <li class="row-item">
+      <li class="row-item" data-svc="super-vision">
         <a class="row" href="https://super-vision.felixflor.es" target="_blank" rel="noopener noreferrer">
           <i class="fa-solid fa-eye row-icon"></i>
           <span class="row-text">
-            <span class="row-name">Super Color Vision</span>
+            <span class="row-name">Super Color Vision<span class="dot" aria-hidden="true"></span></span>
             <span class="row-desc">Find the odd tile as the shade difference shrinks each round.</span>
           </span>
           <span class="row-arrow">↗</span>
         </a>
       </li>
-      <li class="row-item">
+      <li class="row-item" data-svc="hibla">
         <a class="row" href="https://hibla.felixflor.es" target="_blank" rel="noopener noreferrer">
           <i class="fa-solid fa-font row-icon"></i>
           <span class="row-text">
-            <span class="row-name">Hibla</span>
+            <span class="row-name">Hibla<span class="dot" aria-hidden="true"></span></span>
             <span class="row-desc">A typeface built so letters stay countable. Type specimen.</span>
           </span>
           <span class="row-arrow">↗</span>
         </a>
       </li>
-      <li class="row-item">
+      <li class="row-item" data-svc="wesley">
         <a class="row" href="https://wesley.felixflor.es" target="_blank" rel="noopener noreferrer">
           <i class="fa-solid fa-gamepad row-icon"></i>
           <span class="row-text">
-            <span class="row-name">The Wesley</span>
+            <span class="row-name">The Wesley<span class="dot" aria-hidden="true"></span></span>
             <span class="row-desc">Feature-request history for a game built to order.</span>
           </span>
           <span class="row-arrow">↗</span>
         </a>
       </li>
-      <li class="row-item">
+      <li class="row-item" data-svc="una">
         <a class="row" href="https://una.felixflor.es" target="_blank" rel="noopener noreferrer">
           <i class="fa-solid fa-shapes row-icon"></i>
           <span class="row-text">
-            <span class="row-name">Una&#x27;s Toy Box</span>
+            <span class="row-name">Una&#x27;s Toy Box<span class="dot" aria-hidden="true"></span></span>
             <span class="row-desc">A small pile of toys. Pick one and play.</span>
           </span>
           <span class="row-arrow">↗</span>
         </a>
       </li>
-      <li class="row-item">
+      <li class="row-item" data-svc="stats-collector">
         <a class="row" href="https://stats-collector.felixflor.es" target="_blank" rel="noopener noreferrer">
           <i class="fa-solid fa-chart-simple row-icon"></i>
           <span class="row-text">
-            <span class="row-name">Video Stats Report</span>
+            <span class="row-name">Video Stats Report<span class="dot" aria-hidden="true"></span></span>
             <span class="row-desc">Reporting over video stats.</span>
+          </span>
+          <span class="row-arrow">↗</span>
+        </a>
+      </li>
+      <li class="row-item" data-svc="public-square">
+        <a class="row" href="https://public-square.felixflor.es" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-users row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Public Square<span class="dot" aria-hidden="true"></span></span>
+            <span class="row-desc">A simulation of a public square.</span>
           </span>
           <span class="row-arrow">↗</span>
         </a>
@@ -297,5 +313,39 @@
       <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
     </div>
   </div>
+
+  <script>
+    // GitHub Pages cannot tell a live origin from a 502 across origins: a
+    // no-cors fetch resolves opaque either way, and none of these serve a
+    // probe-able image. So the tunnel host answers for itself, with CORS.
+    // Fetch failing is itself the signal that the laptop is unreachable.
+    (function () {
+      var note = document.getElementById('hostedNote');
+      var items = document.querySelectorAll('.row-item[data-svc]');
+      var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = setTimeout(function () { ctl && ctl.abort(); }, 6000);
+
+      fetch('https://status.felixflor.es/', { cache: 'no-store', signal: ctl && ctl.signal })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (d) {
+          clearTimeout(timer);
+          var up = 0, total = 0;
+          items.forEach(function (li) {
+            var state = d.services[li.getAttribute('data-svc')];
+            if (typeof state !== 'boolean') return;
+            total++; if (state) up++;
+            li.setAttribute('data-state', state ? 'up' : 'down');
+          });
+          note.textContent = total
+            ? up + ' of ' + total + " awake right now. These run on a laptop at home."
+            : "These run on a laptop at home.";
+        })
+        .catch(function () {
+          clearTimeout(timer);
+          items.forEach(function (li) { li.setAttribute('data-state', 'down'); });
+          note.textContent = "Can't reach the home server — these are all asleep. Try later.";
+        });
+    })();
+  </script>
 </body>
 </html>
