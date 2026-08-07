@@ -169,6 +169,7 @@
     .card-modal.on { display: block; }
     .card-modal-inner { max-width: 420px; margin: 0 auto; }
     .card-hint { font-size: 11px; letter-spacing: 2px; color: #00ff00; opacity: 0.75; margin-bottom: 14px; line-height: 1.7; }
+    #cardVideo { width: 100%; max-width: 330px; border: 1px solid rgba(0,255,0,0.4); border-radius: 6px; }
     #cardImg { width: 100%; max-width: 330px; border: 1px solid rgba(0,255,0,0.4); border-radius: 6px; }
     .card-actions { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
     .card-actions .mini { border-color: rgba(0,255,0,0.6); color: #00ff00; text-decoration: none; display: inline-block; }
@@ -231,7 +232,8 @@
           <button type="button" class="mini" id="proofPlay">❚❚</button>
           <input type="range" id="proofScrub" min="0" max="0" value="0" step="1">
           <span class="proof-read" id="proofRead">—</span>
-          <button type="button" class="mini" id="proofShare">SHARE / SAVE</button>
+          <button type="button" class="mini" id="proofShare">SHARE VIDEO</button>
+          <button type="button" class="mini" id="proofShareImg">STILL</button>
         </div>
       </div>
 
@@ -245,8 +247,9 @@
 
   <div class="card-modal" id="cardModal">
     <div class="card-modal-inner">
-      <p class="card-hint">LONG-PRESS THE IMAGE TO SAVE IT &mdash; THEN POST IT AND TURN YOUR PHONE SIDEWAYS</p>
+      <p class="card-hint" id="cardHint">LONG-PRESS TO SAVE &mdash; THEN POST IT AND TURN YOUR PHONE SIDEWAYS</p>
       <img id="cardImg" alt="Blinking Contest result card">
+      <video id="cardVideo" playsinline muted loop style="display:none"></video>
       <div class="card-actions">
         <a class="mini" id="cardDownload" href="#">DOWNLOAD</a>
         <button type="button" class="mini" id="cardClose">CLOSE</button>
@@ -736,6 +739,7 @@ var QR = (function () {
     }
     let ringHead = 0;
     let proofFrames = [];
+    let proofHistory = [];
 
     function capture(ratio) {
       const slot = ring[ringHead];
@@ -869,6 +873,7 @@ var QR = (function () {
       drawProofFrame(proofIdx);
     });
     document.getElementById('proofShare').addEventListener('click', shareCard);
+    document.getElementById('proofShareImg').addEventListener('click', shareStill);
 
 
     // ---- shareable card -------------------------------------------------
@@ -896,12 +901,11 @@ var QR = (function () {
       }
     }
 
-    function buildShareCard() {
-      const cv = document.createElement('canvas');
-      cv.width = CARD_W; cv.height = CARD_H;
-      const g = cv.getContext('2d');
+    // Draws the whole card for a given moment: which replay frame to show in
+    // the eye window, and how much of the trace has happened yet. The still
+    // export renders the last moment; the video walks it forward.
+    function drawCard(g, shot, traceEndT) {
       g.fillStyle = '#000'; g.fillRect(0, 0, CARD_W, CARD_H);
-
       g.save();
       g.translate(0, CARD_H);
       g.rotate(-Math.PI / 2);
@@ -919,8 +923,6 @@ var QR = (function () {
       g.fillStyle = 'rgba(0,255,0,0.55)';
       g.fillText('HOW LONG CAN YOU LAST', PAD, PAD + 84);
 
-      // the eyes, from the frame that ended the round
-      const shot = proofFrames.length ? proofFrames[proofFrames.length - 1] : null;
       const eyeW = 1290, eyeH = eyeW / 3, eyeX = PAD, eyeY = 170;
       g.fillStyle = '#0a0a0a';
       g.fillRect(eyeX, eyeY, eyeW, eyeH);
@@ -931,7 +933,6 @@ var QR = (function () {
       g.fillStyle = 'rgba(255,138,128,0.9)';
       g.fillText('THE MOMENT IT CAUGHT ME', eyeX + 10, eyeY + eyeH + 30);
 
-      // QR + url
       const qrS = 280, qrX = L_W - PAD - qrS, qrY = eyeY;
       drawQR(g, SHARE_URL, qrX, qrY, qrS);
       g.textAlign = 'center';
@@ -942,7 +943,6 @@ var QR = (function () {
       g.fillStyle = 'rgba(0,255,0,0.7)';
       g.fillText('felixflor.es/blinking.html', qrX + qrS / 2, qrY + qrS + 72);
 
-      // stats
       const labelY = 700, valueY = 782;
       const stats = [
         ['TIME',   lastTime.toFixed(2) + 's'],
@@ -960,14 +960,15 @@ var QR = (function () {
         g.fillText(st[1], x, valueY);
       });
 
-      // the cardiogram
       const trY = 830, trH = 150, trW = L_W - PAD * 2;
       g.fillStyle = 'rgba(0,40,0,0.5)';
       g.fillRect(PAD, trY, trW, trH);
       g.strokeStyle = 'rgba(0,255,0,0.35)'; g.lineWidth = 2;
       g.strokeRect(PAD, trY, trW, trH);
-      const endT = shot ? shot.t : performance.now();
-      renderTrace(g, PAD, trY, trW, trH, history, endT, 2.2);
+      // only reveal the trace up to the moment being shown
+      const src = proofHistory.length ? proofHistory : history;
+      renderTrace(g, PAD, trY, trW, trH,
+                  src.filter(h => h.t <= traceEndT), traceEndT, 2.2);
 
       g.font = '24px "Courier New", monospace';
       g.fillStyle = '#ff8a80';
@@ -978,18 +979,106 @@ var QR = (function () {
       g.fillText('TURN PHONE SIDEWAYS', L_W - PAD, trY + trH + 44);
 
       g.restore();
+    }
+
+    function buildShareCard() {
+      const cv = document.createElement('canvas');
+      cv.width = CARD_W; cv.height = CARD_H;
+      const shot = proofFrames.length ? proofFrames[proofFrames.length - 1] : null;
+      drawCard(cv.getContext('2d'), shot, shot ? shot.t : performance.now());
       return cv;
     }
 
+    // Instagram will not take WebM, so prefer MP4 wherever the browser can
+    // produce it and say so plainly when it cannot.
+    function pickVideoMime() {
+      if (typeof MediaRecorder === 'undefined') return '';
+      const want = ['video/mp4;codecs=avc1.42E01E', 'video/mp4',
+                    'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      for (const m of want) {
+        try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) {}
+      }
+      return '';
+    }
+
+    const FRAME_MS = 120;      // quarter speed, same as the on-page replay
+    const HOLD_MS  = 1600;     // linger on the blink at the end
+
+    async function recordShareVideo(onProgress) {
+      const mime = pickVideoMime();
+      if (!mime || !proofFrames.length) return null;
+
+      const cv = document.createElement('canvas');
+      cv.width = CARD_W; cv.height = CARD_H;
+      const g = cv.getContext('2d');
+      drawCard(g, proofFrames[0], proofFrames[0].t);
+
+      const stream = cv.captureStream(30);
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 });
+      const chunks = [];
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      const done = new Promise(res => { rec.onstop = res; });
+      rec.start();
+
+      const t0 = performance.now();
+      const total = proofFrames.length * FRAME_MS + HOLD_MS;
+      await new Promise(res => {
+        (function tick() {
+          const elapsed = performance.now() - t0;
+          const i = Math.min(proofFrames.length - 1, Math.floor(elapsed / FRAME_MS));
+          const shot = proofFrames[i];
+          drawCard(g, shot, shot.t);
+          if (onProgress) onProgress(Math.min(1, elapsed / total));
+          if (elapsed >= total) return res();
+          requestAnimationFrame(tick);
+        })();
+      });
+
+      rec.stop();
+      await done;
+      stream.getTracks().forEach(t => t.stop());
+      return { blob: new Blob(chunks, { type: mime }), mime };
+    }
+
     async function shareCard() {
+      const btn = document.getElementById('proofShare');
+      const label = btn.textContent;
+      btn.disabled = true;
+
+      try {
+        const out = await recordShareVideo(pct => {
+          btn.textContent = 'RENDERING ' + Math.round(pct * 100) + '%';
+        });
+        btn.textContent = label;
+        btn.disabled = false;
+
+        if (!out) return shareStill();      // no MediaRecorder — fall back
+
+        const ext = out.mime.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+        const file = new File([out.blob], 'blinking-contest.' + ext, { type: out.mime.split(';')[0] });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: 'Blinking Contest' });
+            return;
+          } catch (e) { if (e.name === 'AbortError') return; }
+        }
+        showVideoFallback(out.blob, ext);
+      } catch (e) {
+        console.error('[blink] video export failed', e);
+        btn.textContent = label;
+        btn.disabled = false;
+        shareStill();
+      }
+    }
+
+    async function shareStill() {
       let cv;
       try { cv = buildShareCard(); }
       catch (e) { console.error('[blink] card failed', e); return; }
       const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
       if (!blob) return;
       const file = new File([blob], 'blinking-contest.png', { type: 'image/png' });
-
-      // the share sheet is the only route straight into Instagram from a phone
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], title: 'Blinking Contest' });
@@ -999,9 +1088,32 @@ var QR = (function () {
       showCardFallback(cv);
     }
 
+    function showVideoFallback(blob, ext) {
+      const url = URL.createObjectURL(blob);
+      const modal = document.getElementById('cardModal');
+      document.getElementById('cardImg').style.display = 'none';
+      const vid = document.getElementById('cardVideo');
+      vid.style.display = 'block';
+      vid.src = url; vid.loop = true; vid.muted = true;
+      vid.play().catch(() => {});
+      const dl = document.getElementById('cardDownload');
+      dl.href = url;
+      dl.download = 'blinking-contest.' + ext;
+      document.getElementById('cardHint').textContent = ext === 'mp4'
+        ? 'SAVE IT, THEN POST IT AND TURN YOUR PHONE SIDEWAYS'
+        : 'THIS BROWSER ONLY MAKES WEBM, WHICH INSTAGRAM WILL NOT TAKE — SAVE FROM A PHONE, OR USE THE STILL';
+      modal.classList.add('on');
+    }
+
     function showCardFallback(cv) {
       const url = cv.toDataURL('image/png');
-      document.getElementById('cardImg').src = url;
+      const vid = document.getElementById('cardVideo');
+      vid.pause(); vid.removeAttribute('src'); vid.style.display = 'none';
+      const img = document.getElementById('cardImg');
+      img.style.display = 'block';
+      img.src = url;
+      document.getElementById('cardHint').textContent =
+        'LONG-PRESS THE IMAGE TO SAVE IT — THEN POST IT AND TURN YOUR PHONE SIDEWAYS';
       const dl = document.getElementById('cardDownload');
       dl.href = url;
       dl.download = 'blinking-contest.png';
@@ -1060,6 +1172,8 @@ var QR = (function () {
 
       if (reason === 'blink') {
         proofFrames = collectProof();
+        proofHistory = history.slice();   // the live one keeps rolling
+
         if (proofFrames.length) {
           proofScrub.max = String(proofFrames.length - 1);
           proofIdx = 0;
@@ -1249,7 +1363,9 @@ var QR = (function () {
         return;
       }
 
-      capture(ratio);
+      // Not once the round is over: proofFrames holds references into this
+      // ring, and continuing to write would overwrite the evidence.
+      if (state !== 'ended') capture(ratio);
       const now = performance.now();
       history.push({ t: now, ratio });
       while (history.length && now - history[0].t > 4000) history.shift();
