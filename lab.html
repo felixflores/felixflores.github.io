@@ -21,12 +21,25 @@
 
     .wrap { max-width: 720px; margin: 0 auto; padding: 80px 24px 60px; }
 
+    .lab-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 40px;
+    }
+
     .back {
       display: inline-flex; align-items: center; gap: 8px;
       color: #6e6e73; text-decoration: none; font-size: 13px;
-      margin-bottom: 40px; transition: color 0.2s ease;
+      transition: color 0.2s ease;
     }
     .back:hover { color: #f5f5f7; }
+
+    .lab-nav {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px;
+    }
+    .lab-nav a { color: #6e6e73; text-decoration: none; transition: color 0.2s ease; }
+    .lab-nav a:hover { color: #f5f5f7; }
+    .lab-nav .sep { color: #3a3a3c; }
 
     h1 { font-size: 34px; font-weight: 600; letter-spacing: -1px; margin-bottom: 8px; }
     .lede { color: #6e6e73; font-size: 16px; margin-bottom: 48px; }
@@ -59,6 +72,7 @@
     .row-text { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; }
     .row-name { font-size: 15px; font-weight: 600; color: #f5f5f7; letter-spacing: -0.2px; }
     .row-desc { font-size: 13px; color: #86868b; line-height: 1.4; }
+    .row-cross { color: #4af; }
     .row-arrow { color: #4af; font-size: 14px; opacity: 0; transition: opacity 0.2s ease; flex-shrink: 0; }
     .row:hover .row-arrow { opacity: 1; }
 
@@ -93,7 +107,14 @@
 </script>
 <body>
   <div class="wrap">
-    <a class="back" href="index.html">← Felix Flores</a>
+    <div class="lab-head">
+      <a class="back" href="index.html">← Felix Flores</a>
+      <nav class="lab-nav" aria-label="Primary">
+        <a href="index.html#play">Play</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="mailto:holla@felixflor.es">Email</a>
+      </nav>
+    </div>
 
     <h1>Lab</h1>
     <p class="lede">Experiments, utilities, and half-finished things.</p>
@@ -266,7 +287,7 @@
           <i class="fa-solid fa-eye-slash row-icon"></i>
           <span class="row-text">
             <span class="row-name">Blinking Contest</span>
-            <span class="row-desc">Two cropped eyes, a countdown, and a timer. Try not to blink.</span>
+            <span class="row-desc">Two cropped eyes, a countdown, and a timer. Try not to blink. Competitive play lives at <span class="row-cross">dorkyrobot.com/play/blinkers</span>.</span>
           </span>
           <span class="row-arrow">→</span>
         </a>
@@ -287,6 +308,16 @@
       <h2>Elsewhere</h2>
     </div>
     <ul>
+      <li class="row-item">
+        <a class="row" href="https://dorkyrobot.com/play/blinkers/" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-trophy row-icon"></i>
+          <span class="row-text">
+            <span class="row-name">Top Blinkers — Dorky Robot Arcade</span>
+            <span class="row-desc">Where the Blinking Contest keeps score. Leaderboard and ghost challenges.</span>
+          </span>
+          <span class="row-arrow">↗</span>
+        </a>
+      </li>
       <li class="row-item">
         <a class="row" href="blog.html">
           <i class="fa-solid fa-hammer row-icon"></i>

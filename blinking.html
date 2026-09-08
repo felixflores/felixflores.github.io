@@ -192,17 +192,29 @@
     }
     .back-link:hover { text-shadow: 0 0 10px #00ff00; opacity: 1; }
 
+    /* the scoreboard lives on the company domain */
+    .compete-link {
+      position: fixed; top: 18px; right: 18px;
+      color: #00ff00; text-decoration: none; opacity: 0.75;
+      font-size: 12px; letter-spacing: 2px;
+      border: 1px solid rgba(0, 255, 0, 0.45); border-radius: 6px;
+      padding: 6px 11px;
+    }
+    .compete-link:hover { text-shadow: 0 0 10px #00ff00; opacity: 1; border-color: #00ff00; }
+
     .contact { position: fixed; bottom: 10px; left: 12px; font-size: 11px; opacity: 0.45; color: #999; }
     .contact a { color: #667eea; text-decoration: none; }
 
     @media (max-width: 560px) {
       .eyes { gap: 8px; }
       .eye-ear { display: none; }
+      .compete-link { font-size: 10px; padding: 5px 8px; letter-spacing: 1px; top: 14px; right: 12px; }
     }
   </style>
 </head>
 <body>
   <a href="index.html" class="back-link">← Back to Home</a>
+  <a href="https://dorkyrobot.com/play/blinkers/" target="_blank" rel="noopener noreferrer" class="compete-link">TOP BLINKERS &#8599;</a>
 
   <div class="container">
     <h1>👁️ BLINKING CONTEST</h1>
@@ -270,7 +282,8 @@
   </div>
 
   <div class="contact">
-    Questions or feedback? <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
+    Compete on the leaderboard at <a href="https://dorkyrobot.com/play/blinkers/" target="_blank" rel="noopener noreferrer">dorkyrobot.com/play/blinkers</a>
+    &middot; Questions or feedback? <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
   </div>
 
   <!-- QR encoder from the qrmaker project: byte mode, versions 1-40,

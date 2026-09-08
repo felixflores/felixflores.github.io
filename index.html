@@ -3,7 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Felix Flores</title>
+  <title>Felix Flores — Technologist, tools &amp; browser experiments</title>
+  <meta name="description" content="Felix Flores builds small technological solutions: browser games, self-hosted tools, and experiments. Play the Blinking Contest, TiltRush and Super Color Vision, or browse the Lab.">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="canonical" href="https://felixflor.es/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://felixflor.es/">
+  <meta property="og:title" content="Felix Flores — Technologist, tools &amp; browser experiments">
+  <meta property="og:description" content="Browser games, self-hosted tools, and experiments. Play the Blinking Contest, TiltRush and Super Color Vision, or browse the Lab.">
+  <meta property="og:image" content="https://felixflor.es/image.png">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
@@ -26,7 +35,9 @@
       overflow-x: hidden;
     }
 
-    /* Cellular Automata Canvas */
+    /* Background shader. Readability wins by default: the canvas is dimmed
+       and a scrim sits over it. Hiding the content (View toggle) hands the
+       screen back to the art at full strength. */
     #caCanvas {
       position: fixed;
       top: 0;
@@ -34,7 +45,25 @@
       width: 100%;
       height: 100%;
       z-index: 0;
+      opacity: 0.5;
+      transition: opacity 0.5s ease;
     }
+
+    .scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 0.5s ease;
+      background:
+        radial-gradient(120% 90% at 50% 24%, rgba(10, 10, 12, 0.82) 0%, rgba(10, 10, 12, 0.5) 48%, rgba(10, 10, 12, 0.34) 100%),
+        linear-gradient(180deg, rgba(10, 10, 12, 0.42) 0%, rgba(10, 10, 12, 0.7) 100%);
+    }
+
+    /* art mode: content hidden, background unmasked */
+    body.art-mode #caCanvas { opacity: 1; }
+    body.art-mode .scrim { opacity: 0; }
 
     .content {
       position: relative;
@@ -48,6 +77,45 @@
       pointer-events: none;
       transform: scale(0.98);
     }
+
+    /* Light nav: Play · Lab · email */
+    .nav {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 8px;
+      background: rgba(10, 10, 12, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      transition: opacity 0.5s ease;
+    }
+
+    .nav a {
+      color: rgba(255, 255, 255, 0.62);
+      text-decoration: none;
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: color 0.2s ease, background 0.2s ease;
+    }
+
+    .nav a:hover {
+      color: #f5f5f7;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .nav .sep {
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 11px;
+    }
+
+    body.art-mode .nav { opacity: 0; pointer-events: none; }
 
     .toggle-btn {
       position: fixed;
@@ -112,12 +180,23 @@
       letter-spacing: -1.5px;
       margin-bottom: 8px;
       color: #f5f5f7;
+      text-shadow: 0 2px 24px rgba(0, 0, 0, 0.85);
     }
 
     .title {
       font-size: 18px;
-      color: #6e6e73;
-      margin-bottom: 32px;
+      color: #b8b8bd;
+      margin-bottom: 12px;
+      text-shadow: 0 1px 18px rgba(0, 0, 0, 0.8);
+    }
+
+    .craft {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #86868b;
+      max-width: 30em;
+      margin: 0 auto 30px;
+      text-shadow: 0 1px 16px rgba(0, 0, 0, 0.8);
     }
 
     .social-links {
@@ -133,10 +212,12 @@
       justify-content: center;
       width: 44px;
       height: 44px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(10, 10, 12, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 50%;
-      color: #86868b;
+      color: #c2c2c7;
       text-decoration: none;
       transition: all 0.2s ease;
     }
@@ -153,16 +234,120 @@
       height: 18px;
     }
 
+    /* Section chrome shared by Play and Projects */
+    .section {
+      padding: 0 40px 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #a1a1a6;
+    }
+
+    .section-link {
+      font-size: 13px;
+      color: #4af;
+      text-decoration: none;
+    }
+
+    .section-link:hover { text-decoration: underline; }
+
+    /* Play strip — the games, up front */
+    #play { scroll-margin-top: 24px; }
+
+    .play-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .play-card {
+      display: flex;
+      flex-direction: column;
+      background: rgba(10, 10, 12, 0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 22px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .play-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      transform: translateY(-3px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .play-card.featured {
+      grid-column: span 2;
+      border-color: rgba(68, 170, 255, 0.28);
+    }
+
+    .play-icon {
+      font-size: 22px;
+      color: rgba(255, 255, 255, 0.55);
+      margin-bottom: 14px;
+    }
+
+    .play-name {
+      font-size: 17px;
+      font-weight: 600;
+      color: #f5f5f7;
+      letter-spacing: -0.3px;
+      margin-bottom: 6px;
+    }
+
+    .play-desc {
+      font-size: 13px;
+      color: #9b9ba0;
+      line-height: 1.5;
+      flex-grow: 1;
+    }
+
+    .play-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 16px;
+    }
+
+    .play-actions a {
+      font-size: 13px;
+      color: #4af;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .play-actions a:hover { text-decoration: underline; }
+
+    .play-actions a.secondary { color: #86868b; }
+    .play-actions a.secondary:hover { color: #c2c2c7; }
+
     /* Projects - Uniform Grid */
     .projects {
-      padding: 40px;
+      padding: 0 40px 40px;
       max-width: 900px;
       margin: 0 auto;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
     }
 
@@ -172,21 +357,13 @@
       position: relative;
     }
 
-    /* Last row centered with 2 items */
-    .grid-cell:nth-child(4) {
-      grid-column: 1 / 2;
-    }
-    .grid-cell:nth-child(5) {
-      grid-column: 2 / 3;
-    }
-
     .project-card {
       position: absolute;
       inset: 0;
-      background: rgba(10, 10, 12, 0.4);
+      background: rgba(10, 10, 12, 0.55);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 16px;
       padding: 24px;
       text-decoration: none;
@@ -253,9 +430,9 @@
 
     /* Footer */
     .footer {
-      padding: 60px 40px;
+      padding: 50px 40px 60px;
       text-align: center;
-      color: #3a3a3c;
+      color: #6e6e73;
       font-size: 13px;
     }
 
@@ -264,30 +441,36 @@
       text-decoration: none;
     }
 
+    .footer a:hover { text-decoration: underline; }
+
+    .footer .footer-note {
+      margin-top: 8px;
+      color: #6e6e73;
+    }
+
+    .footer .footer-note a { color: #86868b; }
+
     /* Responsive */
     @media (max-width: 768px) {
-      .grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .grid-cell:nth-child(4) { grid-column: 1; }
-      .grid-cell:nth-child(5) { grid-column: 2; }
+      .play-card.featured { grid-column: span 1; }
     }
 
     @media (max-width: 500px) {
       .hero {
-        padding: 60px 24px 30px;
-        min-height: 40vh;
+        padding: 76px 24px 24px;
+        min-height: 0;
       }
 
       .name {
         font-size: 32px;
       }
 
+      .section,
       .projects {
-        padding: 20px;
+        padding: 0 20px 24px;
       }
 
+      .play-grid,
       .grid {
         grid-template-columns: 1fr;
         gap: 12px;
@@ -297,8 +480,21 @@
         aspect-ratio: 1.6;
       }
 
-      .grid-cell:nth-child(n) {
-        grid-column: 1;
+      .nav { top: 14px; right: 14px; }
+      .nav a { padding: 4px 8px; }
+      .toggle-btn { top: 14px; left: 14px; }
+    }
+
+    /* Someone who asked for less motion gets a single still frame. */
+    @media (prefers-reduced-motion: reduce) {
+      .content,
+      #caCanvas,
+      .scrim,
+      .nav,
+      .project-card,
+      .play-card,
+      .social-link {
+        transition: none;
       }
     }
   </style>
@@ -311,14 +507,22 @@
   gtag('config', 'G-R0M5DGW99S');
 </script>
 <body>
-  <button class="toggle-btn" id="toggleBtn" title="Toggle view">
+  <button class="toggle-btn" id="toggleBtn" aria-pressed="false" title="Hide content and view the background">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
       <circle cx="12" cy="12" r="3"/>
     </svg>
     <span>View</span>
   </button>
+  <nav class="nav" aria-label="Primary">
+    <a href="#play">Play</a>
+    <span class="sep" aria-hidden="true">·</span>
+    <a href="lab.html">Lab</a>
+    <span class="sep" aria-hidden="true">·</span>
+    <a href="mailto:holla@felixflor.es" title="holla@felixflor.es">Email</a>
+  </nav>
   <canvas id="caCanvas"></canvas>
+  <div class="scrim" aria-hidden="true"></div>
 
   <div class="content" id="content">
     <!-- Hero -->
@@ -327,6 +531,8 @@
         <img src="image.png" alt="Felix Flores" class="avatar">
         <h1 class="name">Felix Flores</h1>
         <p class="title">Technologist</p>
+        <!-- Craft line: one sentence, edit freely. -->
+        <p class="craft">I build technological solutions &mdash; small tools, browser games, and experiments that answer a question I couldn&rsquo;t stop asking.</p>
         <div class="social-links">
           <a href="https://github.com/felixflores" target="_blank" rel="noopener noreferrer" class="social-link" title="GitHub">
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
@@ -344,8 +550,48 @@
       </div>
     </section>
 
+    <!-- Play: games first, no digging through the Lab -->
+    <section class="section" id="play">
+      <div class="section-head">
+        <h2>Play</h2>
+        <a class="section-link" href="lab.html">All experiments &rarr;</a>
+      </div>
+      <div class="play-grid">
+        <article class="play-card featured">
+          <i class="fa-solid fa-eye-slash play-icon" aria-hidden="true"></i>
+          <h3 class="play-name">Blinking Contest</h3>
+          <p class="play-desc">Two cropped eyes, a countdown, and a timer. Your webcam watches for the blink &mdash; how long can you last? Runs entirely in the browser.</p>
+          <div class="play-actions">
+            <a href="blinking.html">Play &rarr;</a>
+            <a class="secondary" href="https://dorkyrobot.com/play/blinkers/" target="_blank" rel="noopener noreferrer">Compete &amp; Top Blinkers &#8599;</a>
+          </div>
+        </article>
+
+        <article class="play-card">
+          <i class="fa-solid fa-gamepad play-icon" aria-hidden="true"></i>
+          <h3 class="play-name">TiltRush</h3>
+          <p class="play-desc">Motion-controlled mobile game. Tilt the phone, dodge the rest.</p>
+          <div class="play-actions">
+            <a href="tiltrush.html">Play &rarr;</a>
+          </div>
+        </article>
+
+        <article class="play-card">
+          <i class="fa-solid fa-eye play-icon" aria-hidden="true"></i>
+          <h3 class="play-name">Super Color Vision</h3>
+          <p class="play-desc">Find the odd tile as the shade difference shrinks each round.</p>
+          <div class="play-actions">
+            <a href="https://super-vision.felixflor.es" target="_blank" rel="noopener noreferrer">Take the test &#8599;</a>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <!-- Projects -->
-    <section class="projects">
+    <section class="section projects">
+      <div class="section-head">
+        <h2>Projects</h2>
+      </div>
       <div class="grid">
         <div class="grid-cell">
           <a href="buddhabrot_bg.html" class="project-card">
@@ -362,24 +608,6 @@
             <h3 class="project-name">Unaisa Protocol <span class="draft-badge">Draft</span></h3>
             <p class="project-description">Decentralized content addressing via Merkle chains</p>
             <span class="project-arrow">Read →</span>
-          </a>
-        </div>
-
-        <div class="grid-cell">
-          <a href="https://super-vision.felixflor.es" target="_blank" rel="noopener noreferrer" class="project-card">
-            <i class="fa-solid fa-eye project-icon"></i>
-            <h3 class="project-name">Super Color Vision</h3>
-            <p class="project-description">Find the odd tile as the shade difference shrinks</p>
-            <span class="project-arrow">Take the test ↗</span>
-          </a>
-        </div>
-
-        <div class="grid-cell">
-          <a href="tiltrush.html" class="project-card">
-            <i class="fa-solid fa-gamepad project-icon"></i>
-            <h3 class="project-name">TiltRush</h3>
-            <p class="project-description">Motion-controlled mobile game</p>
-            <span class="project-arrow">Play →</span>
           </a>
         </div>
 
@@ -405,6 +633,7 @@
 
     <footer class="footer">
       <a href="mailto:holla@felixflor.es">holla@felixflor.es</a>
+      <p class="footer-note">Competitive blinking lives at <a href="https://dorkyrobot.com/play/blinkers/" target="_blank" rel="noopener noreferrer">Dorky Robot</a>.</p>
     </footer>
   </div>
 
@@ -414,9 +643,14 @@
     const content = document.getElementById('content');
     const btnText = toggleBtn.querySelector('span');
 
+    // Default is readable: content up, background dimmed behind a scrim.
+    // Toggling off the content is what unmasks the shader.
     toggleBtn.addEventListener('click', () => {
-      content.classList.toggle('hidden');
-      btnText.textContent = content.classList.contains('hidden') ? 'Show' : 'View';
+      const hidden = content.classList.toggle('hidden');
+      document.body.classList.toggle('art-mode', hidden);
+      btnText.textContent = hidden ? 'Show' : 'View';
+      toggleBtn.setAttribute('aria-pressed', String(hidden));
+      toggleBtn.title = hidden ? 'Show content' : 'Hide content and view the background';
     });
   </script>
 
@@ -547,7 +781,17 @@
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
 
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let frameQueued = false;
+
+    function queueFrame() {
+      if (frameQueued) return;
+      frameQueued = true;
+      requestAnimationFrame(render);
+    }
+
     function render(time) {
+      frameQueued = false;
       // Smooth mouse following
       mouse.x += (mouse.targetX - mouse.x) * 0.05;
       mouse.y += (mouse.targetY - mouse.y) * 0.05;
@@ -562,10 +806,18 @@
       gl.uniform2f(mouseLocation, mouse.x, mouse.y);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-      requestAnimationFrame(render);
+      if (!reduceMotion && !document.hidden) queueFrame();
     }
 
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', () => {
+      resize();
+      // A still frame has to be redrawn by hand — the loop is not running.
+      if (reduceMotion) queueFrame();
+    });
+    document.addEventListener('visibilitychange', () => {
+      // Nothing to animate for a tab nobody is looking at.
+      if (!document.hidden && !reduceMotion) queueFrame();
+    });
     window.addEventListener('mousemove', (e) => {
       mouse.targetX = e.clientX / window.innerWidth;
       mouse.targetY = 1.0 - e.clientY / window.innerHeight;
@@ -576,7 +828,7 @@
     });
 
     resize();
-    requestAnimationFrame(render);
+    queueFrame();
   </script>
 </body>
 </html>
