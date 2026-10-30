@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#120d09" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>One Stroke - Connect Every Dot</title>
+  <meta name="description" content="A chalkboard puzzle: connect every dot in one unbroken stroke. More dots every level." />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <meta property="og:title" content="One Stroke" />
+  <meta property="og:description" content="Connect every dot in one unbroken stroke. Lift your chalk and the line is wiped." />
+  <meta property="og:url" content="https://felixflor.es/one-stroke.html" />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cabin+Sketch:wght@400;700&family=Kalam:wght@300;400;700&display=swap">
+<style>
+/* Layout: one chalkboard in a wooden frame; header chalk-lettered above, tray of controls below. Single dark world by choice. */
+:root {
+  --board: #22302a;
+  --board-deep: #18221d;
+  --frame: #6b4a2f;
+  --frame-dark: #4a3220;
+  --chalk: #eef0e6;
+  --chalk-dim: rgba(238, 240, 230, 0.55);
+  --chalk-faint: rgba(238, 240, 230, 0.18);
+  --yellow: #f1d77a;
+  --pink: #f2a3a3;
+  --font-display: "Cabin Sketch", "Comic Sans MS", "Chalkboard SE", cursive;
+  --font-body: "Kalam", "Chalkboard SE", "Comic Sans MS", cursive;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+body {
+  background: #120d09;
+  color: var(--chalk);
+  font-family: var(--font-body);
+  font-size: 17px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.frame {
+  width: 100%;
+  max-width: 760px;
+  background: linear-gradient(160deg, var(--frame), var(--frame-dark));
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+}
+.board {
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.06), transparent 55%),
+    radial-gradient(ellipse at 75% 80%, rgba(255,255,255,0.04), transparent 50%),
+    var(--board);
+  box-shadow: inset 0 0 60px var(--board-deep);
+  border-radius: 4px;
+  padding: 18px 18px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(30px, 7vw, 44px);
+  margin: 0;
+  line-height: 1;
+  text-wrap: balance;
+}
+h1 .squig { display: block; height: 10px; margin-top: 2px; }
+.stats { display: flex; gap: 16px; font-size: 16px; color: var(--chalk-dim); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--chalk); font-weight: 700; }
+.rule { color: var(--chalk-dim); margin: 2px 0 0; font-size: 16px; max-width: 60ch; }
+.rule em { color: var(--yellow); font-style: normal; }
+.stage { position: relative; width: 100%; flex: 1; min-height: 0; }
+svg#play { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.status {
+  min-height: 1.6em;
+  text-align: center;
+  font-size: 19px;
+  color: var(--chalk);
+}
+.status.warn { color: var(--pink); }
+.status.good { color: var(--yellow); }
+.tray {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+button {
+  min-height: 44px;
+  min-width: 44px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--frame-dark);
+  background: #e9e2d0;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+}
+button:hover { background: #fff8e6; }
+button:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.35); }
+button:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: var(--yellow); }
+.home {
+  color: #f3e7cf; font-size: 15px; text-decoration: none; padding: 10px 6px; margin-right: auto;
+}
+.home:hover, .home:focus-visible { text-decoration: underline; }
+@media (max-width: 520px) { .home { margin-right: 0; flex-basis: 100%; text-align: center; padding: 2px; order: 9; } }
+.lvl { color: #f3e7cf; font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: center; font-size: 17px; }
+@media (max-width: 520px) {
+  body { font-size: 15px; padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+  .frame { padding: 8px; border-radius: 8px; }
+  .board { padding: 12px 10px 6px; }
+  .rule { font-size: 14px; line-height: 1.35; }
+  .stats { font-size: 14px; gap: 12px; }
+  .status { font-size: 16px; }
+  .tray { margin-top: 8px; gap: 6px; }
+  button { font-size: 15px; padding: 6px 11px; }
+  .lvl { min-width: 5.2em; font-size: 16px; }
+}
+@media (max-height: 600px) { .rule { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="board">
+    <header>
+      <h1>One Stroke
+        <svg class="squig" viewBox="0 0 220 10" preserveAspectRatio="none" aria-hidden="true"><path d="M2 6 q6 -6 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0" fill="none" stroke="#eef0e6" stroke-width="2" opacity=".8"/></svg>
+      </h1>
+      <div class="stats"><span>dots <b id="dotCount">0</b></span><span>tries <b id="tries">0</b></span><span>best <b id="best">1</b></span></div>
+    </header>
+    <p class="rule">Connect every dot with one line. Lines go across or up and down between neighbors, and no dot twice. <em>Lift your chalk and the line is wiped.</em></p>
+    <div class="stage"><svg id="play" role="img" aria-label="Dot puzzle board"></svg></div>
+    <div class="status" id="status" aria-live="polite">Press on any dot and drag.</div>
+  </div>
+  <div class="tray">
+    <a class="home" href="index.html#play">&larr; felixflor.es</a>
+    <button id="prev" type="button" aria-label="Previous level">◀</button>
+    <span class="lvl" id="lvlLabel">Level 1</span>
+    <button id="next" type="button" aria-label="Next level">▶</button>
+    <button id="hint" type="button">Hint</button>
+    <button id="reveal" type="button">Solution</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SP = 100; // svg units between dots
+  const svg = document.getElementById('play');
+  const NS = 'http://www.w3.org/2000/svg';
+  const $ = id => document.getElementById(id);
+
+  // ---------- seeded random ----------
+  function rng(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- level generation ----------
+  // A random Hamiltonian path over the full grid (backbite moves), then a
+  // contiguous slice of it. The slice is the known solution, so every level is solvable.
+  function hamiltonian(W, H, rand) {
+    const path = [];
+    for (let y = 0; y < H; y++)
+      for (let i = 0; i < W; i++) path.push([y % 2 ? W - 1 - i : i, y]);
+    const idx = new Map();
+    const key = (x, y) => x + ',' + y;
+    const reindex = () => { idx.clear(); path.forEach((p, i) => idx.set(key(p[0], p[1]), i)); };
+    reindex();
+    const moves = W * H * 40;
+    for (let m = 0; m < moves; m++) {
+      if (rand() < 0.5) path.reverse(), reindex();
+      const [x, y] = path[path.length - 1];
+      const nb = [[1,0],[-1,0],[0,1],[0,-1]][Math.floor(rand() * 4)];
+      const nx = x + nb[0], ny = y + nb[1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const i = idx.get(key(nx, ny));
+      if (i === path.length - 2) continue;
+      // reverse path[i+1 .. end]
+      const tail = path.splice(i + 1).reverse();
+      path.push(...tail);
+      for (let k = i + 1; k < path.length; k++) idx.set(key(path[k][0], path[k][1]), k);
+    }
+    return path;
+  }
+
+  function levelSpec(n) {
+    // grows from a 3x3 board toward 7x9; dots fill ~80-90% of it
+    const W = Math.min(3 + Math.floor((n - 1) / 2), 7);
+    const H = Math.min(3 + Math.floor(n / 2), 9);
+    const area = W * H;
+    const extra = Math.max(0, n - 12);              // past the size cap, fewer holes
+    const fill = Math.min(0.97, 0.72 + n * 0.012 + extra * 0.01);
+    const L = Math.max(5, Math.min(area, Math.round(area * fill)));
+    return { W, H, L };
+  }
+
+  function makeLevel(n) {
+    const rand = rng(n * 7919 + 13);
+    const { W, H, L } = levelSpec(n);
+    const full = hamiltonian(W, H, rand);
+    const start = Math.floor(rand() * (full.length - L + 1));
+    let sol = full.slice(start, start + L);
+    // trim empty rows/cols
+    const minX = Math.min(...sol.map(p => p[0])), minY = Math.min(...sol.map(p => p[1]));
+    sol = sol.map(([x, y]) => [x - minX, y - minY]);
+    const w = Math.max(...sol.map(p => p[0])) + 1, h = Math.max(...sol.map(p => p[1])) + 1;
+    return { n, w, h, sol, dots: sol.map(p => p.slice()) };
+  }
+
+  // ---------- state ----------
+  let best = 1;
+  try { best = Math.max(1, parseInt(localStorage.getItem('oneStroke.best') || '1', 10) || 1); } catch (e) {}
+  let level, dotSet, path = [], drawing = false, tries = 0, solved = false, hintStep = 0, pointer = null;
+
+  const K = (x, y) => x + ',' + y;
+
+  // ---------- svg scaffolding ----------
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    (parent || svg).appendChild(e);
+    return e;
+  }
+
+  let gHint, gLine, gDots, live, mark;
+  function build() {
+    svg.innerHTML = '';
+    const pad = 60;
+    const vw = (level.w - 1) * SP + pad * 2, vh = (level.h - 1) * SP + pad * 2;
+    svg.setAttribute('viewBox', `${-pad} ${-pad} ${vw} ${vh}`);
+    const defs = el('defs', {});
+    const f = el('filter', { id: 'chalk', filterUnits: 'userSpaceOnUse', x: -pad, y: -pad, width: vw, height: vh }, defs);
+    el('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.9', numOctaves: '2', seed: String(level.n), result: 'n' }, f);
+    el('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', scale: '5', xChannelSelector: 'R', yChannelSelector: 'G' }, f);
+    gHint = el('g', {});
+    gLine = el('g', { filter: 'url(#chalk)' });
+    live = el('line', { stroke: 'rgba(238,240,230,0.35)', 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-dasharray': '2 12', visibility: 'hidden' });
+    gDots = el('g', { filter: 'url(#chalk)' });
+    level.dots.forEach(([x, y]) => {
+      el('circle', { cx: x * SP, cy: y * SP, r: 17, fill: 'rgba(238,240,230,0.04)', stroke: '#eef0e6', 'stroke-width': 4.5, 'data-k': K(x, y) }, gDots);
+    });
+    mark = el('g', { filter: 'url(#chalk)', 'pointer-events': 'none' });
+  }
+
+  function render() {
+    gLine.innerHTML = '';
+    if (path.length > 1) {
+      el('polyline', {
+        points: path.map(([x, y]) => `${x * SP},${y * SP}`).join(' '),
+        fill: 'none', stroke: solved ? '#f1d77a' : '#eef0e6', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: .92
+      }, gLine);
+    }
+    const on = new Set(path.map(p => K(p[0], p[1])));
+    gDots.querySelectorAll('circle').forEach(c => {
+      const hit = on.has(c.getAttribute('data-k'));
+      c.setAttribute('fill', hit ? (solved ? '#f1d77a' : '#eef0e6') : 'rgba(238,240,230,0.04)');
+      c.setAttribute('stroke', solved ? '#f1d77a' : '#eef0e6');
+    });
+    if (drawing && pointer && path.length) {
+      const [x, y] = path[path.length - 1];
+      live.setAttribute('x1', x * SP); live.setAttribute('y1', y * SP);
+      live.setAttribute('x2', pointer[0]); live.setAttribute('y2', pointer[1]);
+      live.setAttribute('visibility', 'visible');
+    } else live.setAttribute('visibility', 'hidden');
+    $('dotCount').textContent = `${path.length}/${level.dots.length}`;
+    $('tries').textContent = tries;
+    $('best').textContent = best;
+  }
+
+  function setStatus(text, kind) {
+    const s = $('status');
+    s.textContent = text;
+    s.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function drawMark(kind) {
+    mark.innerHTML = '';
+    const cx = (level.w - 1) * SP, cy = -20;
+    const d = kind === 'x'
+      ? `M${cx - 22} ${cy - 22} L${cx + 22} ${cy + 22} M${cx + 22} ${cy - 22} L${cx - 22} ${cy + 22}`
+      : `M${cx - 30} ${cy} L${cx - 8} ${cy + 24} L${cx + 40} ${cy - 46}`;
+    const p = el('path', { d, fill: 'none', stroke: kind === 'x' ? '#f2a3a3' : '#f1d77a', 'stroke-width': 8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, mark);
+    const len = p.getTotalLength();
+    p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
+    p.getBoundingClientRect();
+    p.style.transition = 'stroke-dashoffset .45s ease-out';
+    p.style.strokeDashoffset = 0;
+  }
+
+  // ---------- loading levels ----------
+  function load(n) {
+    level = makeLevel(n);
+    dotSet = new Set(level.dots.map(p => K(p[0], p[1])));
+    path = []; drawing = false; solved = false; tries = 0; hintStep = 0; pointer = null;
+    build(); render();
+    $('lvlLabel').textContent = `Level ${n}`;
+    $('prev').disabled = n <= 1;
+    $('next').disabled = n >= best;
+    setStatus(n === 1 ? 'Press on any dot and drag.' : `${level.dots.length} dots. Where do you start?`);
+  }
+
+  // ---------- input ----------
+  function toSvg(evt) {
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return [p.x, p.y];
+  }
+  function cellAt([px, py], radius) {
+    const x = Math.round(px / SP), y = Math.round(py / SP);
+    if (!dotSet.has(K(x, y))) return null;
+    if (Math.hypot(px - x * SP, py - y * SP) > radius) return null;
+    return [x, y];
+  }
+  const inPath = (x, y) => path.some(p => p[0] === x && p[1] === y);
+
+  function step(c) {
+    if (!c) return;
+    const last = path[path.length - 1];
+    if (last[0] === c[0] && last[1] === c[1]) return;
+    const prev = path[path.length - 2];
+    if (prev && prev[0] === c[0] && prev[1] === c[1]) { path.pop(); return; } // back up
+    if (Math.abs(last[0] - c[0]) + Math.abs(last[1] - c[1]) !== 1) return;
+    if (inPath(c[0], c[1])) return;
+    path.push(c);
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
+  }
+
+  let lastPt = null;
+  svg.addEventListener('pointerdown', e => {
+    if (solved) return;
+    const p = toSvg(e);
+    const c = cellAt(p, 46);
+    if (!c) return;
+    e.preventDefault();
+    svg.setPointerCapture(e.pointerId);
+    drawing = true; path = [c]; pointer = p; lastPt = p;
+    mark.innerHTML = '';
+    hintClear();
+    setStatus('Keep going…');
+    render();
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const p = toSvg(e);
+    // walk from the last point in small steps so fast drags don't skip a dot
+    const dist = Math.hypot(p[0] - lastPt[0], p[1] - lastPt[1]);
+    const n = Math.max(1, Math.ceil(dist / 20));
+    for (let i = 1; i <= n; i++) {
+      const q = [lastPt[0] + (p[0] - lastPt[0]) * i / n, lastPt[1] + (p[1] - lastPt[1]) * i / n];
+      step(cellAt(q, 40));
+    }
+    lastPt = p; pointer = p;
+    if (path.length === level.dots.length) return finish();
+    render();
+  });
+  function lift() {
+    if (!drawing) return;
+    drawing = false;
+    if (path.length === level.dots.length) return finish();
+    tries++;
+    const left = level.dots.length - path.length;
+    if (path.length > 1) {
+      drawMark('x');
+      setStatus(`Chalk lifted with ${left} dot${left === 1 ? '' : 's'} left. Wiped. Try again.`, 'warn');
+    } else setStatus('Press on a dot and drag without lifting.');
+    path = [];
+    render();
+  }
+  svg.addEventListener('pointerup', lift);
+  svg.addEventListener('pointercancel', lift);
+
+  function finish() {
+    drawing = false; solved = true;
+    if (level.n + 1 > best) {
+      best = level.n + 1;
+      try { localStorage.setItem('oneStroke.best', String(best)); } catch (e) {}
+    }
+    render();
+    drawMark('check');
+    $('next').disabled = false;
+    const praise = tries === 0 ? 'First try!' : tries < 3 ? 'Nice.' : 'Got it.';
+    setStatus(`${praise} All ${level.dots.length} dots in one stroke. Next level in a moment…`, 'good');
+    clearTimeout(finish.t);
+    finish.t = setTimeout(() => { if (solved && level.n + 1 <= best) load(level.n + 1); }, 1700);
+  }
+
+  // ---------- hints ----------
+  function hintClear() { gHint.innerHTML = ''; }
+  function showSol(count) {
+    hintClear();
+    const s = level.sol.slice(0, count);
+    el('circle', { cx: s[0][0] * SP, cy: s[0][1] * SP, r: 30, fill: 'none', stroke: '#f1d77a', 'stroke-width': 3, 'stroke-dasharray': '6 7' }, gHint);
+    if (s.length > 1) el('polyline', {
+      points: s.map(([x, y]) => `${x * SP},${y * SP}`).join(' '),
+      fill: 'none', stroke: 'rgba(241,215,122,0.55)', 'stroke-width': 5, 'stroke-dasharray': '4 12', 'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+    }, gHint);
+  }
+  $('hint').addEventListener('click', () => {
+    if (solved) return;
+    hintStep = Math.min(level.sol.length, hintStep === 0 ? 1 : hintStep + 3);
+    showSol(hintStep);
+    setStatus(hintStep === 1 ? 'Start at the circled dot.' : 'Follow the dashes, then finish on your own.');
+  });
+  $('reveal').addEventListener('click', () => {
+    if (solved) return;
+    hintStep = level.sol.length;
+    showSol(hintStep);
+    setStatus('One way through. Trace it to move on.');
+  });
+
+  $('prev').addEventListener('click', () => { if (level.n > 1) load(level.n - 1); });
+  $('next').addEventListener('click', () => { if (level.n < best) load(level.n + 1); });
+  // keep iOS from scrolling, zooming or pulling to refresh while drawing
+  svg.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+  svg.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturestart', e => e.preventDefault());
+
+  function start(data) {
+    load(data && data.level ? Math.min(data.level, best) : best);
+  }
+  start({});
+})();
+</script>
+</body>
+</html>
